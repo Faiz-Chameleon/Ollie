@@ -1,0 +1,4 @@
+enum ChatRoomType {
+  DIRECT,
+  GROUP,
+}

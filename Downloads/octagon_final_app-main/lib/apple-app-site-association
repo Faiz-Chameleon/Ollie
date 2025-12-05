@@ -1,0 +1,14 @@
+{
+  "applinks":{
+    "apps":[],
+    "details":[
+      {
+        "appID": "299MYWFHL6.com.octagon.app",
+        "paths": [
+          "NOT /_/*",
+          "/*"
+        ]
+      }
+    ]
+  }
+}

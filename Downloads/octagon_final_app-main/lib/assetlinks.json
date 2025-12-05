@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.octagon.app",
+    "sha256_cert_fingerprints":
+    ["A1:83:2F:74:CF:D1:30:79:96:30:59:14:0B:AB:F1:3C:98:64:25:15:49:8E:65:5B:49:8B:87:74:5C:EF:BF:F2",
+    "C4:8D:93:EB:63:EA:32:C5:8B:1B:AD:AF:B6:B0:7A:D6:91:CA:9D:8B:A0:78:B4:01:9A:E8:50:06:7C:30:0D:FA"]
+  }
+}]

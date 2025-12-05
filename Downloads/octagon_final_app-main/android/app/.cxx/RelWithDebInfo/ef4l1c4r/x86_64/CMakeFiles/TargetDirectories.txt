@@ -1,0 +1,2 @@
+/Users/macbook/flutter_projects/octagon_app_2024/android/app/.cxx/RelWithDebInfo/ef4l1c4r/x86_64/CMakeFiles/edit_cache.dir
+/Users/macbook/flutter_projects/octagon_app_2024/android/app/.cxx/RelWithDebInfo/ef4l1c4r/x86_64/CMakeFiles/rebuild_cache.dir

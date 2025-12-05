@@ -1,0 +1,70 @@
+{
+  "project_info": {
+    "project_number": "529017755873",
+    "project_id": "octagon-f9c20",
+    "storage_bucket": "octagon-f9c20.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:529017755873:android:7a39d6d3b8e6b6cab17fa0",
+        "android_client_info": {
+          "package_name": "com.octagon.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "529017755873-csu193p0gksrj3gdkbaf95itp6rk2hut.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.octagon.app",
+            "certificate_hash": "5e97da3915d50ae839a90444b7e8fa2ba06bdb6c"
+          }
+        },
+        {
+          "client_id": "529017755873-fg0mhfhk1jffmnjrjoebfubjev417cia.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.octagon.app",
+            "certificate_hash": "6329d16f63256e4fb5efe6b8328dd0170f875fd6"
+          }
+        },
+        {
+          "client_id": "529017755873-u0te3o0g0vhrfkqss08crjcm4koqeib6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.octagon.app",
+            "certificate_hash": "242e439d8299c11a0ab859e8dc320b08ea6f4f49"
+          }
+        },
+        {
+          "client_id": "529017755873-s8526oorf70ie06682o28q4jdiqrgoka.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRd1opXILkusJwgu1VKPoj1gVUHP6dBho"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "529017755873-1i5i8j63q51b0ja101ihrk9augpjef0r.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "529017755873-3o33f6r6kl5n747o67h67fbflpbmpnke.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.octagon.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

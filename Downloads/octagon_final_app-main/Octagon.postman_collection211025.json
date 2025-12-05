@@ -1,0 +1,1218 @@
+{
+	"info": {
+		"_postman_id": "92d352bf-39f0-4ace-bae2-a49813dc2af1",
+		"name": "Octagon",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "20469500"
+	},
+	"item": [
+		{
+			"name": "Messenger",
+			"item": [
+				{
+					"name": "Add Group",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "subject",
+									"value": "Group directly from API",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/messenger/groups",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"messenger",
+								"groups"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Send Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "message\n",
+									"value": "1st message in a group",
+									"type": "text"
+								},
+								{
+									"key": "temporary_id",
+									"value": "aebc5ffe-8e14-44b5-bfa8-6fbcc466e62r",
+									"type": "text"
+								},
+								{
+									"key": "approve",
+									"value": "true",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "reply_to_id",
+									"value": "9fd1d543-f2b8-4c02-aa51-1485e1223b68",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/messenger/threads/9fc493c3-46f3-43ad-92d7-b9f24ea11fe0/messages",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"messenger",
+								"threads",
+								"9fc493c3-46f3-43ad-92d7-b9f24ea11fe0",
+								"messages"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Send Audio Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "audio",
+									"type": "file",
+									"src": "/home/gmt/Downloads/sample audios/file_example_MP3_5MG.mp3"
+								},
+								{
+									"key": "temporary_id",
+									"value": "7a9de719-dd0f-465a-b73b-d6d12716fb00",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/messenger/threads/9fc493c3-46f3-43ad-92d7-b9f24ea11fe0/audio",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"messenger",
+								"threads",
+								"9fc493c3-46f3-43ad-92d7-b9f24ea11fe0",
+								"audio"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Send Video Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "video",
+									"type": "file",
+									"src": "/home/gmt/Downloads/sample videos/file_example_MP4_640_3MG.mp4"
+								},
+								{
+									"key": "temporary_id",
+									"value": "47ae7778-df29-4259-85f8-046c3d121cce",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/messenger/threads/9fc493c3-46f3-43ad-92d7-b9f24ea11fe0/videos",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"messenger",
+								"threads",
+								"9fc493c3-46f3-43ad-92d7-b9f24ea11fe0",
+								"videos"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Download Audio Message",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "audio",
+									"value": "1st message in a group",
+									"type": "text"
+								},
+								{
+									"key": "reply_to_id",
+									"value": "9fd1d543-f2b8-4c02-aa51-1485e1223b69",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/messenger/assets/threads/9fc493c3-46f3-43ad-92d7-b9f24ea11fe0/audio/9fd2939f-1463-40c8-9b86-c2308f995ef5/file_example_MP3_5MG_42c61cf1-7e01-4a33-b659-6ea15d37ee19.mp3",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"messenger",
+								"assets",
+								"threads",
+								"9fc493c3-46f3-43ad-92d7-b9f24ea11fe0",
+								"audio",
+								"9fd2939f-1463-40c8-9b86-c2308f995ef5",
+								"file_example_MP3_5MG_42c61cf1-7e01-4a33-b659-6ea15d37ee19.mp3"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Download Video Message",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "audio",
+									"value": "1st message in a group",
+									"type": "text"
+								},
+								{
+									"key": "reply_to_id",
+									"value": "9fd1d543-f2b8-4c02-aa51-1485e1223b69",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/messenger/assets/threads/9fc493c3-46f3-43ad-92d7-b9f24ea11fe0/videos/9fd2ab72-f231-4473-8dc0-e1be478feeed/file_example_MP4_640_3MG_25332355-e99c-4300-9919-658462f9f379.mp4",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"messenger",
+								"assets",
+								"threads",
+								"9fc493c3-46f3-43ad-92d7-b9f24ea11fe0",
+								"videos",
+								"9fd2ab72-f231-4473-8dc0-e1be478feeed",
+								"file_example_MP4_640_3MG_25332355-e99c-4300-9919-658462f9f379.mp4"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Thread Messages",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "message\n",
+									"value": "1st message in a group",
+									"type": "text"
+								},
+								{
+									"key": "temporary_id",
+									"value": "aebc5ffe-8e14-44b5-bfa8-6fbcc466e62r",
+									"type": "text"
+								},
+								{
+									"key": "approve",
+									"value": "true",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/messenger/threads/9fc493c3-46f3-43ad-92d7-b9f24ea11fe0/messages?per_page=2",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"messenger",
+								"threads",
+								"9fc493c3-46f3-43ad-92d7-b9f24ea11fe0",
+								"messages"
+							],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "2"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Message",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "message\n",
+									"value": "1st message in a group",
+									"type": "text"
+								},
+								{
+									"key": "temporary_id",
+									"value": "aebc5ffe-8e14-44b5-bfa8-6fbcc466e62r",
+									"type": "text"
+								},
+								{
+									"key": "approve",
+									"value": "true",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/messenger/threads/9fc493c3-46f3-43ad-92d7-b9f24ea11fe0/messages/9fd2939f-1463-40c8-9b86-c2308f995ef5",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"messenger",
+								"threads",
+								"9fc493c3-46f3-43ad-92d7-b9f24ea11fe0",
+								"messages",
+								"9fd2939f-1463-40c8-9b86-c2308f995ef5"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "React to Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "reaction",
+									"value": "🤓",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/messenger/threads/9fc493c3-46f3-43ad-92d7-b9f24ea11fe0/messages/9fd2939f-1463-40c8-9b86-c2308f995ef5/reactions",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"messenger",
+								"threads",
+								"9fc493c3-46f3-43ad-92d7-b9f24ea11fe0",
+								"messages",
+								"9fd2939f-1463-40c8-9b86-c2308f995ef5",
+								"reactions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Message Reactions",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": []
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/messenger/threads/9fc493c3-46f3-43ad-92d7-b9f24ea11fe0/messages/9fd1d543-f2b8-4c02-aa51-1485e1223b68/reactions",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"messenger",
+								"threads",
+								"9fc493c3-46f3-43ad-92d7-b9f24ea11fe0",
+								"messages",
+								"9fd1d543-f2b8-4c02-aa51-1485e1223b68",
+								"reactions"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"auth": {
+				"type": "bearer",
+				"bearer": [
+					{
+						"key": "token",
+						"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiNTE5YTcxNmYzNzFhYjUzYzhhMjhiZjc1YTJjZTVhY2M5YWIyNjhlZjdhZWIyNTk5YTQ0NTRhYWIzNWU2MGIyNzkzOTg0OTU5ZGI1NmRiZWIiLCJpYXQiOjE3NTQxNTg5MjEuMTk3NDgxLCJuYmYiOjE3NTQxNTg5MjEuMTk3NDg4LCJleHAiOjE3ODU2OTQ5MjEuMTMzODkxLCJzdWIiOiIyNDAiLCJzY29wZXMiOltdfQ.ODcjfXrkMr6-icBnQJCHLwo45MInrYdwPY3JIsWihXJHBs721sbCRDisCwvPNzNPZ5CEKpwGUAdPKtwDYocSgN_Ni-WbjqVDZvIRRWNTtRcAYCPsgrmtEiGTpianM9N9D9XUbqTp8-oHtJAKzOlBeony-DsDMO8Sk2JR7WeCR6bljlQV2WgkWS7Ww1A11PA4sdjSQ1IrEUnmbdDDpfMyWf5ZjcLtGM5lLbi8ElkEEcnqxcG5tyXcryp9HO5n2GBlBqJiAC9BYi7BrrW6eDuU9d3zjUVqjmdhKsqxp-HfZwDhbSW-lHlqaj65sva81XESfnfAj2NhncKKv8PtqSSaQIWFdDYBURctrOFuLZ_gGpl55JNO89XG1KYOXmuIgoviBhmgOvlfkxaSksCgazIylI85wfZYZHbxFz4ptIbWb4Ia3-acge3qStNQxVOkZyEHifOMyxW8u1kTn_8yJK5oitSwN4sx4C05IvDd2kRPpYf9yGt_QIpZSyeihGazCNU1CTQtVJ4jHNRozMUc0Q1ZtbKek8zGCIUZSNMfnPw32Y8O5-sHj5-XsGruBrhnNBecK7timlpzcsT0cT4tNx1yHyxUIEg_rOpIeW_LzimzwJEkWAdqWgPdE9i38Bk1qSyMbTwn2eSd_Js_fMzPaP-fw0V4qYSyytyfOU_IudlDq-8",
+						"type": "string"
+					}
+				]
+			},
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							""
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Create Group",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiNTE5YTcxNmYzNzFhYjUzYzhhMjhiZjc1YTJjZTVhY2M5YWIyNjhlZjdhZWIyNTk5YTQ0NTRhYWIzNWU2MGIyNzkzOTg0OTU5ZGI1NmRiZWIiLCJpYXQiOjE3NTQxNTg5MjEuMTk3NDgxLCJuYmYiOjE3NTQxNTg5MjEuMTk3NDg4LCJleHAiOjE3ODU2OTQ5MjEuMTMzODkxLCJzdWIiOiIyNDAiLCJzY29wZXMiOltdfQ.ODcjfXrkMr6-icBnQJCHLwo45MInrYdwPY3JIsWihXJHBs721sbCRDisCwvPNzNPZ5CEKpwGUAdPKtwDYocSgN_Ni-WbjqVDZvIRRWNTtRcAYCPsgrmtEiGTpianM9N9D9XUbqTp8-oHtJAKzOlBeony-DsDMO8Sk2JR7WeCR6bljlQV2WgkWS7Ww1A11PA4sdjSQ1IrEUnmbdDDpfMyWf5ZjcLtGM5lLbi8ElkEEcnqxcG5tyXcryp9HO5n2GBlBqJiAC9BYi7BrrW6eDuU9d3zjUVqjmdhKsqxp-HfZwDhbSW-lHlqaj65sva81XESfnfAj2NhncKKv8PtqSSaQIWFdDYBURctrOFuLZ_gGpl55JNO89XG1KYOXmuIgoviBhmgOvlfkxaSksCgazIylI85wfZYZHbxFz4ptIbWb4Ia3-acge3qStNQxVOkZyEHifOMyxW8u1kTn_8yJK5oitSwN4sx4C05IvDd2kRPpYf9yGt_QIpZSyeihGazCNU1CTQtVJ4jHNRozMUc0Q1ZtbKek8zGCIUZSNMfnPw32Y8O5-sHj5-XsGruBrhnNBecK7timlpzcsT0cT4tNx1yHyxUIEg_rOpIeW_LzimzwJEkWAdqWgPdE9i38Bk1qSyMbTwn2eSd_Js_fMzPaP-fw0V4qYSyytyfOU_IudlDq-8",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "title",
+							"value": "August Group 2",
+							"type": "text"
+						},
+						{
+							"key": "dates",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "description",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "is_public",
+							"value": "1",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/user-groups-create",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"user-groups-create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "List Group Members",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiNTE5YTcxNmYzNzFhYjUzYzhhMjhiZjc1YTJjZTVhY2M5YWIyNjhlZjdhZWIyNTk5YTQ0NTRhYWIzNWU2MGIyNzkzOTg0OTU5ZGI1NmRiZWIiLCJpYXQiOjE3NTQxNTg5MjEuMTk3NDgxLCJuYmYiOjE3NTQxNTg5MjEuMTk3NDg4LCJleHAiOjE3ODU2OTQ5MjEuMTMzODkxLCJzdWIiOiIyNDAiLCJzY29wZXMiOltdfQ.ODcjfXrkMr6-icBnQJCHLwo45MInrYdwPY3JIsWihXJHBs721sbCRDisCwvPNzNPZ5CEKpwGUAdPKtwDYocSgN_Ni-WbjqVDZvIRRWNTtRcAYCPsgrmtEiGTpianM9N9D9XUbqTp8-oHtJAKzOlBeony-DsDMO8Sk2JR7WeCR6bljlQV2WgkWS7Ww1A11PA4sdjSQ1IrEUnmbdDDpfMyWf5ZjcLtGM5lLbi8ElkEEcnqxcG5tyXcryp9HO5n2GBlBqJiAC9BYi7BrrW6eDuU9d3zjUVqjmdhKsqxp-HfZwDhbSW-lHlqaj65sva81XESfnfAj2NhncKKv8PtqSSaQIWFdDYBURctrOFuLZ_gGpl55JNO89XG1KYOXmuIgoviBhmgOvlfkxaSksCgazIylI85wfZYZHbxFz4ptIbWb4Ia3-acge3qStNQxVOkZyEHifOMyxW8u1kTn_8yJK5oitSwN4sx4C05IvDd2kRPpYf9yGt_QIpZSyeihGazCNU1CTQtVJ4jHNRozMUc0Q1ZtbKek8zGCIUZSNMfnPw32Y8O5-sHj5-XsGruBrhnNBecK7timlpzcsT0cT4tNx1yHyxUIEg_rOpIeW_LzimzwJEkWAdqWgPdE9i38Bk1qSyMbTwn2eSd_Js_fMzPaP-fw0V4qYSyytyfOU_IudlDq-8",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "title",
+							"value": "August Group 2",
+							"type": "text"
+						},
+						{
+							"key": "dates",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "description",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "is_public",
+							"value": "1",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://localhost:9000/api/groups-member-get?group_id=2",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"api",
+						"groups-member-get"
+					],
+					"query": [
+						{
+							"key": "group_id",
+							"value": "2"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Group By id",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiNTE5YTcxNmYzNzFhYjUzYzhhMjhiZjc1YTJjZTVhY2M5YWIyNjhlZjdhZWIyNTk5YTQ0NTRhYWIzNWU2MGIyNzkzOTg0OTU5ZGI1NmRiZWIiLCJpYXQiOjE3NTQxNTg5MjEuMTk3NDgxLCJuYmYiOjE3NTQxNTg5MjEuMTk3NDg4LCJleHAiOjE3ODU2OTQ5MjEuMTMzODkxLCJzdWIiOiIyNDAiLCJzY29wZXMiOltdfQ.ODcjfXrkMr6-icBnQJCHLwo45MInrYdwPY3JIsWihXJHBs721sbCRDisCwvPNzNPZ5CEKpwGUAdPKtwDYocSgN_Ni-WbjqVDZvIRRWNTtRcAYCPsgrmtEiGTpianM9N9D9XUbqTp8-oHtJAKzOlBeony-DsDMO8Sk2JR7WeCR6bljlQV2WgkWS7Ww1A11PA4sdjSQ1IrEUnmbdDDpfMyWf5ZjcLtGM5lLbi8ElkEEcnqxcG5tyXcryp9HO5n2GBlBqJiAC9BYi7BrrW6eDuU9d3zjUVqjmdhKsqxp-HfZwDhbSW-lHlqaj65sva81XESfnfAj2NhncKKv8PtqSSaQIWFdDYBURctrOFuLZ_gGpl55JNO89XG1KYOXmuIgoviBhmgOvlfkxaSksCgazIylI85wfZYZHbxFz4ptIbWb4Ia3-acge3qStNQxVOkZyEHifOMyxW8u1kTn_8yJK5oitSwN4sx4C05IvDd2kRPpYf9yGt_QIpZSyeihGazCNU1CTQtVJ4jHNRozMUc0Q1ZtbKek8zGCIUZSNMfnPw32Y8O5-sHj5-XsGruBrhnNBecK7timlpzcsT0cT4tNx1yHyxUIEg_rOpIeW_LzimzwJEkWAdqWgPdE9i38Bk1qSyMbTwn2eSd_Js_fMzPaP-fw0V4qYSyytyfOU_IudlDq-8",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "group_id",
+							"value": "1",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/user-groups-get-by-id",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"user-groups-get-by-id"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Group",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiNTE5YTcxNmYzNzFhYjUzYzhhMjhiZjc1YTJjZTVhY2M5YWIyNjhlZjdhZWIyNTk5YTQ0NTRhYWIzNWU2MGIyNzkzOTg0OTU5ZGI1NmRiZWIiLCJpYXQiOjE3NTQxNTg5MjEuMTk3NDgxLCJuYmYiOjE3NTQxNTg5MjEuMTk3NDg4LCJleHAiOjE3ODU2OTQ5MjEuMTMzODkxLCJzdWIiOiIyNDAiLCJzY29wZXMiOltdfQ.ODcjfXrkMr6-icBnQJCHLwo45MInrYdwPY3JIsWihXJHBs721sbCRDisCwvPNzNPZ5CEKpwGUAdPKtwDYocSgN_Ni-WbjqVDZvIRRWNTtRcAYCPsgrmtEiGTpianM9N9D9XUbqTp8-oHtJAKzOlBeony-DsDMO8Sk2JR7WeCR6bljlQV2WgkWS7Ww1A11PA4sdjSQ1IrEUnmbdDDpfMyWf5ZjcLtGM5lLbi8ElkEEcnqxcG5tyXcryp9HO5n2GBlBqJiAC9BYi7BrrW6eDuU9d3zjUVqjmdhKsqxp-HfZwDhbSW-lHlqaj65sva81XESfnfAj2NhncKKv8PtqSSaQIWFdDYBURctrOFuLZ_gGpl55JNO89XG1KYOXmuIgoviBhmgOvlfkxaSksCgazIylI85wfZYZHbxFz4ptIbWb4Ia3-acge3qStNQxVOkZyEHifOMyxW8u1kTn_8yJK5oitSwN4sx4C05IvDd2kRPpYf9yGt_QIpZSyeihGazCNU1CTQtVJ4jHNRozMUc0Q1ZtbKek8zGCIUZSNMfnPw32Y8O5-sHj5-XsGruBrhnNBecK7timlpzcsT0cT4tNx1yHyxUIEg_rOpIeW_LzimzwJEkWAdqWgPdE9i38Bk1qSyMbTwn2eSd_Js_fMzPaP-fw0V4qYSyytyfOU_IudlDq-8",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "group_id",
+							"value": "2",
+							"type": "text"
+						},
+						{
+							"key": "title",
+							"value": "TATAs",
+							"type": "text"
+						},
+						{
+							"key": "options",
+							"value": "AVXS",
+							"type": "text"
+						},
+						{
+							"key": "dates",
+							"value": "19-5-2023",
+							"type": "text"
+						},
+						{
+							"key": "description",
+							"value": "okoko",
+							"type": "text"
+						},
+						{
+							"key": "photo",
+							"type": "file",
+							"src": "/home/gmt/Downloads/TFMMO5Wu88e5gL3KLt4l.jpg",
+							"disabled": true
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/user-groups-update",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"user-groups-update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Group Member Search",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiNTE5YTcxNmYzNzFhYjUzYzhhMjhiZjc1YTJjZTVhY2M5YWIyNjhlZjdhZWIyNTk5YTQ0NTRhYWIzNWU2MGIyNzkzOTg0OTU5ZGI1NmRiZWIiLCJpYXQiOjE3NTQxNTg5MjEuMTk3NDgxLCJuYmYiOjE3NTQxNTg5MjEuMTk3NDg4LCJleHAiOjE3ODU2OTQ5MjEuMTMzODkxLCJzdWIiOiIyNDAiLCJzY29wZXMiOltdfQ.ODcjfXrkMr6-icBnQJCHLwo45MInrYdwPY3JIsWihXJHBs721sbCRDisCwvPNzNPZ5CEKpwGUAdPKtwDYocSgN_Ni-WbjqVDZvIRRWNTtRcAYCPsgrmtEiGTpianM9N9D9XUbqTp8-oHtJAKzOlBeony-DsDMO8Sk2JR7WeCR6bljlQV2WgkWS7Ww1A11PA4sdjSQ1IrEUnmbdDDpfMyWf5ZjcLtGM5lLbi8ElkEEcnqxcG5tyXcryp9HO5n2GBlBqJiAC9BYi7BrrW6eDuU9d3zjUVqjmdhKsqxp-HfZwDhbSW-lHlqaj65sva81XESfnfAj2NhncKKv8PtqSSaQIWFdDYBURctrOFuLZ_gGpl55JNO89XG1KYOXmuIgoviBhmgOvlfkxaSksCgazIylI85wfZYZHbxFz4ptIbWb4Ia3-acge3qStNQxVOkZyEHifOMyxW8u1kTn_8yJK5oitSwN4sx4C05IvDd2kRPpYf9yGt_QIpZSyeihGazCNU1CTQtVJ4jHNRozMUc0Q1ZtbKek8zGCIUZSNMfnPw32Y8O5-sHj5-XsGruBrhnNBecK7timlpzcsT0cT4tNx1yHyxUIEg_rOpIeW_LzimzwJEkWAdqWgPdE9i38Bk1qSyMbTwn2eSd_Js_fMzPaP-fw0V4qYSyytyfOU_IudlDq-8",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "group_id",
+							"value": "2",
+							"type": "text"
+						},
+						{
+							"key": "search",
+							"value": "he",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/groups-member-search",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"groups-member-search"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Chat Thread For Group",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiNTE5YTcxNmYzNzFhYjUzYzhhMjhiZjc1YTJjZTVhY2M5YWIyNjhlZjdhZWIyNTk5YTQ0NTRhYWIzNWU2MGIyNzkzOTg0OTU5ZGI1NmRiZWIiLCJpYXQiOjE3NTQxNTg5MjEuMTk3NDgxLCJuYmYiOjE3NTQxNTg5MjEuMTk3NDg4LCJleHAiOjE3ODU2OTQ5MjEuMTMzODkxLCJzdWIiOiIyNDAiLCJzY29wZXMiOltdfQ.ODcjfXrkMr6-icBnQJCHLwo45MInrYdwPY3JIsWihXJHBs721sbCRDisCwvPNzNPZ5CEKpwGUAdPKtwDYocSgN_Ni-WbjqVDZvIRRWNTtRcAYCPsgrmtEiGTpianM9N9D9XUbqTp8-oHtJAKzOlBeony-DsDMO8Sk2JR7WeCR6bljlQV2WgkWS7Ww1A11PA4sdjSQ1IrEUnmbdDDpfMyWf5ZjcLtGM5lLbi8ElkEEcnqxcG5tyXcryp9HO5n2GBlBqJiAC9BYi7BrrW6eDuU9d3zjUVqjmdhKsqxp-HfZwDhbSW-lHlqaj65sva81XESfnfAj2NhncKKv8PtqSSaQIWFdDYBURctrOFuLZ_gGpl55JNO89XG1KYOXmuIgoviBhmgOvlfkxaSksCgazIylI85wfZYZHbxFz4ptIbWb4Ia3-acge3qStNQxVOkZyEHifOMyxW8u1kTn_8yJK5oitSwN4sx4C05IvDd2kRPpYf9yGt_QIpZSyeihGazCNU1CTQtVJ4jHNRozMUc0Q1ZtbKek8zGCIUZSNMfnPw32Y8O5-sHj5-XsGruBrhnNBecK7timlpzcsT0cT4tNx1yHyxUIEg_rOpIeW_LzimzwJEkWAdqWgPdE9i38Bk1qSyMbTwn2eSd_Js_fMzPaP-fw0V4qYSyytyfOU_IudlDq-8",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "group_id",
+							"value": "2",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/groups-create-chat-thread",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"groups-create-chat-thread"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Show Groups",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiNTE5YTcxNmYzNzFhYjUzYzhhMjhiZjc1YTJjZTVhY2M5YWIyNjhlZjdhZWIyNTk5YTQ0NTRhYWIzNWU2MGIyNzkzOTg0OTU5ZGI1NmRiZWIiLCJpYXQiOjE3NTQxNTg5MjEuMTk3NDgxLCJuYmYiOjE3NTQxNTg5MjEuMTk3NDg4LCJleHAiOjE3ODU2OTQ5MjEuMTMzODkxLCJzdWIiOiIyNDAiLCJzY29wZXMiOltdfQ.ODcjfXrkMr6-icBnQJCHLwo45MInrYdwPY3JIsWihXJHBs721sbCRDisCwvPNzNPZ5CEKpwGUAdPKtwDYocSgN_Ni-WbjqVDZvIRRWNTtRcAYCPsgrmtEiGTpianM9N9D9XUbqTp8-oHtJAKzOlBeony-DsDMO8Sk2JR7WeCR6bljlQV2WgkWS7Ww1A11PA4sdjSQ1IrEUnmbdDDpfMyWf5ZjcLtGM5lLbi8ElkEEcnqxcG5tyXcryp9HO5n2GBlBqJiAC9BYi7BrrW6eDuU9d3zjUVqjmdhKsqxp-HfZwDhbSW-lHlqaj65sva81XESfnfAj2NhncKKv8PtqSSaQIWFdDYBURctrOFuLZ_gGpl55JNO89XG1KYOXmuIgoviBhmgOvlfkxaSksCgazIylI85wfZYZHbxFz4ptIbWb4Ia3-acge3qStNQxVOkZyEHifOMyxW8u1kTn_8yJK5oitSwN4sx4C05IvDd2kRPpYf9yGt_QIpZSyeihGazCNU1CTQtVJ4jHNRozMUc0Q1ZtbKek8zGCIUZSNMfnPw32Y8O5-sHj5-XsGruBrhnNBecK7timlpzcsT0cT4tNx1yHyxUIEg_rOpIeW_LzimzwJEkWAdqWgPdE9i38Bk1qSyMbTwn2eSd_Js_fMzPaP-fw0V4qYSyytyfOU_IudlDq-8",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "",
+							"value": "",
+							"description": "5,2,1,4,3",
+							"type": "text",
+							"disabled": true
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/user-show-group",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"user-show-group"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "User Details",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiNTE5YTcxNmYzNzFhYjUzYzhhMjhiZjc1YTJjZTVhY2M5YWIyNjhlZjdhZWIyNTk5YTQ0NTRhYWIzNWU2MGIyNzkzOTg0OTU5ZGI1NmRiZWIiLCJpYXQiOjE3NTQxNTg5MjEuMTk3NDgxLCJuYmYiOjE3NTQxNTg5MjEuMTk3NDg4LCJleHAiOjE3ODU2OTQ5MjEuMTMzODkxLCJzdWIiOiIyNDAiLCJzY29wZXMiOltdfQ.ODcjfXrkMr6-icBnQJCHLwo45MInrYdwPY3JIsWihXJHBs721sbCRDisCwvPNzNPZ5CEKpwGUAdPKtwDYocSgN_Ni-WbjqVDZvIRRWNTtRcAYCPsgrmtEiGTpianM9N9D9XUbqTp8-oHtJAKzOlBeony-DsDMO8Sk2JR7WeCR6bljlQV2WgkWS7Ww1A11PA4sdjSQ1IrEUnmbdDDpfMyWf5ZjcLtGM5lLbi8ElkEEcnqxcG5tyXcryp9HO5n2GBlBqJiAC9BYi7BrrW6eDuU9d3zjUVqjmdhKsqxp-HfZwDhbSW-lHlqaj65sva81XESfnfAj2NhncKKv8PtqSSaQIWFdDYBURctrOFuLZ_gGpl55JNO89XG1KYOXmuIgoviBhmgOvlfkxaSksCgazIylI85wfZYZHbxFz4ptIbWb4Ia3-acge3qStNQxVOkZyEHifOMyxW8u1kTn_8yJK5oitSwN4sx4C05IvDd2kRPpYf9yGt_QIpZSyeihGazCNU1CTQtVJ4jHNRozMUc0Q1ZtbKek8zGCIUZSNMfnPw32Y8O5-sHj5-XsGruBrhnNBecK7timlpzcsT0cT4tNx1yHyxUIEg_rOpIeW_LzimzwJEkWAdqWgPdE9i38Bk1qSyMbTwn2eSd_Js_fMzPaP-fw0V4qYSyytyfOU_IudlDq-8",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": []
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/user-details",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"user-details"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get User Posts",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiNTE5YTcxNmYzNzFhYjUzYzhhMjhiZjc1YTJjZTVhY2M5YWIyNjhlZjdhZWIyNTk5YTQ0NTRhYWIzNWU2MGIyNzkzOTg0OTU5ZGI1NmRiZWIiLCJpYXQiOjE3NTQxNTg5MjEuMTk3NDgxLCJuYmYiOjE3NTQxNTg5MjEuMTk3NDg4LCJleHAiOjE3ODU2OTQ5MjEuMTMzODkxLCJzdWIiOiIyNDAiLCJzY29wZXMiOltdfQ.ODcjfXrkMr6-icBnQJCHLwo45MInrYdwPY3JIsWihXJHBs721sbCRDisCwvPNzNPZ5CEKpwGUAdPKtwDYocSgN_Ni-WbjqVDZvIRRWNTtRcAYCPsgrmtEiGTpianM9N9D9XUbqTp8-oHtJAKzOlBeony-DsDMO8Sk2JR7WeCR6bljlQV2WgkWS7Ww1A11PA4sdjSQ1IrEUnmbdDDpfMyWf5ZjcLtGM5lLbi8ElkEEcnqxcG5tyXcryp9HO5n2GBlBqJiAC9BYi7BrrW6eDuU9d3zjUVqjmdhKsqxp-HfZwDhbSW-lHlqaj65sva81XESfnfAj2NhncKKv8PtqSSaQIWFdDYBURctrOFuLZ_gGpl55JNO89XG1KYOXmuIgoviBhmgOvlfkxaSksCgazIylI85wfZYZHbxFz4ptIbWb4Ia3-acge3qStNQxVOkZyEHifOMyxW8u1kTn_8yJK5oitSwN4sx4C05IvDd2kRPpYf9yGt_QIpZSyeihGazCNU1CTQtVJ4jHNRozMUc0Q1ZtbKek8zGCIUZSNMfnPw32Y8O5-sHj5-XsGruBrhnNBecK7timlpzcsT0cT4tNx1yHyxUIEg_rOpIeW_LzimzwJEkWAdqWgPdE9i38Bk1qSyMbTwn2eSd_Js_fMzPaP-fw0V4qYSyytyfOU_IudlDq-8",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": []
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/get-user-posts?type=1",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"get-user-posts"
+					],
+					"query": [
+						{
+							"key": "type",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "User Profile",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiNTE5YTcxNmYzNzFhYjUzYzhhMjhiZjc1YTJjZTVhY2M5YWIyNjhlZjdhZWIyNTk5YTQ0NTRhYWIzNWU2MGIyNzkzOTg0OTU5ZGI1NmRiZWIiLCJpYXQiOjE3NTQxNTg5MjEuMTk3NDgxLCJuYmYiOjE3NTQxNTg5MjEuMTk3NDg4LCJleHAiOjE3ODU2OTQ5MjEuMTMzODkxLCJzdWIiOiIyNDAiLCJzY29wZXMiOltdfQ.ODcjfXrkMr6-icBnQJCHLwo45MInrYdwPY3JIsWihXJHBs721sbCRDisCwvPNzNPZ5CEKpwGUAdPKtwDYocSgN_Ni-WbjqVDZvIRRWNTtRcAYCPsgrmtEiGTpianM9N9D9XUbqTp8-oHtJAKzOlBeony-DsDMO8Sk2JR7WeCR6bljlQV2WgkWS7Ww1A11PA4sdjSQ1IrEUnmbdDDpfMyWf5ZjcLtGM5lLbi8ElkEEcnqxcG5tyXcryp9HO5n2GBlBqJiAC9BYi7BrrW6eDuU9d3zjUVqjmdhKsqxp-HfZwDhbSW-lHlqaj65sva81XESfnfAj2NhncKKv8PtqSSaQIWFdDYBURctrOFuLZ_gGpl55JNO89XG1KYOXmuIgoviBhmgOvlfkxaSksCgazIylI85wfZYZHbxFz4ptIbWb4Ia3-acge3qStNQxVOkZyEHifOMyxW8u1kTn_8yJK5oitSwN4sx4C05IvDd2kRPpYf9yGt_QIpZSyeihGazCNU1CTQtVJ4jHNRozMUc0Q1ZtbKek8zGCIUZSNMfnPw32Y8O5-sHj5-XsGruBrhnNBecK7timlpzcsT0cT4tNx1yHyxUIEg_rOpIeW_LzimzwJEkWAdqWgPdE9i38Bk1qSyMbTwn2eSd_Js_fMzPaP-fw0V4qYSyytyfOU_IudlDq-8",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "user_id",
+							"value": "240",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/user-profile",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"user-profile"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Post",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiNTE5YTcxNmYzNzFhYjUzYzhhMjhiZjc1YTJjZTVhY2M5YWIyNjhlZjdhZWIyNTk5YTQ0NTRhYWIzNWU2MGIyNzkzOTg0OTU5ZGI1NmRiZWIiLCJpYXQiOjE3NTQxNTg5MjEuMTk3NDgxLCJuYmYiOjE3NTQxNTg5MjEuMTk3NDg4LCJleHAiOjE3ODU2OTQ5MjEuMTMzODkxLCJzdWIiOiIyNDAiLCJzY29wZXMiOltdfQ.ODcjfXrkMr6-icBnQJCHLwo45MInrYdwPY3JIsWihXJHBs721sbCRDisCwvPNzNPZ5CEKpwGUAdPKtwDYocSgN_Ni-WbjqVDZvIRRWNTtRcAYCPsgrmtEiGTpianM9N9D9XUbqTp8-oHtJAKzOlBeony-DsDMO8Sk2JR7WeCR6bljlQV2WgkWS7Ww1A11PA4sdjSQ1IrEUnmbdDDpfMyWf5ZjcLtGM5lLbi8ElkEEcnqxcG5tyXcryp9HO5n2GBlBqJiAC9BYi7BrrW6eDuU9d3zjUVqjmdhKsqxp-HfZwDhbSW-lHlqaj65sva81XESfnfAj2NhncKKv8PtqSSaQIWFdDYBURctrOFuLZ_gGpl55JNO89XG1KYOXmuIgoviBhmgOvlfkxaSksCgazIylI85wfZYZHbxFz4ptIbWb4Ia3-acge3qStNQxVOkZyEHifOMyxW8u1kTn_8yJK5oitSwN4sx4C05IvDd2kRPpYf9yGt_QIpZSyeihGazCNU1CTQtVJ4jHNRozMUc0Q1ZtbKek8zGCIUZSNMfnPw32Y8O5-sHj5-XsGruBrhnNBecK7timlpzcsT0cT4tNx1yHyxUIEg_rOpIeW_LzimzwJEkWAdqWgPdE9i38Bk1qSyMbTwn2eSd_Js_fMzPaP-fw0V4qYSyytyfOU_IudlDq-8",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "type",
+							"value": "1",
+							"type": "text"
+						},
+						{
+							"key": "location",
+							"value": "Iran",
+							"type": "text"
+						},
+						{
+							"key": "comment",
+							"value": "0",
+							"type": "text"
+						},
+						{
+							"key": "photo",
+							"value": "photo data",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "post",
+							"value": "post data",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "video",
+							"value": "video data",
+							"type": "text",
+							"disabled": true
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/save-user-post",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"save-user-post"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Add Personal Profile To Group",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiNTE5YTcxNmYzNzFhYjUzYzhhMjhiZjc1YTJjZTVhY2M5YWIyNjhlZjdhZWIyNTk5YTQ0NTRhYWIzNWU2MGIyNzkzOTg0OTU5ZGI1NmRiZWIiLCJpYXQiOjE3NTQxNTg5MjEuMTk3NDgxLCJuYmYiOjE3NTQxNTg5MjEuMTk3NDg4LCJleHAiOjE3ODU2OTQ5MjEuMTMzODkxLCJzdWIiOiIyNDAiLCJzY29wZXMiOltdfQ.ODcjfXrkMr6-icBnQJCHLwo45MInrYdwPY3JIsWihXJHBs721sbCRDisCwvPNzNPZ5CEKpwGUAdPKtwDYocSgN_Ni-WbjqVDZvIRRWNTtRcAYCPsgrmtEiGTpianM9N9D9XUbqTp8-oHtJAKzOlBeony-DsDMO8Sk2JR7WeCR6bljlQV2WgkWS7Ww1A11PA4sdjSQ1IrEUnmbdDDpfMyWf5ZjcLtGM5lLbi8ElkEEcnqxcG5tyXcryp9HO5n2GBlBqJiAC9BYi7BrrW6eDuU9d3zjUVqjmdhKsqxp-HfZwDhbSW-lHlqaj65sva81XESfnfAj2NhncKKv8PtqSSaQIWFdDYBURctrOFuLZ_gGpl55JNO89XG1KYOXmuIgoviBhmgOvlfkxaSksCgazIylI85wfZYZHbxFz4ptIbWb4Ia3-acge3qStNQxVOkZyEHifOMyxW8u1kTn_8yJK5oitSwN4sx4C05IvDd2kRPpYf9yGt_QIpZSyeihGazCNU1CTQtVJ4jHNRozMUc0Q1ZtbKek8zGCIUZSNMfnPw32Y8O5-sHj5-XsGruBrhnNBecK7timlpzcsT0cT4tNx1yHyxUIEg_rOpIeW_LzimzwJEkWAdqWgPdE9i38Bk1qSyMbTwn2eSd_Js_fMzPaP-fw0V4qYSyytyfOU_IudlDq-8",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "group_id",
+							"value": "6",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/groups-member-personal-create",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"groups-member-personal-create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Add Member To Group",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzIiwianRpIjoiNTE5YTcxNmYzNzFhYjUzYzhhMjhiZjc1YTJjZTVhY2M5YWIyNjhlZjdhZWIyNTk5YTQ0NTRhYWIzNWU2MGIyNzkzOTg0OTU5ZGI1NmRiZWIiLCJpYXQiOjE3NTQxNTg5MjEuMTk3NDgxLCJuYmYiOjE3NTQxNTg5MjEuMTk3NDg4LCJleHAiOjE3ODU2OTQ5MjEuMTMzODkxLCJzdWIiOiIyNDAiLCJzY29wZXMiOltdfQ.ODcjfXrkMr6-icBnQJCHLwo45MInrYdwPY3JIsWihXJHBs721sbCRDisCwvPNzNPZ5CEKpwGUAdPKtwDYocSgN_Ni-WbjqVDZvIRRWNTtRcAYCPsgrmtEiGTpianM9N9D9XUbqTp8-oHtJAKzOlBeony-DsDMO8Sk2JR7WeCR6bljlQV2WgkWS7Ww1A11PA4sdjSQ1IrEUnmbdDDpfMyWf5ZjcLtGM5lLbi8ElkEEcnqxcG5tyXcryp9HO5n2GBlBqJiAC9BYi7BrrW6eDuU9d3zjUVqjmdhKsqxp-HfZwDhbSW-lHlqaj65sva81XESfnfAj2NhncKKv8PtqSSaQIWFdDYBURctrOFuLZ_gGpl55JNO89XG1KYOXmuIgoviBhmgOvlfkxaSksCgazIylI85wfZYZHbxFz4ptIbWb4Ia3-acge3qStNQxVOkZyEHifOMyxW8u1kTn_8yJK5oitSwN4sx4C05IvDd2kRPpYf9yGt_QIpZSyeihGazCNU1CTQtVJ4jHNRozMUc0Q1ZtbKek8zGCIUZSNMfnPw32Y8O5-sHj5-XsGruBrhnNBecK7timlpzcsT0cT4tNx1yHyxUIEg_rOpIeW_LzimzwJEkWAdqWgPdE9i38Bk1qSyMbTwn2eSd_Js_fMzPaP-fw0V4qYSyytyfOU_IudlDq-8",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "group_id",
+							"value": "6",
+							"type": "text"
+						},
+						{
+							"key": "user_id",
+							"value": "236",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/groups-member-create",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"groups-member-create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Login",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "fcm_token",
+							"value": "123",
+							"type": "text"
+						},
+						{
+							"key": "email",
+							"value": "herry_potter3@yopmail.com",
+							"type": "text"
+						},
+						{
+							"key": "password",
+							"value": "password",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseURL}}/api/login",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"api",
+						"login"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "baseURL",
+			"value": "",
+			"type": "default"
+		}
+	]
+}
