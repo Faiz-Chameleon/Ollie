@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:octagon/screen/group/group_settings_screen.dart';
 import 'package:octagon/utils/theme/theme_constants.dart';
+import 'package:sizer/sizer.dart';
 import 'dart:async';
 import 'dart:developer';
 import 'package:timeago/timeago.dart' as timeago;
@@ -20,6 +21,7 @@ import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:intl/intl.dart';
 
 import 'group_chat_controller.dart';
 
@@ -77,11 +79,18 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   final ItemScrollController _messageScrollController = ItemScrollController();
   final ItemPositionsListener _messagePositionsListener = ItemPositionsListener.create();
   final Map<String, int> _messageIndexLookup = {};
+  final Set<String> _expandedThreads = <String>{};
+  final RegExp _mentionMatcher = RegExp(r'@([^\s@]*)$');
+  Timer? _mentionSearchDebounce;
+  TextRange? _activeMentionRange;
+  bool _isMentionPanelVisible = false;
+  static const int _defaultVisibleReplies = 3;
 
   @override
   void initState() {
     super.initState();
     controller.setGroup(widget.groupId, widget.isPublic);
+    controller.messageController.addListener(_handleComposerTextChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initThreadFlow();
     });
@@ -90,6 +99,9 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   @override
   void dispose() {
     _pusherSub?.cancel();
+    _mentionSearchDebounce?.cancel();
+    controller.messageController.removeListener(_handleComposerTextChanged);
+    controller.clearMentionResults();
     super.dispose();
   }
 
@@ -218,6 +230,17 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   }
 
   Map<String, dynamic> _mapIncomingToMessage(Map<String, dynamic> data) {
+    final String messageId = data['id']?.toString() ??
+        data['message_id']?.toString() ??
+        data['message']?['id']?.toString() ??
+        data['message']?['message_id']?.toString() ??
+        '';
+    if (messageId.isEmpty) {
+      log('⚠️ Incoming message payload missing id fields. Keys: ${data.keys}');
+    } else if (data['id'] == null && data['message_id'] != null) {
+      log('ℹ️ Using message_id=${data['message_id']} as fallback identifier');
+    }
+
     String senderId = data['owner_id']?.toString() ?? data['owner']?['id']?.toString() ?? data['sender_id']?.toString() ?? '';
     String senderName = '';
     try {
@@ -229,16 +252,16 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     String senderImage = '';
     try {
       if (data['owner'] != null) {
-        final avatar = data['owner']['avatar'];
+        final avatar = data['owner']['base'];
         if (avatar is Map) {
-          senderImage = _absUrl(avatar['md'] ?? avatar['lg'] ?? avatar['sm'] ?? '');
+          senderImage = _absUrl(avatar['photo'] ?? avatar['photo'] ?? avatar['photo'] ?? '');
         }
       }
-      if (senderImage.isEmpty && data['avatar'] != null) {
-        senderImage = _absUrl(data['avatar']?.toString());
+      if (senderImage.isEmpty && data['owner'] != null) {
+        senderImage = _absUrl(data['owner']['base']['photo']?.toString());
       }
     } catch (_) {
-      senderImage = _absUrl(data['avatar']?.toString());
+      senderImage = _absUrl(data['owner']?.toString());
     }
 
     final extraData = _normalizeExtra(data['extra']);
@@ -307,10 +330,11 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         reactionCounts.entries.where((e) => (e.key.toString()).isNotEmpty && e.value > 0).map((e) => {'emoji': e.key, 'count': e.value}).toList();
 
     return {
-      'id': data['id']?.toString() ?? '',
+      'id': messageId,
       'sender_id': senderId,
       'sender_name': senderName,
       'sender_image': senderImage,
+      'temporary_id': data['temporary_id']?.toString() ?? data['temp_id']?.toString() ?? data['temporaryId']?.toString(),
       'timestamp': createdAt,
       'created_at': createdAt,
       'updated_at': updatedAt,
@@ -717,6 +741,11 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       _prefetchThumbnailIfNeeded(controller.messages[index]);
       controller.messages.refresh();
     } else {
+      if (!_isRenderableMessage(message)) {
+        log('🚫 Skipping non-renderable payload (id=$id, temp=${message['temporary_id']}). Likely reaction-only update.');
+        return;
+      }
+      log('🆕 Inserting new message entry (id=$id, temp=${message['temporary_id']}). Text preview: "${message['text'] ?? ''}"');
       controller.messages.insert(0, message);
       _prefetchThumbnailIfNeeded(controller.messages[0]);
     }
@@ -991,6 +1020,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     };
     controller.messages.insert(0, optimistic);
     controller.messageController.clear();
+    _hideMentionPanel();
     try {
       final payload = {'message': text, 'temporary_id': tempId};
       if (replyTarget != null && (replyTarget['id']?.toString().isNotEmpty ?? false)) {
@@ -1015,7 +1045,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: appBgColor,
+      backgroundColor: Color(0xff191a23),
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(90),
         child: AppBar(
@@ -1176,16 +1206,14 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         ),
       ),
       body: Obx(() {
-        final groupedMessages = groupMessagesByDate(controller.messages);
+        final threadedMessages = _buildThreadedMessages(controller.messages);
+        final groupedMessages = groupMessagesByDate(threadedMessages);
         _messageIndexLookup.clear();
         for (var i = 0; i < groupedMessages.length; i++) {
           final item = groupedMessages[i];
           if (item['type'] == 'message') {
             final msg = item['data'] as Map<String, dynamic>;
-            final messageId = msg['id']?.toString() ?? msg['temporary_id']?.toString() ?? '';
-            if (messageId.isNotEmpty) {
-              _messageIndexLookup[messageId] = i;
-            }
+            _registerThreadIndices(msg, i);
           }
         }
         return Column(
@@ -1245,8 +1273,8 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                   if (item['type'] == 'date') {
                     return Center(
                       child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        margin: const EdgeInsets.symmetric(vertical: 0),
+                        padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
                         decoration: BoxDecoration(
                           color: const Color(0xff211D39),
                           borderRadius: BorderRadius.circular(12),
@@ -1259,8 +1287,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                     );
                   } else {
                     final msg = item['data'];
-                    final isMe = (msg['sender_id']?.toString() ?? '') == widget.userId.toString();
-                    return _buildMessageWidget(msg, isMe);
+                    return _buildMessageWidget(msg);
                   }
                 },
               ),
@@ -1274,10 +1301,11 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                   if (reply == null) return const SizedBox.shrink();
                   return _buildComposerReplyPreview(reply);
                 }),
+                _buildMentionSuggestions(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
                   decoration: BoxDecoration(
-                    color: Colors.grey[900],
+                    color: Colors.white,
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                   ),
                   child: Row(
@@ -1317,17 +1345,31 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                       Expanded(
                         child: TextField(
                           controller: controller.messageController,
-                          style: const TextStyle(color: Colors.white),
+                          style: const TextStyle(color: Colors.black),
                           decoration: const InputDecoration(
-                            hintText: "Type a message...",
+                            hintText: "Write message...",
                             hintStyle: TextStyle(color: Colors.grey),
                             border: InputBorder.none,
                           ),
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.send, color: Colors.white),
-                        onPressed: () => _sendMessage(),
+                      GestureDetector(
+                        onTap: () {
+                          _sendMessage();
+                        },
+                        child: Container(
+                          height: 40,
+                          width: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.lightBlue,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Icon(
+                            Icons.send,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -1366,76 +1408,371 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     );
   }
 
-  Widget _buildMessageWidget(Map<String, dynamic> message, bool isMe) {
-    final messageType = message['type'] ?? 'text';
+  Widget _buildMessageWidget(Map<String, dynamic> message) {
+    final replies = (message['thread_children'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    final threadKey = _threadKey(message);
+    final bool hasReplies = replies.isNotEmpty;
+    final bool isExpanded = hasReplies && _expandedThreads.contains(threadKey);
+    final bool needsToggle = replies.length > _defaultVisibleReplies;
+    final List<Map<String, dynamic>> repliesToDisplay =
+        (!needsToggle || isExpanded) ? replies : replies.take(_defaultVisibleReplies).toList();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildMessageBubble(
+            message,
+            isThreadReply: false,
+            showReplyPreview: true,
+          ),
+          if (hasReplies) ...[
+            _buildReplyThread(repliesToDisplay),
+            if (needsToggle) _buildReplyToggleButton(threadKey, replies.length, isExpanded),
+          ],
+        ],
+      ),
+    );
+  }
 
-    return GestureDetector(
-      onLongPress: () => _showMessageActions(message),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (!isMe) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: _buildUserAvatar(message['sender_image']?.toString() ?? '', widget.groupImage),
-              ),
-              const SizedBox(width: 8),
-            ],
-            Flexible(
-              child: Container(
-                constraints: BoxConstraints(
-                  maxWidth: Get.width * 0.65,
-                ),
-                padding: const EdgeInsets.only(left: 10),
-                child: Column(
-                  crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _formatTimestamp(message['timestamp']),
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                      ),
+  Widget _buildReplyThread(List<Map<String, dynamic>> replies) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 0, top: 0),
+      child: Column(
+        children: [
+          for (var i = 0; i < replies.length; i++)
+            Padding(
+              padding: EdgeInsets.only(top: i == 0 ? 0 : 0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(width: 40),
+                  Expanded(
+                    child: _buildMessageBubble(
+                      replies[i],
+                      isThreadReply: true,
+                      showReplyPreview: false,
                     ),
-                    const SizedBox(height: 4),
-                    if (!isMe) ...[
-                      Text(
-                        message['sender_name'] ?? "Unknown",
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                    if (message['reply_to'] != null) ...[
-                      _buildReplyPreview(message['reply_to']),
-                      const SizedBox(height: 6),
-                    ],
-                    if (messageType == 'image')
-                      _buildImageMessage(message)
-                    else if (messageType == 'images')
-                      _buildMultipleImagesMessage(message)
-                    else if (messageType == 'video')
-                      _buildVideoMessage(message)
-                    else if (messageType == 'videos')
-                      _buildMultipleVideosMessage(message)
-                    else
-                      Text(
-                        message['text'] ?? '',
-                        style: const TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    const SizedBox(height: 4),
-                    _buildReactionsRow(message),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReplyToggleButton(String threadKey, int replyCount, bool expanded) {
+    final int hiddenCount = replyCount - _defaultVisibleReplies;
+    final label = expanded
+        ? 'Hide replies'
+        : hiddenCount > 0
+            ? 'View more ($hiddenCount)'
+            : 'View more';
+    return Padding(
+      padding: const EdgeInsets.only(left: 62, top: 0, bottom: 6),
+      child: GestureDetector(
+        onTap: () => _toggleThreadReplies(threadKey),
+        behavior: HitTestBehavior.opaque,
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xff9F8EFF),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _toggleThreadReplies(String threadKey) {
+    setState(() {
+      if (_expandedThreads.contains(threadKey)) {
+        _expandedThreads.remove(threadKey);
+      } else {
+        _expandedThreads.add(threadKey);
+      }
+    });
+  }
+
+  Widget _buildMentionSuggestions() {
+    return Obx(() {
+      final suggestions = controller.mentionResults;
+      final loading = controller.isMentionLoading.value;
+      if (!_isMentionPanelVisible) return const SizedBox.shrink();
+      if (suggestions.isEmpty && !loading) return const SizedBox.shrink();
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        constraints: const BoxConstraints(maxHeight: 220),
+        decoration: BoxDecoration(
+          color: const Color(0xff211D39),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: loading && suggestions.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            : ListView.separated(
+                shrinkWrap: true,
+                itemCount: suggestions.length,
+                itemBuilder: (_, index) {
+                  final member = suggestions[index];
+                  final displayName = (member['name'] ?? '').toString();
+                  final username = (member['username'] ?? displayName).toString();
+                  final avatar = (member['image'] ?? '').toString();
+                  return ListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                    leading: _buildMentionAvatar(avatar, displayName),
+                    title: Text(
+                      displayName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: username.isNotEmpty && username != displayName
+                        ? Text(
+                            '@$username',
+                            style: const TextStyle(color: Colors.white60, fontSize: 12),
+                          )
+                        : null,
+                    onTap: () => _handleMentionSelection(member),
+                  );
+                },
+                separatorBuilder: (_, __) => const Divider(color: Colors.white12, height: 1),
+              ),
+      );
+    });
+  }
+
+  Widget _buildMessageBubble(
+    Map<String, dynamic> message, {
+    bool isThreadReply = false,
+    bool showReplyPreview = true,
+  }) {
+    final messageType = (message['type'] ?? 'text').toString();
+    final hasReactions = (message['reactions'] as List?)?.isNotEmpty ?? false;
+    final backgroundColor = isThreadReply ? const Color(0xff1F1A37) : const Color(0xff262042);
+    final senderName = message['sender_name']?.toString().trim();
+    return GestureDetector(
+      onLongPress: () => _showMessageActions(message),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 0),
+            child: _buildUserAvatar(
+              message['sender_image']?.toString() ?? '',
+              widget.groupImage,
+              isThreadReply: isThreadReply,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 10),
+              decoration: BoxDecoration(
+                // color: backgroundColor,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          (senderName == null || senderName.isEmpty) ? 'Unknown' : senderName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      // Text(
+                      //   _formatMessageTime(message['timestamp'] ?? message['created_at']),
+                      //   style: const TextStyle(
+                      //     color: Colors.white54,
+                      //     fontSize: 12,
+                      //   ),
+                      // ),
+                    ],
+                  ),
+                  if (showReplyPreview && message['reply_to'] != null) ...[
+                    const SizedBox(height: 8),
+                    _buildReplyPreview(message['reply_to']),
+                  ],
+                  const SizedBox(height: 8),
+                  if (messageType == 'image')
+                    _buildImageMessage(message)
+                  else if (messageType == 'images')
+                    _buildMultipleImagesMessage(message)
+                  else if (messageType == 'video')
+                    _buildVideoMessage(message)
+                  else if (messageType == 'videos')
+                    _buildMultipleVideosMessage(message)
+                  else
+                    _buildStyledMessageText(message['text']?.toString() ?? ''),
+                  if (hasReactions) ...[
+                    const SizedBox(height: 8),
+                    _buildReactionsRow(message),
+                  ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        _formatMessageTime(message['timestamp'] ?? message['created_at']),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14.sp,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStyledMessageText(String text) {
+    final baseStyle = TextStyle(color: Colors.white, fontSize: 16.sp, height: 1.4);
+    if (text.trim().isEmpty) {
+      return Text(text, style: baseStyle);
+    }
+    final spans = <TextSpan>[];
+    final mentionPattern = RegExp(r'@[\w\.\-]+');
+    int startIndex = 0;
+    for (final match in mentionPattern.allMatches(text)) {
+      if (match.start > startIndex) {
+        spans.add(TextSpan(text: text.substring(startIndex, match.start)));
+      }
+      final mentionText = text.substring(match.start, match.end);
+      spans.add(
+        TextSpan(
+          text: mentionText,
+          style: baseStyle.copyWith(
+            color: const Color(0xff4F9DFF),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+      startIndex = match.end;
+    }
+    if (startIndex < text.length) {
+      spans.add(TextSpan(text: text.substring(startIndex)));
+    }
+    return RichText(
+      text: TextSpan(style: baseStyle, children: spans),
+    );
+  }
+
+  void _handleComposerTextChanged() {
+    final selection = controller.messageController.selection;
+    final text = controller.messageController.text;
+    if (!selection.isValid || selection.baseOffset <= 0 || selection.baseOffset > text.length) {
+      _hideMentionPanel();
+      return;
+    }
+    final prefix = text.substring(0, selection.baseOffset);
+    final match = _mentionMatcher.firstMatch(prefix);
+    if (match == null) {
+      _hideMentionPanel();
+      return;
+    }
+    final query = match.group(1)?.trim() ?? '';
+    _activeMentionRange = TextRange(start: match.start, end: selection.baseOffset);
+    _showMentionPanel();
+    _mentionSearchDebounce?.cancel();
+    if (query.isEmpty) {
+      controller.clearMentionResults();
+      return;
+    }
+    _mentionSearchDebounce = Timer(const Duration(milliseconds: 250), () {
+      controller.searchGroupMembers(query);
+    });
+  }
+
+  void _handleMentionSelection(Map<String, dynamic> member) {
+    final range = _activeMentionRange;
+    if (range == null) return;
+    final rawDisplay = (member['username'] ?? member['name'] ?? '').toString().trim();
+    if (rawDisplay.isEmpty) return;
+    final mentionText = '@$rawDisplay ';
+    final text = controller.messageController.text;
+    final int start = range.start.clamp(0, text.length).toInt();
+    final int end = range.end.clamp(0, text.length).toInt();
+    final newText = text.replaceRange(start, end, mentionText);
+    controller.messageController.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: start + mentionText.length),
+    );
+    _hideMentionPanel();
+  }
+
+  void _showMentionPanel() {
+    if (!_isMentionPanelVisible) {
+      setState(() {
+        _isMentionPanelVisible = true;
+      });
+    }
+  }
+
+  void _hideMentionPanel() {
+    _mentionSearchDebounce?.cancel();
+    controller.clearMentionResults();
+    _activeMentionRange = null;
+    if (_isMentionPanelVisible) {
+      setState(() {
+        _isMentionPanelVisible = false;
+      });
+    }
+  }
+
+  Widget _buildMentionAvatar(String imageUrl, String name) {
+    final trimmed = name.trim();
+    final initials = trimmed.isNotEmpty ? trimmed.substring(0, 1).toUpperCase() : '?';
+    if (imageUrl.isEmpty) {
+      return CircleAvatar(
+        radius: 20,
+        backgroundColor: const Color(0xff332B55),
+        child: Text(
+          initials,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      );
+    }
+    final resolvedUrl = imageUrl.startsWith('http') ? imageUrl : 'http://3.134.119.154/$imageUrl';
+    return CircleAvatar(
+      radius: 20,
+      backgroundColor: const Color(0xff332B55),
+      child: ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: resolvedUrl,
+          width: 40,
+          height: 40,
+          fit: BoxFit.cover,
+          errorWidget: (_, __, ___) => Center(
+            child: Text(
+              initials,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
         ),
       ),
     );
@@ -1954,7 +2291,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     final snippet = _replySnippet(reply);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
       decoration: BoxDecoration(
         color: Colors.white10,
         border: Border(
@@ -1991,14 +2328,19 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     );
   }
 
-  Widget _buildUserAvatar(String? imageUrl, String groupImage) {
+  Widget _buildUserAvatar(String? imageUrl, String groupImage, {bool isThreadReply = false}) {
+    final double avatarWidth = isThreadReply ? 40 : 50;
+    final double avatarHeight = isThreadReply ? 50 : 60;
+    final double badgeSize = isThreadReply ? 25 : 30;
+    final double badgeOffset = isThreadReply ? -15 : -20;
+    final double iconSize = isThreadReply ? 15 : 20;
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.bottomCenter,
       children: [
         Container(
-          width: 50,
-          height: 60,
+          width: avatarWidth,
+          height: avatarHeight,
           decoration: BoxDecoration(
             color: Colors.grey[700],
             borderRadius: BorderRadius.circular(20),
@@ -2007,27 +2349,27 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
             child: imageUrl != null && imageUrl.isNotEmpty
                 ? Image.network(
                     imageUrl,
-                    fit: BoxFit.contain,
+                    fit: BoxFit.fill,
                     errorBuilder: (context, error, stackTrace) => Icon(
                       Icons.person,
                       color: Colors.white,
-                      size: 20,
+                      size: iconSize,
                     ),
                   )
                 : Icon(
                     Icons.person,
                     color: Colors.white,
-                    size: 20,
+                    size: iconSize,
                   ),
           ),
         ),
         Positioned(
-          bottom: -20,
+          bottom: badgeOffset,
           child: ClipPath(
             clipper: OctagonClipper(),
             child: Container(
-              width: 30,
-              height: 30,
+              width: badgeSize,
+              height: badgeSize,
               color: Colors.black, // Optional: for border effect
               child: Image.network(
                 "http://3.134.119.154/$groupImage",
@@ -2132,6 +2474,68 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     }
   }
 
+  String _formatMessageTime(dynamic timestamp) {
+    final DateTime? dateTime = _parseTimestampValue(timestamp);
+    if (dateTime == null) return '';
+    return DateFormat('h:mm a').format(dateTime);
+  }
+
+  void _registerThreadIndices(Map<String, dynamic> message, int index) {
+    final messageId = message['id']?.toString() ?? message['temporary_id']?.toString() ?? '';
+    if (messageId.isNotEmpty) {
+      _messageIndexLookup[messageId] = index;
+    }
+    final replies = (message['thread_children'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+    for (final reply in replies) {
+      _registerThreadIndices(reply, index);
+    }
+  }
+
+  String _threadKey(Map<String, dynamic> message) {
+    return message['id']?.toString() ?? message['temporary_id']?.toString() ?? message['message_id']?.toString() ?? message.hashCode.toString();
+  }
+
+  List<Map<String, dynamic>> _buildThreadedMessages(List<Map<String, dynamic>> messages) {
+    final Map<String, Map<String, dynamic>> lookup = {};
+    final List<Map<String, dynamic>> ordered = [];
+
+    for (final msg in messages) {
+      final clone = Map<String, dynamic>.from(msg);
+      clone['thread_children'] = <Map<String, dynamic>>[];
+      final id = msg['id']?.toString() ?? msg['temporary_id']?.toString() ?? '';
+      if (id.isNotEmpty) {
+        lookup[id] = clone;
+      }
+      ordered.add(clone);
+    }
+
+    final List<Map<String, dynamic>> roots = [];
+    for (final clone in ordered) {
+      final parentId = clone['reply_to_id']?.toString();
+      if (parentId != null && parentId.isNotEmpty && lookup.containsKey(parentId)) {
+        final parent = lookup[parentId]!;
+        final children = (parent['thread_children'] as List<Map<String, dynamic>>?) ?? <Map<String, dynamic>>[];
+        children.add(clone);
+        parent['thread_children'] = children;
+      } else {
+        roots.add(clone);
+      }
+    }
+
+    for (final clone in ordered) {
+      final children = (clone['thread_children'] as List?)?.cast<Map<String, dynamic>>();
+      if (children != null && children.isNotEmpty) {
+        children.sort((a, b) {
+          final DateTime? aTime = _parseTimestampValue(a['timestamp'] ?? a['created_at']);
+          final DateTime? bTime = _parseTimestampValue(b['timestamp'] ?? b['created_at']);
+          return (aTime ?? DateTime.now()).compareTo(bTime ?? DateTime.now());
+        });
+      }
+    }
+
+    return roots;
+  }
+
   // Helper to group messages by date
   List<Map<String, dynamic>> groupMessagesByDate(List<Map<String, dynamic>> messages) {
     List<Map<String, dynamic>> grouped = [];
@@ -2180,6 +2584,16 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       return DateTime.fromMillisecondsSinceEpoch(millis);
     }
     return null;
+  }
+
+  bool _isRenderableMessage(Map<String, dynamic> message) {
+    final type = (message['type'] ?? 'text').toString();
+    final text = message['text']?.toString().trim() ?? '';
+    final mediaUrl = message['media_url']?.toString().trim() ?? '';
+    final thumbnail = message['thumbnail_url']?.toString().trim() ?? '';
+    final hasReply = message['reply_to'] != null;
+    final hasAttachment = mediaUrl.isNotEmpty || thumbnail.isNotEmpty || type != 'text';
+    return text.isNotEmpty || hasAttachment || hasReply;
   }
 }
 

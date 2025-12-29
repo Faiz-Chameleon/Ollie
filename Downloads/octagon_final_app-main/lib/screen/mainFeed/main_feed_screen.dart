@@ -111,6 +111,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: GestureDetector(
                           onTap: () async {
                             final selectedGroup = controller.groups[index];
+                            final joined = await controller.groupController.joinGroupIfNeeded(selectedGroup.id);
+                            if (!joined) return;
                             String threadId = selectedGroup.thread_id;
                             if (threadId.isEmpty) {
                               final resolvedThreadId = await controller.ensureThreadIdForGroup(selectedGroup);

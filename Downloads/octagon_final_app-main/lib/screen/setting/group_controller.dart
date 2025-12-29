@@ -4,9 +4,11 @@ import 'package:octagon/screen/setting/update_group_screen.dart';
 import 'package:get_storage/get_storage.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:octagon/networking/network.dart';
 import 'package:octagon/services/group_thread_service.dart';
 
 class GroupController extends GetxController {
+  final NetworkAPICall _networkApi = NetworkAPICall();
   var groups = <GroupModel>[].obs;
   var isLoading = false.obs;
 
@@ -50,6 +52,52 @@ class GroupController extends GetxController {
       print(response.reasonPhrase);
     }
     isLoading.value = false;
+  }
+
+  Future<bool> joinGroupIfNeeded(int groupId) async {
+    final storage = GetStorage();
+    final token = storage.read("token");
+    final dynamic storedUserId = storage.read("current_uid") ?? storage.read("user_id") ?? storage.read("id");
+    final int? currentUserId = storedUserId != null ? int.tryParse(storedUserId.toString()) : null;
+
+    if (token == null) {
+      Get.snackbar('Error', 'Authentication token missing. Please log in again.');
+      return false;
+    }
+    if (currentUserId == null) {
+      Get.snackbar('Error', 'Unable to determine the current user.');
+      return false;
+    }
+
+    try {
+      final bool? alreadyMember = await _isUserAlreadyMember(groupId, currentUserId);
+      if (alreadyMember == null) {
+        Get.snackbar('Error', 'Unable to verify group membership. Please try again.');
+        return false;
+      }
+      if (alreadyMember) {
+        return true;
+      }
+
+      final request = http.MultipartRequest('POST', Uri.parse('http://3.134.119.154/api/groups-member-personal-create'));
+      request.headers.addAll({'Authorization': 'Bearer $token'});
+      request.fields['group_id'] = groupId.toString();
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        print('Failed to join group ($groupId): ${response.statusCode} - ${response.reasonPhrase} - $responseBody');
+        Get.snackbar('Error', 'Failed to join group. Please try again.');
+        return false;
+      }
+    } catch (e) {
+      print('joinGroupIfNeeded error: $e');
+      Get.snackbar('Error', 'Failed to join group. Please try again.');
+      return false;
+    }
   }
 
   // Fetch all groups for main feed (public groups)
@@ -108,6 +156,32 @@ class GroupController extends GetxController {
     } else {
       print('Failed to create/fetch thread: ${response.statusCode} - $body');
     }
+    return null;
+  }
+
+  Future<bool?> _isUserAlreadyMember(int groupId, int userId) async {
+    try {
+      final response = await _networkApi.getGroupMembers(groupId.toString());
+      final members = response['success'];
+      if (members is! List) return false;
+      for (final member in members) {
+        if (member is! Map<String, dynamic>) continue;
+        final memberUserId = _tryParseInt(member['user_id']);
+        if (memberUserId != null && memberUserId == userId) {
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      print('Membership check failed: $e');
+      return null;
+    }
+  }
+
+  int? _tryParseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
     return null;
   }
 

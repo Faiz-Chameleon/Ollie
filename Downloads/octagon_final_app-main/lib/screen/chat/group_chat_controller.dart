@@ -36,6 +36,8 @@ class GroupChatController extends GetxController {
   var isLoadingGroupDetails = false.obs;
   var groupDetails = <String, dynamic>{}.obs;
   var replyingTo = Rxn<Map<String, dynamic>>();
+  var mentionResults = <Map<String, dynamic>>[].obs;
+  var isMentionLoading = false.obs;
 
   TextEditingController messageController = TextEditingController();
 
@@ -44,6 +46,7 @@ class GroupChatController extends GetxController {
   void setGroup(String id, bool isPublic) {
     groupId = id;
     isPublicGroup.value = isPublic;
+    mentionResults.clear();
     // listenToMessages();
     fetchGroupDetails();
   }
@@ -54,6 +57,73 @@ class GroupChatController extends GetxController {
 
   void clearReply() {
     replyingTo.value = null;
+  }
+
+  void clearMentionResults() {
+    mentionResults.clear();
+    isMentionLoading.value = false;
+  }
+
+  Future<void> searchGroupMembers(String query) async {
+    if (query.trim().isEmpty) {
+      clearMentionResults();
+      return;
+    }
+    final token = storage.read("token") ?? storage.read("auth_token");
+    if (token == null) return;
+    try {
+      isMentionLoading.value = true;
+      final request = http.MultipartRequest('POST', Uri.parse('${baseUrl}groups-member-search'));
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      });
+      request.fields.addAll({'group_id': groupId, 'search': query});
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+      if (response.statusCode == 200) {
+        final decoded = json.decode(body);
+        mentionResults.assignAll(_normalizeMemberSearch(decoded));
+      } else {
+        print('Member search failed: ${response.statusCode} $body');
+        clearMentionResults();
+      }
+    } catch (e) {
+      print('Member search error: $e');
+      clearMentionResults();
+    } finally {
+      isMentionLoading.value = false;
+    }
+  }
+
+  List<Map<String, dynamic>> _normalizeMemberSearch(dynamic payload) {
+    final List<Map<String, dynamic>> normalized = [];
+    if (payload == null) return normalized;
+    dynamic raw = payload;
+    if (payload is Map<String, dynamic>) {
+      raw = payload['success'] ?? payload['data'] ?? payload['members'] ?? payload['results'];
+      if (raw is Map) raw = raw.values.toList();
+    }
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map) {
+          final rawName = item["user"]['name'] ?? item['full_name'] ?? item['username'] ?? item['user_name'] ?? '';
+          final displayName = (rawName?.toString() ?? '').trim();
+          if (displayName.isEmpty) continue;
+          final rawUsername = item['username'] ?? item['user_name'] ?? displayName;
+          final username = (rawUsername?.toString() ?? '').trim();
+          final idValue = item["user"]['user_id'] ?? item['id'] ?? item['member_id'] ?? '';
+          final imageValue = item["user"]['photo'] ?? item['photo'] ?? item['avatar'] ?? item['image'] ?? '';
+          normalized.add({
+            'id': idValue?.toString() ?? '',
+            'name': displayName,
+            'username': username.isNotEmpty ? username : displayName,
+            'image': imageValue?.toString() ?? '',
+          });
+        }
+      }
+    }
+    return normalized;
   }
 
   /// Upload a local video file directly to the messenger API for a given thread.

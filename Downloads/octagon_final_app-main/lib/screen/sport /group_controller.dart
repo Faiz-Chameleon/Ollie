@@ -151,11 +151,13 @@ import 'dart:io';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:octagon/main.dart';
+import 'package:octagon/networking/network.dart';
 import 'package:path/path.dart';
 
 import '../../utils/constants.dart';
 
 class NewGroupController extends GetxController {
+  final NetworkAPICall _networkApi = NetworkAPICall();
   var isLoading = false.obs;
   var isLoadingOnJoin = false.obs;
 
@@ -225,18 +227,37 @@ class NewGroupController extends GetxController {
   Future<void> joinGroup() async {
     isLoadingOnJoin.value = true;
 
-    var headers = {
-      'Authorization': 'Bearer ${getUserToken()}',
-    };
-
-    var request = http.MultipartRequest('POST', Uri.parse('http://3.134.119.154/api/groups-member-personal-create'));
-    request.fields.addAll({
-      'group_id': selectedGroupId.value.toString(),
-      // 'user_id': storage.read('current_uid').toString()
-    });
-
-    request.headers.addAll(headers);
     try {
+      final dynamic storedUserId = storage.read('current_uid') ?? storage.read('user_id') ?? storage.read('id');
+      final int? currentUserId = storedUserId != null ? int.tryParse(storedUserId.toString()) : null;
+
+      if (currentUserId == null) {
+        Get.snackbar('Error', 'Unable to determine the current user');
+        return;
+      }
+
+      final bool? alreadyMember = await _isUserAlreadyMember(currentUserId);
+      if (alreadyMember == null) {
+        Get.snackbar('Error', 'Unable to verify group membership. Please try again.');
+        return;
+      }
+      if (alreadyMember) {
+        Get.snackbar('Groups', 'You have already joined this group');
+        return;
+      }
+
+      var headers = {
+        'Authorization': 'Bearer ${getUserToken()}',
+      };
+
+      var request = http.MultipartRequest('POST', Uri.parse('http://3.134.119.154/api/groups-member-personal-create'));
+      request.fields.addAll({
+        'group_id': selectedGroupId.value.toString(),
+        // 'user_id': storage.read('current_uid').toString()
+      });
+
+      request.headers.addAll(headers);
+
       http.StreamedResponse response = await request.send();
       String responseBody = await response.stream.bytesToString();
 
@@ -256,6 +277,38 @@ class NewGroupController extends GetxController {
 
       update();
     }
+  }
+
+  Future<bool?> _isUserAlreadyMember(int userId) async {
+    if (selectedGroupId.value == 0) {
+      return false;
+    }
+    try {
+      final response = await _networkApi.getGroupMembers(selectedGroupId.value.toString());
+      final members = response['success'];
+      if (members is! List) {
+        return false;
+      }
+      return members.any((member) {
+        if (member is! Map<String, dynamic>) {
+          return false;
+        }
+        final memberUserId = _tryParseInt(member['user_id']);
+        return memberUserId != null && memberUserId == userId;
+      });
+    } catch (e) {
+      print('Membership check failed: $e');
+      return null;
+    }
+  }
+
+  int? _tryParseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) {
+      return int.tryParse(value);
+    }
+    return null;
   }
 
   Future<void> createGroup({
