@@ -89,6 +89,7 @@ class _YourGroupsScreenState extends State<YourGroupsScreen> {
                               groupImage: group.photo.toString(),
                               userImage: storage.read('image_url'),
                               thread_id: group.threadId.toString(),
+                              otheruserId: group.userId,
                             ));
                       },
                       child: Container(

@@ -13,6 +13,7 @@ public class PusherInstance: PusherDelegate{
     public var pusher: Pusher?
     public var isLoggingEnabled: Bool = false;
     public var bindedEvents = [String:String]();
+    public var globalBindedEvents = [String:String]();
     public var channels = [String:PusherChannel]()
     
     // Initialize [PusherInstance]
@@ -40,6 +41,10 @@ public class PusherInstance: PusherDelegate{
             bind(call, result: result)
         case "unbind":
             unbind(call, result: result)
+        case "bindGlobal":
+            bindGlobal(call, result: result)
+        case "unbindGlobal":
+            unbindGlobal(call, result: result)
         case "trigger":
             trigger(call, result: result)
         case "getSocketId":
@@ -70,6 +75,7 @@ public class PusherInstance: PusherDelegate{
         
         channels.removeAll();
         bindedEvents.removeAll()
+        globalBindedEvents.removeAll()
         
         do {
             let json = call.arguments as! String
@@ -246,6 +252,72 @@ public class PusherInstance: PusherDelegate{
         }
         result(nil);
     }
+
+    public func bindGlobal(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        do {
+            let json = call.arguments as! String
+            let jsonDecoder = JSONDecoder()
+            let bindArgs = try jsonDecoder.decode(GlobalBindArgs.self, from: json.data(using: .utf8)!)
+
+            guard let pusherObj = pusher else {
+                result(nil)
+                return
+            }
+
+            if let existingId = globalBindedEvents[bindArgs.channelName] {
+                pusherObj.unbind(callbackId: existingId)
+                globalBindedEvents.removeValue(forKey: bindArgs.channelName)
+            }
+
+            let callbackId = pusherObj.bind(eventCallback: { [weak self] event in
+                guard let self = self else { return }
+                guard let channelName = event.channelName, channelName == bindArgs.channelName else { return }
+                let eventData = event.data ?? ""
+                let payload = Event(channel: channelName, event: event.eventName, data: eventData)
+                let message = PusherEventStreamMessage(event: payload, connectionStateChange: nil, instanceId: self.instanceId)
+                let jsonEncoder = JSONEncoder()
+                if let jsonData = try? jsonEncoder.encode(message),
+                   let jsonString = String(data: jsonData, encoding: .utf8),
+                   let eventSinkObj = SwiftLaravelFlutterPusherPlugin.eventSink {
+                    eventSinkObj(jsonString)
+                    if (self.isLoggingEnabled) {
+                        print("Pusher global event: CHANNEL:\(channelName) EVENT:\(event.eventName) DATA:\(jsonString)")
+                    }
+                }
+            })
+
+            globalBindedEvents[bindArgs.channelName] = callbackId
+            if (isLoggingEnabled) {
+                print("Pusher bindGlobal (\(bindArgs.channelName))")
+            }
+        } catch {
+            if (isLoggingEnabled) {
+                print("Pusher bindGlobal error:" + error.localizedDescription)
+            }
+        }
+        result(nil);
+    }
+
+    public func unbindGlobal(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        do {
+            let json = call.arguments as! String
+            let jsonDecoder = JSONDecoder()
+            let bindArgs = try jsonDecoder.decode(GlobalBindArgs.self, from: json.data(using: .utf8)!)
+
+            if let pusherObj = pusher, let callbackId = globalBindedEvents[bindArgs.channelName] {
+                pusherObj.unbind(callbackId: callbackId)
+                globalBindedEvents.removeValue(forKey: bindArgs.channelName)
+                if (isLoggingEnabled) {
+                    print("Pusher unbindGlobal (\(bindArgs.channelName))")
+                }
+            }
+        } catch {
+            if (isLoggingEnabled) {
+                print("Pusher unbindGlobal error:" + error.localizedDescription)
+            }
+        }
+        result(nil);
+    }
     
     
     private func unbindIfBound(channelName: String, eventName: String) {
@@ -392,4 +464,9 @@ struct Event: Codable {
 struct BindArgs: Codable {
     var channelName: String
     var eventName: String
+}
+
+struct GlobalBindArgs: Codable {
+    var channelName: String
+    var instanceId: String?
 }

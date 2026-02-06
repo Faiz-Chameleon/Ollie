@@ -1,7 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../../utils/theme/theme_constants.dart';
 import '../../widgets/filled_button_widget.dart';
 import '../login/login_screen.dart';

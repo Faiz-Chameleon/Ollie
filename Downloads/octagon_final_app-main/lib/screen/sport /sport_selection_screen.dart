@@ -413,6 +413,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:octagon/main.dart';
+import 'package:http/http.dart' as http;
 
 import 'package:octagon/networking/model/response_model/sport_list_response_model.dart';
 import 'package:octagon/networking/model/save_sports_request_model.dart';
@@ -529,8 +530,56 @@ class _SportSelectionState extends State<SportSelection> {
             actions: [
               if (!widget.isUpdate)
                 InkWell(
-                  onTap: () {
-                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => TabScreen()));
+                  onTap: () async {
+                    try {
+                      // Show a loading indicator while the API call is in progress
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) => Center(child: CircularProgressIndicator()),
+                      );
+
+                      // Make the API call
+                      final request = await http.MultipartRequest(
+                        'POST',
+                        Uri.parse('http://3.134.119.154/api/join-default-group'),
+                      );
+                      request.headers['Authorization'] = 'Bearer ${getUserToken()}';
+                      request.fields['email'] = 'admin@octagon.com';
+                      request.fields['password'] = '12345678';
+
+                      final streamedResponse = await request.send();
+                      final response = await http.Response.fromStream(streamedResponse);
+                      ;
+
+                      Navigator.pop(context); // Close the loading indicator
+
+                      if (response.statusCode == 200) {
+                        // Navigate to the TabScreen on success
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => TabScreen()),
+                        );
+                      } else {
+                        // Show an error message if the API call fails
+                        Get.snackbar(
+                          'Error',
+                          'Failed to join the default group. Please try again.',
+                          backgroundColor: Colors.white,
+                          colorText: Colors.black,
+                        );
+                      }
+                    } catch (e) {
+                      Navigator.pop(context); // Close the loading indicator
+
+                      // Show an error message if an exception occurs
+                      Get.snackbar(
+                        'Error',
+                        'An error occurred: $e',
+                        backgroundColor: Colors.white,
+                        colorText: Colors.black,
+                      );
+                    }
                   },
                   child: Center(
                     child: Text(

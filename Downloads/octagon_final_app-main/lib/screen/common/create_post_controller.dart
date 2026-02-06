@@ -109,6 +109,86 @@ class CreatePostController extends GetxController {
       isLoading.value = false;
     }
   }
+
+  Future<bool> submitPostFromFiles({
+    required List<PostFile> images,
+    required List<PostFile> videos,
+    String? description,
+    String? title,
+    bool? commentEnabled,
+    int? isRepost,
+    String? originalUserId,
+    List<String>? originalResource,
+  }) async {
+    if (images.isEmpty && videos.isEmpty) {
+      showToast(message: "Please upload media first!");
+      return false;
+    }
+
+    isLoading.value = true;
+
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('http://3.134.119.154/api/save-user-post'),
+      );
+
+      request.headers.addAll({
+        'Authorization': 'Bearer ${getUserToken()}',
+      });
+
+      final typeIndex = postTypes.indexOf(dropdownValue.value);
+      final typeValue = typeIndex == -1 ? 1 : typeIndex + 1;
+      final resolvedTitle = (title ?? postTitleController.text).trim();
+      final resolvedDescription = (description ?? descriptionController.text).trim();
+      final resolvedComment = commentEnabled ?? isCommentEnabled.value;
+
+      request.fields.addAll({
+        'type': typeValue.toString(),
+        'title': resolvedTitle,
+        'post': resolvedDescription,
+        'location': resolvedTitle,
+        'comment': resolvedComment ? '1' : '0',
+        'category': '',
+      });
+
+      if (isRepost != null) {
+        request.fields['is_repost'] = isRepost.toString();
+      }
+      if (originalUserId != null) {
+        request.fields['original_user_id'] = originalUserId;
+      }
+      if (originalResource != null && originalResource.isNotEmpty) {
+        request.fields['original_source'] = originalResource.join(',');
+      }
+
+      final imageFiles = await convertFiles(images, 'photo[]');
+      request.files.addAll(imageFiles);
+
+      final videoFiles = await convertFiles(videos, 'video[]');
+      request.files.addAll(videoFiles);
+
+      final response = await request.send();
+
+      if (response.statusCode == 200) {
+        final responseBody = await response.stream.bytesToString();
+        print("Success: $responseBody");
+        showToast(message: "Post created successfully!");
+        return true;
+      } else {
+        print("Error: ${response.statusCode}");
+        showToast(message: "Failed to create post! Code: ${response.statusCode}");
+        return false;
+      }
+    } catch (e) {
+      print("Exception: $e");
+      showToast(message: "Error creating post: $e");
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   // Future<void> submitPost({bool isFromChat = false}) async {
   //   if (images.isEmpty && videos.isEmpty) {
   //     showToast(message: "Please upload media first!");

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:octagon/screen/group/group_settings_screen.dart';
+import 'package:octagon/screen/profile/other_user_profile.dart';
 import 'package:octagon/utils/theme/theme_constants.dart';
 import 'package:sizer/sizer.dart';
 import 'dart:async';
@@ -13,7 +14,9 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:octagon/networking/network.dart';
+import 'package:octagon/screen/common/create_post_controller.dart';
 import 'package:octagon/screen/group/pusher_implementation/pusher_service.dart';
+import 'package:octagon/screen/mainFeed/bloc/post_repo.dart';
 import 'package:octagon/utils/constants.dart';
 import 'package:octagon/services/group_thread_service.dart';
 import 'package:video_player/video_player.dart';
@@ -35,11 +38,13 @@ class NewGroupChatScreen extends StatefulWidget {
   final String groupImage;
   final String userImage;
   String thread_id;
+  final int otheruserId;
 
   NewGroupChatScreen({
+    required this.userId,
     required this.groupId,
     required this.isPublic,
-    required this.userId,
+    required this.otheruserId,
     required this.userName,
     required this.groupName,
     required this.groupImage,
@@ -52,23 +57,17 @@ class NewGroupChatScreen extends StatefulWidget {
 }
 
 class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
+  static const String _heartReactionEmoji = '❤️';
   final GroupChatController controller = Get.put(GroupChatController());
+  final CreatePostController _postController = Get.put(CreatePostController());
   final storage = GetStorage();
   final NetworkAPICall _api = NetworkAPICall();
   final PusherService _pusher = Get.find<PusherService>();
-  final List<String> _reactionOptions = const ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥'];
+  final List<String> _reactionOptions = const [_heartReactionEmoji];
   final Map<String, String> _reactionAliasMap = const {
-    ':thumbsup:': '👍',
-    ':+1:': '👍',
-    ':heart:': '❤️',
-    ':joy:': '😂',
-    ':laughing:': '😂',
-    ':open_mouth:': '😮',
-    ':astonished:': '😮',
-    ':cry:': '😢',
-    ':sob:': '😢',
-    ':pray:': '🙏',
-    ':fire:': '🔥',
+    ':heart:': _heartReactionEmoji,
+    ':love:': _heartReactionEmoji,
+    ':like:': _heartReactionEmoji,
   };
 
   // String? _threadId;
@@ -85,12 +84,16 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   TextRange? _activeMentionRange;
   bool _isMentionPanelVisible = false;
   static const int _defaultVisibleReplies = 3;
+  bool _showJumpToLatest = false;
+  bool _isBlockedByAdmin = false;
+  String _blockNotice = 'You have been blocked from this group by an admin.';
 
   @override
   void initState() {
     super.initState();
     controller.setGroup(widget.groupId, widget.isPublic);
     controller.messageController.addListener(_handleComposerTextChanged);
+    _messagePositionsListener.itemPositions.addListener(_handleMessageListPositionsChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initThreadFlow();
     });
@@ -101,6 +104,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     _pusherSub?.cancel();
     _mentionSearchDebounce?.cancel();
     controller.messageController.removeListener(_handleComposerTextChanged);
+    _messagePositionsListener.itemPositions.removeListener(_handleMessageListPositionsChanged);
     controller.clearMentionResults();
     super.dispose();
   }
@@ -109,6 +113,13 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     if (_initializing) return;
     _initializing = true;
     try {
+      // Get user ID with fallback
+      final currentUserId = storage.read("current_uid") ?? storage.read("user_id") ?? storage.read("id");
+      if (currentUserId == null) {
+        log('❌ No user ID found in storage');
+        return;
+      }
+
       if (widget.thread_id.isEmpty) {
         final res = await _createThreadForGroup();
         String? tid = GroupThreadService.extractThreadId(res);
@@ -117,6 +128,11 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
           return;
         }
         widget.thread_id = tid;
+      }
+
+      final blocked = await _checkBlockedStatus(widget.thread_id, currentUserId.toString());
+      if (blocked) {
+        return;
       }
 
       await _loadHistory();
@@ -130,13 +146,6 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         log('Pusher connection failed - retrying initialization');
         await _pusher.initializePusher();
         await _pusher.waitUntilConnected(timeout: Duration(seconds: 10));
-      }
-
-      // Get user ID with fallback
-      final currentUserId = storage.read("current_uid") ?? storage.read("user_id") ?? storage.read("id");
-      if (currentUserId == null) {
-        log('❌ No user ID found in storage');
-        return;
       }
 
       log('👤 Subscribing with user ID: $currentUserId, thread ID: ${widget.thread_id}');
@@ -186,6 +195,63 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     } finally {
       _initializing = false;
     }
+  }
+
+  Future<bool> _checkBlockedStatus(String threadId, String userId) async {
+    try {
+      final res = await _api.checkGroupUserBlocked(threadId: threadId, userId: userId);
+      final blocked = _extractBlockedFlag(res);
+      if (blocked) {
+        final message = res['message']?.toString() ?? (res['success'] is Map ? res['success']['message']?.toString() : null);
+        if (message != null && message.isNotEmpty) {
+          _blockNotice = message;
+        }
+        if (mounted) {
+          setState(() {
+            _isBlockedByAdmin = true;
+          });
+        } else {
+          _isBlockedByAdmin = true;
+        }
+        controller.messageController.clear();
+        Get.snackbar('Blocked', _blockNotice);
+      }
+      return blocked;
+    } catch (e) {
+      log('❌ Failed to check blocked status: $e');
+      return false;
+    }
+  }
+
+  bool _extractBlockedFlag(Map<String, dynamic> payload) {
+    final direct =
+        _parseBool(payload['blocked']) ?? _parseBool(payload['is_blocked']) ?? _parseBool(payload['isBlocked']) ?? _parseBool(payload['status']);
+    if (direct != null) return direct;
+
+    final success = payload['success'];
+    if (success is Map<String, dynamic>) {
+      return _parseBool(success['blocked']) ??
+          _parseBool(success['is_blocked']) ??
+          _parseBool(success['isBlocked']) ??
+          _parseBool(success['status']) ??
+          false;
+    }
+    if (success is bool) {
+      return success;
+    }
+    return false;
+  }
+
+  bool? _parseBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value == 1;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == '1' || normalized == 'true' || normalized == 'blocked') return true;
+      if (normalized == '0' || normalized == 'false') return false;
+    }
+    return null;
   }
 
   Future<dynamic> _createThreadForGroup() async {
@@ -263,6 +329,20 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     } catch (_) {
       senderImage = _absUrl(data['owner']?.toString());
     }
+    String userIndividualGroupImage = '';
+    try {
+      if (data['owner'] != null) {
+        final avatar = data['owner']['base'];
+        if (avatar is Map) {
+          userIndividualGroupImage = _absUrl(avatar['user_group_img'] ?? '');
+        }
+      }
+      if (userIndividualGroupImage.isEmpty && data['owner'] != null) {
+        userIndividualGroupImage = _absUrl(data['owner']['base']['user_group_img']?.toString());
+      }
+    } catch (_) {
+      userIndividualGroupImage = _absUrl(data['owner']?.toString());
+    }
 
     final extraData = _normalizeExtra(data['extra']);
     // Determine message type
@@ -278,7 +358,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     else if (tv.contains('document') || tn == 2) type = 'document';
 
     // Text/body
-    final text = data['body'] ?? data['message'] ?? data['text'] ?? '';
+    String text = data['body']?.toString() ?? data['message']?.toString() ?? data['text']?.toString() ?? '';
 
     // Media URLs (image/audio/document/video)
     String mediaUrl = '';
@@ -323,11 +403,20 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     final DateTime updatedAt = _parseTimestampValue(data['updated_at']) ?? createdAt;
     final DateTime? reactionUpdatedAt = _parseTimestampValue(data['reaction_updated_at']);
 
+    if (_isMediaMessageType(type) && text.trim().isNotEmpty) {
+      final trimmed = text.trim();
+      if (_looksLikeUrl(trimmed) || trimmed == mediaUrl || trimmed == thumbnailUrl) {
+        text = '';
+      }
+    }
+
     final replyData = _normalizeReplyData(data['reply_to'] ?? data['reply_to_message'] ?? data['parent_message']);
     final reactionUsers = _extractReactionUsers(data);
     final reactionCounts = _extractReactionCounts(data, reactionUsers);
-    final reactions =
-        reactionCounts.entries.where((e) => (e.key.toString()).isNotEmpty && e.value > 0).map((e) => {'emoji': e.key, 'count': e.value}).toList();
+    final reactions = reactionCounts.entries
+        .where((e) => (e.key.toString()).isNotEmpty && e.value > 0 && _isSupportedReaction(e.key))
+        .map((e) => {'emoji': e.key, 'count': e.value})
+        .toList();
 
     return {
       'id': messageId,
@@ -340,7 +429,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       'updated_at': updatedAt,
       if (reactionUpdatedAt != null) 'reaction_updated_at': reactionUpdatedAt,
       'type': type,
-      'text': text?.toString() ?? '',
+      'text': text,
       'media_url': mediaUrl,
       'thumbnail_url': thumbnailUrl,
       'extra': extraData ?? data['extra'],
@@ -349,6 +438,8 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       'reactions': reactions,
       'reaction_users': reactionUsers.map((key, value) => MapEntry(key, value.toList())),
       'raw': data,
+      'group_image': userIndividualGroupImage,
+      "userType": data['owner']['base']['user_type']?.toString() ?? '',
     };
   }
 
@@ -369,6 +460,9 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
 
     bool handled = true;
     switch (type) {
+      case 'user_blocked':
+        _handleUserBlockedEvent(normalizedPayload);
+        break;
       case 'message_archived':
         _removeMessageFromList(normalizedPayload['id']?.toString() ?? normalizedPayload['message_id']?.toString());
         break;
@@ -405,6 +499,42 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         log('ℹ️ Unhandled message event type: $type');
       }
     }
+  }
+
+  void _handleUserBlockedEvent(Map<String, dynamic> payload) {
+    final blockedUserId = _extractBlockedUserId(payload);
+    final currentUserId =
+        widget.userId.isNotEmpty ? widget.userId : (storage.read("current_uid") ?? storage.read("user_id") ?? storage.read("id"))?.toString();
+    if (blockedUserId == null || currentUserId == null || blockedUserId != currentUserId) {
+      return;
+    }
+
+    final message = payload['message']?.toString().trim();
+    if (message != null && message.isNotEmpty) {
+      _blockNotice = message;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isBlockedByAdmin = true;
+      });
+    } else {
+      _isBlockedByAdmin = true;
+    }
+    controller.messageController.clear();
+    Get.snackbar('Blocked', _blockNotice);
+  }
+
+  String? _extractBlockedUserId(Map<String, dynamic> payload) {
+    final direct = payload['user_id'] ?? payload['blocked_user_id'] ?? payload['blockedUserId'];
+    if (direct != null && direct.toString().isNotEmpty) {
+      return direct.toString();
+    }
+    final user = payload['user'];
+    if (user is Map && user['id'] != null) {
+      return user['id'].toString();
+    }
+    return null;
   }
 
   void _handleReactionEvent(String type, Map<String, dynamic> payload) {
@@ -573,7 +703,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     void addUser(String emoji, dynamic userId) {
       emoji = _normalizeReactionEmoji(emoji);
       final id = userId?.toString() ?? '';
-      if (emoji.isEmpty || id.isEmpty) return;
+      if (emoji.isEmpty || id.isEmpty || !_isSupportedReaction(emoji)) return;
       reactionUsers.putIfAbsent(emoji, () => <String>{}).add(id);
     }
 
@@ -582,7 +712,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       for (final entry in reactions) {
         if (entry is Map) {
           final emoji = _normalizeReactionEmoji(entry['reaction']?.toString() ?? entry['value']?.toString() ?? '');
-          if (emoji.isEmpty) continue;
+          if (emoji.isEmpty || !_isSupportedReaction(emoji)) continue;
           if (entry['users'] is List) {
             for (final user in entry['users']) {
               if (user is Map && user['id'] != null) {
@@ -601,10 +731,11 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       if (payload is Map) {
         payload.forEach((key, value) {
           final emojiKey = _normalizeReactionEmoji(key.toString());
-          if (emojiKey.isEmpty || value is! List) return;
+          if (emojiKey.isEmpty || value is! List || !_isSupportedReaction(emojiKey)) return;
           for (final item in value) {
             if (item is Map) {
               final emoji = _normalizeReactionEmoji(item['reaction']?.toString() ?? emojiKey);
+              if (!_isSupportedReaction(emoji)) continue;
               addUser(emoji, item['owner_id'] ?? item['user_id'] ?? item['owner']?['id']);
             }
           }
@@ -617,14 +748,16 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   Map<String, int> _extractReactionCounts(Map<String, dynamic> data, Map<String, Set<String>> reactionUsers) {
     final Map<String, int> counts = {};
     reactionUsers.forEach((key, value) {
-      counts[key] = value.length;
+      if (_isSupportedReaction(key)) {
+        counts[key] = value.length;
+      }
     });
 
     final totals = data['reaction_totals'];
     if (totals is Map) {
       totals.forEach((key, value) {
         final emoji = key.toString();
-        if (emoji.isEmpty) return;
+        if (emoji.isEmpty || !_isSupportedReaction(emoji)) return;
         final count = value is num ? value.toInt() : int.tryParse(value.toString()) ?? 0;
         if (count > 0) {
           final current = counts[emoji] ?? 0;
@@ -687,6 +820,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
 
   void _applyLocalReaction(Map<String, dynamic> message, String emoji) {
     emoji = _normalizeReactionEmoji(emoji);
+    if (!_isSupportedReaction(emoji)) return;
     final userId = widget.userId.toString();
     final Map<String, dynamic> reactionUsers = Map<String, dynamic>.from(message['reaction_users'] ?? {});
     final dynamic existing = reactionUsers[emoji];
@@ -792,6 +926,10 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   }
 
   void _applyReactionDeltaFromNetwork(String messageId, String emoji, String? reactorId, bool added, {DateTime? reactionTimestamp}) {
+    if (!_isSupportedReaction(emoji)) {
+      log('⚠️ Ignoring unsupported reaction update: $emoji');
+      return;
+    }
     final idx = controller.messages.indexWhere(
       (element) => element['id']?.toString() == messageId || element['temporary_id']?.toString() == messageId,
     );
@@ -930,6 +1068,10 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     return false;
   }
 
+  bool _isSupportedReaction(String emoji) {
+    return emoji == _heartReactionEmoji;
+  }
+
   String _normalizeReactionEmoji(String raw) {
     if (raw.isEmpty) return raw;
     if (_reactionOptions.contains(raw)) return raw;
@@ -954,8 +1096,36 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     return emoji;
   }
 
+  bool _isMediaMessageType(String type) {
+    final normalized = type.toLowerCase();
+    return normalized == 'image' || normalized == 'images' || normalized == 'video' || normalized == 'videos';
+  }
+
+  String? _extractMediaCaption(Map<String, dynamic> message) {
+    final type = (message['type'] ?? '').toString();
+    if (!_isMediaMessageType(type)) return null;
+    final extra = _normalizeExtra(message['extra']);
+    final extraCaption = extra?['caption']?.toString().trim();
+    if (extraCaption != null && extraCaption.isNotEmpty) {
+      return extraCaption;
+    }
+    // final text = (message['text']?.toString() ?? '').trim();
+    // if (text.isEmpty || _looksLikeUrl(text)) return null;
+    // return text;
+  }
+
+  bool _looksLikeUrl(String value) {
+    final trimmed = value.trim().toLowerCase();
+    if (trimmed.isEmpty) return false;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('www.')) return true;
+    final uri = Uri.tryParse(trimmed);
+    return uri != null && uri.hasScheme && uri.host.isNotEmpty;
+  }
+
   String _replySnippet(Map<String, dynamic> message) {
     final type = (message['type'] ?? 'text').toString();
+    final caption = _extractMediaCaption(message);
+    if (caption != null) return caption;
     if (type == 'text') {
       final text = message['text']?.toString() ?? '';
       return text.isEmpty ? 'Text message' : text;
@@ -1003,6 +1173,10 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   }
 
   Future<void> _sendMessage() async {
+    if (_isBlockedByAdmin) {
+      Get.snackbar('Blocked', _blockNotice);
+      return;
+    }
     final text = controller.messageController.text.trim();
     if (text.isEmpty || widget.thread_id.isEmpty) return;
     final replyTarget = controller.replyingTo.value;
@@ -1083,21 +1257,26 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                           ),
 
                           // Centered network image
-                          ClipPath(
-                            clipper: OctagonClipper(),
-                            child: Image.network(
-                              'http://3.134.119.154/${widget.groupImage}', // Replace with your image URL
-                              width: 45,
-                              height: 45,
-                              fit: BoxFit.fill,
-                              errorBuilder: (context, error, stackTrace) => Container(
+                          GestureDetector(
+                            onTap: () {
+                              Get.to(() => OtherUserProfileScreen(userId: widget.otheruserId));
+                            },
+                            child: ClipPath(
+                              clipper: OctagonClipper(),
+                              child: Image.network(
+                                'http://3.134.119.154/${widget.groupImage}', // Replace with your image URL
                                 width: 45,
                                 height: 45,
-                                color: Colors.transparent,
-                                child: Icon(
-                                  Icons.error,
-                                  color: Colors.red,
-                                  size: 24,
+                                fit: BoxFit.fill,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  width: 45,
+                                  height: 45,
+                                  color: Colors.transparent,
+                                  child: Icon(
+                                    Icons.error,
+                                    color: Colors.red,
+                                    size: 24,
+                                  ),
                                 ),
                               ),
                             ),
@@ -1173,6 +1352,13 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
             ),
           ),
           actions: [
+            Padding(
+              padding: EdgeInsets.only(top: 24.0),
+              child: IconButton(
+                icon: const Icon(Icons.perm_media, color: Colors.white),
+                onPressed: _openMediaGallery,
+              ),
+            ),
             Obx(() {
               if (controller.isLoadingGroupDetails.value) {
                 return const Padding(
@@ -1262,34 +1448,49 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
               );
             }),
             Expanded(
-              child: ScrollablePositionedList.builder(
-                reverse: true,
-                itemScrollController: _messageScrollController,
-                itemPositionsListener: _messagePositionsListener,
-                itemCount: groupedMessages.length,
-                padding: const EdgeInsets.all(16),
-                itemBuilder: (_, index) {
-                  final item = groupedMessages[index];
-                  if (item['type'] == 'date') {
-                    return Center(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 0),
-                        padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
-                        decoration: BoxDecoration(
-                          color: const Color(0xff211D39),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          item['label'],
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
-                        ),
+              child: Stack(
+                children: [
+                  ScrollablePositionedList.builder(
+                    reverse: true,
+                    itemScrollController: _messageScrollController,
+                    itemPositionsListener: _messagePositionsListener,
+                    itemCount: groupedMessages.length,
+                    padding: const EdgeInsets.all(16),
+                    itemBuilder: (_, index) {
+                      final item = groupedMessages[index];
+                      if (item['type'] == 'date') {
+                        return Center(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 0),
+                            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+                            decoration: BoxDecoration(
+                              color: const Color(0xff211D39),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              item['label'],
+                              style: const TextStyle(color: Colors.white, fontSize: 13),
+                            ),
+                          ),
+                        );
+                      } else {
+                        final msg = item['data'];
+                        return _buildMessageWidget(msg);
+                      }
+                    },
+                  ),
+                  if (_showJumpToLatest)
+                    Positioned(
+                      right: 16,
+                      bottom: 24,
+                      child: FloatingActionButton(
+                        mini: true,
+                        backgroundColor: const Color(0xff653FF6),
+                        onPressed: _scrollToLatest,
+                        child: const Icon(Icons.arrow_downward, color: Colors.white),
                       ),
-                    );
-                  } else {
-                    final msg = item['data'];
-                    return _buildMessageWidget(msg);
-                  }
-                },
+                    ),
+                ],
               ),
             ),
 
@@ -1302,78 +1503,92 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                   return _buildComposerReplyPreview(reply);
                 }),
                 _buildMentionSuggestions(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  ),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () async {
-                          await controller.pickMedia(
-                            context,
-                            threadId: widget.thread_id,
-                            onMessengerMessage: _handleMessengerUploadResponse,
-                          );
-                        },
-                        child: Container(
-                          height: 40,
-                          width: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.lightBlue,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Obx(() => controller.isUploading.value
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.add,
+                _isBlockedByAdmin
+                    ? Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFCE8E6),
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                        ),
+                        child: Text(
+                          _blockNotice,
+                          style: const TextStyle(color: Colors.redAccent),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                        ),
+                        child: Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () async {
+                                await controller.pickMedia(
+                                  context,
+                                  threadId: widget.thread_id,
+                                  onMessengerMessage: _handleMessengerUploadResponse,
+                                );
+                              },
+                              child: Container(
+                                height: 40,
+                                width: 40,
+                                decoration: BoxDecoration(
+                                  color: Colors.lightBlue,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Obx(() => controller.isUploading.value
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.add,
+                                        color: Colors.white,
+                                        size: 20,
+                                      )),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: controller.messageController,
+                                style: const TextStyle(color: Colors.black),
+                                decoration: const InputDecoration(
+                                  hintText: "Write message...",
+                                  hintStyle: TextStyle(color: Colors.grey),
+                                  border: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                _sendMessage();
+                              },
+                              child: Container(
+                                height: 40,
+                                width: 40,
+                                decoration: BoxDecoration(
+                                  color: Colors.lightBlue,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Icon(
+                                  Icons.send,
                                   color: Colors.white,
                                   size: 20,
-                                )),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: controller.messageController,
-                          style: const TextStyle(color: Colors.black),
-                          decoration: const InputDecoration(
-                            hintText: "Write message...",
-                            hintStyle: TextStyle(color: Colors.grey),
-                            border: InputBorder.none,
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          _sendMessage();
-                        },
-                        child: Container(
-                          height: 40,
-                          width: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.lightBlue,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Icon(
-                            Icons.send,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             )
             // else
@@ -1414,8 +1629,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     final bool hasReplies = replies.isNotEmpty;
     final bool isExpanded = hasReplies && _expandedThreads.contains(threadKey);
     final bool needsToggle = replies.length > _defaultVisibleReplies;
-    final List<Map<String, dynamic>> repliesToDisplay =
-        (!needsToggle || isExpanded) ? replies : replies.take(_defaultVisibleReplies).toList();
+    final List<Map<String, dynamic>> repliesToDisplay = (!needsToggle || isExpanded) ? replies : replies.take(_defaultVisibleReplies).toList();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Column(
@@ -1433,6 +1647,96 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         ],
       ),
     );
+  }
+
+  void _openMediaGallery() {
+    final media = _gatherMediaCollections();
+    if (media.images.isEmpty && media.videos.isEmpty) {
+      Get.snackbar('No media yet', 'No images or videos shared in this chat.');
+      return;
+    }
+    Get.to(() => MediaGalleryScreen(images: media.images, videos: media.videos));
+  }
+
+  _MediaCollections _gatherMediaCollections() {
+    final images = <MediaAttachment>[];
+    final videos = <MediaAttachment>[];
+
+    void collectFromMessage(Map<String, dynamic> message) {
+      final type = (message['type'] ?? '').toString().toLowerCase();
+      final timestamp = message['timestamp'] ?? message['created_at'];
+      final messageId = message['id']?.toString() ?? message['temporary_id']?.toString() ?? '';
+
+      void addAttachment({
+        required List<MediaAttachment> target,
+        required dynamic url,
+        dynamic thumbnail,
+        required bool isVideo,
+      }) {
+        if (url == null) return;
+        final resolved = _absUrl(url.toString());
+        if (resolved.isEmpty) return;
+        final thumb = thumbnail == null ? null : _absUrl(thumbnail.toString());
+        target.add(
+          MediaAttachment(
+            url: resolved,
+            thumbnailUrl: thumb,
+            isVideo: isVideo,
+            timestamp: _parseTimestampValue(timestamp),
+            messageId: messageId,
+          ),
+        );
+      }
+
+      if (type == 'image') {
+        addAttachment(target: images, url: message['media_url'], isVideo: false);
+      } else if (type == 'images') {
+        final urls = message['media_urls'];
+        if (urls is List) {
+          for (final url in urls) {
+            addAttachment(target: images, url: url, isVideo: false);
+          }
+        }
+      } else if (type == 'video') {
+        addAttachment(
+          target: videos,
+          url: message['media_url'],
+          thumbnail: message['thumbnail_url'],
+          isVideo: true,
+        );
+      } else if (type == 'videos') {
+        final urls = message['media_urls'];
+        final thumbs = message['thumbnail_urls'];
+        if (urls is List) {
+          for (int i = 0; i < urls.length; i++) {
+            final thumb = (thumbs is List && i < thumbs.length) ? thumbs[i] : null;
+            addAttachment(target: videos, url: urls[i], thumbnail: thumb, isVideo: true);
+          }
+        }
+      }
+
+      final replies = (message['thread_children'] as List?)?.cast<Map<String, dynamic>>();
+      if (replies != null) {
+        for (final reply in replies) {
+          collectFromMessage(reply);
+        }
+      }
+    }
+
+    for (final message in controller.messages) {
+      collectFromMessage(message);
+    }
+
+    int compare(MediaAttachment a, MediaAttachment b) {
+      final aTime = a.timestamp?.millisecondsSinceEpoch ?? 0;
+      final bTime = b.timestamp?.millisecondsSinceEpoch ?? 0;
+      return bTime.compareTo(aTime);
+    }
+
+    images.sort(compare);
+    videos.sort(compare);
+
+    return _MediaCollections(images: images, videos: videos);
   }
 
   Widget _buildReplyThread(List<Map<String, dynamic>> replies) {
@@ -1562,9 +1866,13 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   }) {
     final messageType = (message['type'] ?? 'text').toString();
     final hasReactions = (message['reactions'] as List?)?.isNotEmpty ?? false;
+    final bool isMediaMessage = _isMediaMessageType(messageType);
+    final String? captionText = isMediaMessage ? _extractMediaCaption(message) : null;
     final backgroundColor = isThreadReply ? const Color(0xff1F1A37) : const Color(0xff262042);
     final senderName = message['sender_name']?.toString().trim();
     return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onDoubleTap: () => _handleMessageDoubleTap(message),
       onLongPress: () => _showMessageActions(message),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1572,9 +1880,11 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 0),
             child: _buildUserAvatar(
+              message['sender_id']?.toString() ?? '',
               message['sender_image']?.toString() ?? '',
-              widget.groupImage,
+              message["group_image"]?.toString() ?? '',
               isThreadReply: isThreadReply,
+              userType: message["userType"]?.toString() ?? '0',
             ),
           ),
           const SizedBox(width: 12),
@@ -1610,6 +1920,13 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                       // ),
                     ],
                   ),
+                  if (captionText != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      captionText,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                  ],
                   if (showReplyPreview && message['reply_to'] != null) ...[
                     const SizedBox(height: 8),
                     _buildReplyPreview(message['reply_to']),
@@ -1708,6 +2025,17 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     });
   }
 
+  void _handleMessageListPositionsChanged() {
+    final positions = _messagePositionsListener.itemPositions.value;
+    bool shouldShow = false;
+    if (positions.isNotEmpty) {
+      shouldShow = !positions.any((position) => position.index <= 1);
+    }
+    if (mounted && shouldShow != _showJumpToLatest) {
+      setState(() => _showJumpToLatest = shouldShow);
+    }
+  }
+
   void _handleMentionSelection(Map<String, dynamic> member) {
     final range = _activeMentionRange;
     if (range == null) return;
@@ -1787,25 +2115,28 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       );
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: CachedNetworkImage(
-        imageUrl: imageUrl,
-        fit: BoxFit.cover,
-        placeholder: (context, url) => Container(
-          height: 200,
-          color: Colors.grey[700],
-          child: const Center(
-            child: CircularProgressIndicator(),
+    return GestureDetector(
+      onTap: () => _openImageViewer(imageUrl),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: CachedNetworkImage(
+          imageUrl: imageUrl,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => Container(
+            height: 200,
+            color: Colors.grey[700],
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
           ),
-        ),
-        errorWidget: (context, url, error) => Container(
-          height: 200,
-          color: Colors.grey[700],
-          child: const Icon(
-            Icons.error,
-            color: Colors.red,
-            size: 48,
+          errorWidget: (context, url, error) => Container(
+            height: 200,
+            color: Colors.grey[700],
+            child: const Icon(
+              Icons.error,
+              color: Colors.red,
+              size: 48,
+            ),
           ),
         ),
       ),
@@ -1861,23 +2192,27 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         ),
         itemCount: imageCount,
         itemBuilder: (context, index) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: CachedNetworkImage(
-              imageUrl: imageUrls[index],
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Container(
-                color: Colors.grey[700],
-                child: const Center(
-                  child: CircularProgressIndicator(),
+          final imageUrl = imageUrls[index];
+          return GestureDetector(
+            onTap: () => _openImageViewer(imageUrl),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  color: Colors.grey[700],
+                  child: const Center(
+                    child: CircularProgressIndicator(),
+                  ),
                 ),
-              ),
-              errorWidget: (context, url, error) => Container(
-                color: Colors.grey[700],
-                child: const Icon(
-                  Icons.error,
-                  color: Colors.red,
-                  size: 24,
+                errorWidget: (context, url, error) => Container(
+                  color: Colors.grey[700],
+                  child: const Icon(
+                    Icons.error,
+                    color: Colors.red,
+                    size: 24,
+                  ),
                 ),
               ),
             ),
@@ -1910,6 +2245,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
 
     return Builder(
       builder: (context) => GestureDetector(
+        onDoubleTap: () => _handleMessageDoubleTap(message),
         onTap: () {
           Navigator.push(
             context,
@@ -2002,6 +2338,17 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _openImageViewer(String imageUrl) {
+    final trimmed = imageUrl.trim();
+    if (trimmed.isEmpty) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FullScreenImageViewer(imageUrl: trimmed),
       ),
     );
   }
@@ -2223,7 +2570,11 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   }
 
   Widget _buildReactionsRow(Map<String, dynamic> message) {
-    final reactions = (message['reactions'] as List?) ?? const [];
+    final rawReactions = (message['reactions'] as List?) ?? const [];
+    final reactions = rawReactions.where((reaction) {
+      final emoji = reaction is Map ? reaction['emoji']?.toString() ?? '' : '';
+      return emoji.isNotEmpty && _isSupportedReaction(emoji);
+    }).toList();
     if (reactions.isEmpty) return const SizedBox.shrink();
     final reactionUsers = message['reaction_users'] as Map<String, dynamic>?;
     final chips = <Widget>[];
@@ -2286,6 +2637,16 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     );
   }
 
+  Future<void> _scrollToLatest() async {
+    if (!_messageScrollController.isAttached) return;
+    await _messageScrollController.scrollTo(
+      index: 0,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOut,
+      alignment: 0,
+    );
+  }
+
   Widget _buildComposerReplyPreview(Map<String, dynamic> reply) {
     final sender = reply['sender_name']?.toString() ?? 'Unknown';
     final snippet = _replySnippet(reply);
@@ -2328,66 +2689,308 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     );
   }
 
-  Widget _buildUserAvatar(String? imageUrl, String groupImage, {bool isThreadReply = false}) {
+  Widget _buildUserAvatar(String? userId, String? imageUrl, String groupImage, {bool isThreadReply = false, String? userType}) {
     final double avatarWidth = isThreadReply ? 40 : 50;
     final double avatarHeight = isThreadReply ? 50 : 60;
     final double badgeSize = isThreadReply ? 25 : 30;
     final double badgeOffset = isThreadReply ? -15 : -20;
     final double iconSize = isThreadReply ? 15 : 20;
-    return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.bottomCenter,
-      children: [
-        Container(
-          width: avatarWidth,
-          height: avatarHeight,
-          decoration: BoxDecoration(
-            color: Colors.grey[700],
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: ClipOval(
-            child: imageUrl != null && imageUrl.isNotEmpty
-                ? Image.network(
-                    imageUrl,
-                    fit: BoxFit.fill,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: iconSize,
+    return userType == "2"
+        ? GestureDetector(
+            onTap: () {
+              int changeUserId = int.parse(userId.toString());
+              Get.to(() => OtherUserProfileScreen(userId: changeUserId));
+              // Optionally handle avatar tap
+            },
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                // Octagon background image
+                Image.asset(
+                  // widget.postData?.groupType == "personal"
+                  //     ?
+                  // 'assets/ic/Group 5.png'
+                  // :
+                  'assets/ic/Group 4.png', // Your uploaded PNG asset
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.cover,
+                ),
+
+                // Centered network image
+                ClipPath(
+                  clipper: OctagonClipper(),
+                  child: CustomPaint(
+                    painter: OctagonBorderPainter(
+                      strokeWidth: 20.0,
+                      borderColor: Color(0xff211D39), // Change border color
                     ),
-                  )
-                : Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: iconSize,
+                    child: Image.network(
+                      groupImage.contains("http") ? '$groupImage' : "http://3.134.119.154/$groupImage", // Replace with your image URL
+                      width: 45,
+                      height: 45,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 45,
+                        height: 45,
+                        color: Colors.transparent,
+                        child: Icon(
+                          Icons.error,
+                          color: Colors.red,
+                          size: 24,
+                        ),
+                      ),
+                    ),
                   ),
-          ),
-        ),
-        Positioned(
-          bottom: badgeOffset,
-          child: ClipPath(
-            clipper: OctagonClipper(),
-            child: Container(
-              width: badgeSize,
-              height: badgeSize,
-              color: Colors.black, // Optional: for border effect
-              child: Image.network(
-                "http://3.134.119.154/$groupImage",
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: Colors.grey,
-                  child: Icon(Icons.broken_image, color: Colors.white, size: 16),
+                ),
+              ],
+            ),
+          )
+        : Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.bottomCenter,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  int changeUserId = int.parse(userId.toString());
+                  Get.to(() => OtherUserProfileScreen(userId: changeUserId));
+                  // Optionally handle avatar tap
+                },
+                child: Container(
+                  width: avatarWidth,
+                  height: avatarHeight,
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: ClipOval(
+                    child: imageUrl != null && imageUrl.isNotEmpty
+                        ? Image.network(
+                            imageUrl,
+                            fit: BoxFit.fill,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: iconSize,
+                            ),
+                          )
+                        : Image.asset(
+                            'assets/ic/Group 4.png', // Your uploaded PNG asset
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                          ),
+                  ),
                 ),
               ),
+              Positioned(
+                bottom: badgeOffset,
+                child: ClipPath(
+                  clipper: OctagonClipper(),
+                  child: Container(
+                    width: badgeSize,
+                    height: badgeSize,
+                    color: Colors.black, // Optional: for border effect
+                    child: Image.network(
+                      groupImage,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: Colors.grey,
+                        child: Icon(Icons.broken_image, color: Colors.white, size: 16),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+  }
+
+  String? _currentUserId() {
+    final raw = widget.userId.isNotEmpty ? widget.userId : (storage.read("current_uid") ?? storage.read("user_id") ?? storage.read("id"));
+    if (raw == null) return null;
+    final id = raw.toString().trim();
+    return id.isEmpty ? null : id;
+  }
+
+  String? _extractMessageId(Map<String, dynamic> message) {
+    final raw = message['id'] ?? message['message_id'];
+    if (raw == null) return null;
+    final id = raw.toString().trim();
+    return id.isEmpty ? null : id;
+  }
+
+  bool _canDeleteMessage(Map<String, dynamic> message) {
+    if (controller.isGroupCreator.value) {
+      return true;
+    }
+    final senderId = message['sender_id']?.toString();
+    final currentUserId = _currentUserId();
+    if (senderId == null || senderId.isEmpty || currentUserId == null) {
+      return false;
+    }
+    return senderId == currentUserId;
+  }
+
+  Future<void> _confirmDeleteMessage(Map<String, dynamic> message) async {
+    final messageId = _extractMessageId(message);
+    if (messageId == null || widget.thread_id.isEmpty) {
+      Get.snackbar('Error', 'Message cannot be deleted yet.');
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete message?'),
+          content: const Text('This will remove the message for everyone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
             ),
-          ),
-        ),
-      ],
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
     );
+    if (confirmed == true) {
+      await _deleteMessage(messageId);
+    }
+  }
+
+  Future<void> _deleteMessage(String messageId) async {
+    if (widget.thread_id.isEmpty) return;
+    try {
+      await _api.deleteThreadMessage(threadId: widget.thread_id, messageId: messageId);
+      _removeMessageFromList(messageId);
+      controller.messages.refresh();
+      Get.snackbar('Deleted', 'Message removed');
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to delete message: $e');
+    }
+  }
+
+  bool _isShareableMediaMessage(Map<String, dynamic> message) {
+    final type = (message['type'] ?? '').toString().toLowerCase();
+    if (!_isMediaMessageType(type)) return false;
+    final urls = _extractMediaUrlsForPost(message);
+    return urls.isNotEmpty;
+  }
+
+  List<String> _extractMediaUrlsForPost(Map<String, dynamic> message) {
+    final List<String> urls = [];
+    final type = (message['type'] ?? '').toString().toLowerCase();
+    if (type == 'image' || type == 'video') {
+      final candidate = message['media_url'] ?? message['url'] ?? message['media'];
+      if (candidate != null) {
+        final resolved = _absUrl(candidate.toString());
+        if (resolved.isNotEmpty) urls.add(resolved);
+      }
+    } else if (type == 'images' || type == 'videos') {
+      final candidates = message['media_urls'];
+      if (candidates is List) {
+        for (final item in candidates) {
+          if (item == null) continue;
+          final resolved = _absUrl(item.toString());
+          if (resolved.isNotEmpty) urls.add(resolved);
+        }
+      }
+    }
+    return urls;
+  }
+
+  Future<File?> _downloadMediaToTemp(String url, {required bool isVideo, int index = 0}) async {
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode != 200) {
+        return null;
+      }
+      final uri = Uri.tryParse(url);
+      String ext = '';
+      final path = uri?.path ?? '';
+      final dotIndex = path.lastIndexOf('.');
+      if (dotIndex != -1 && dotIndex < path.length - 1) {
+        ext = path.substring(dotIndex);
+      }
+      if (ext.isEmpty) {
+        ext = isVideo ? '.mp4' : '.jpg';
+      }
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/chat_post_${DateTime.now().millisecondsSinceEpoch}_$index$ext');
+      await file.writeAsBytes(response.bodyBytes);
+      return file;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<void> _shareMessageMediaAsPost(Map<String, dynamic> message) async {
+    final type = (message['type'] ?? '').toString().toLowerCase();
+    if (!_isMediaMessageType(type)) {
+      Get.snackbar('Error', 'Only image/video messages can be shared as posts.');
+      return;
+    }
+    final urls = _extractMediaUrlsForPost(message);
+    if (urls.isEmpty) {
+      Get.snackbar('Error', 'No media found for this message.');
+      return;
+    }
+    final isVideo = type == 'video' || type == 'videos';
+    final List<PostFile> imageFiles = [];
+    final List<PostFile> videoFiles = [];
+    final List<File> tempFiles = [];
+
+    try {
+      for (int i = 0; i < urls.length; i++) {
+        final file = await _downloadMediaToTemp(urls[i], isVideo: isVideo, index: i);
+        if (file != null) {
+          tempFiles.add(file);
+          if (isVideo) {
+            videoFiles.add(PostFile(filePath: file.path, isVideo: true));
+          } else {
+            imageFiles.add(PostFile(filePath: file.path, isVideo: false));
+          }
+        }
+      }
+      if (imageFiles.isEmpty && videoFiles.isEmpty) {
+        Get.snackbar('Error', 'Failed to download media for posting.');
+        return;
+      }
+
+      final caption = _extractMediaCaption(message) ?? message['text']?.toString() ?? '';
+      await _postController.submitPostFromFiles(
+        images: imageFiles,
+        videos: videoFiles,
+        description: caption,
+        isRepost: 1,
+        originalUserId: message['sender_id'],
+        originalResource: urls,
+      );
+    } finally {
+      for (final file in tempFiles) {
+        try {
+          if (await file.exists()) {
+            await file.delete();
+          }
+        } catch (_) {}
+      }
+    }
   }
 
   void _showMessageActions(Map<String, dynamic> message) {
     if (widget.thread_id.isEmpty) return;
+    final canDelete = _canDeleteMessage(message);
+    final messageId = _extractMessageId(message);
+    final canShare = _isShareableMediaMessage(message);
+    final currentUserId = _currentUserId();
+    final senderId = _extractMessageSenderId(message);
+    final isGroupCreator = currentUserId != null && currentUserId == widget.otheruserId.toString();
+    final canBlockUser = isGroupCreator && senderId != null && senderId != currentUserId;
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xff1F1A37),
@@ -2399,32 +3002,45 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Wrap(
-                  spacing: 12,
-                  children: _reactionOptions
-                      .map(
-                        (emoji) => GestureDetector(
-                          onTap: () {
-                            Navigator.of(sheetContext).pop();
-                            _handleReactionSelection(message, emoji);
-                          },
-                          child: Text(
-                            emoji,
-                            style: const TextStyle(fontSize: 28),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
-                const SizedBox(height: 12),
                 ListTile(
                   leading: const Icon(Icons.reply, color: Colors.white),
                   title: const Text('Reply', style: TextStyle(color: Colors.white)),
                   onTap: () {
                     Navigator.of(sheetContext).pop();
+                    final senderName = message['sender_name']?.toString() ?? 'Unknown';
+                    final mentionText = '@$senderName ';
+                    final currentText = controller.messageController.text;
+                    controller.messageController.text = mentionText + currentText;
                     controller.startReply(message);
                   },
                 ),
+                if (canShare)
+                  ListTile(
+                    leading: const Icon(Icons.ios_share, color: Colors.white),
+                    title: const Text('Share/Post', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _shareMessageMediaAsPost(message);
+                    },
+                  ),
+                if (canDelete && messageId != null)
+                  ListTile(
+                    leading: const Icon(Icons.delete, color: Colors.redAccent),
+                    title: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _confirmDeleteMessage(message);
+                    },
+                  ),
+                if (canBlockUser && senderId != null)
+                  ListTile(
+                    leading: const Icon(Icons.block, color: Colors.redAccent),
+                    title: const Text('Block User', style: TextStyle(color: Colors.redAccent)),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _confirmBlockUser(senderId);
+                    },
+                  ),
               ],
             ),
           ),
@@ -2433,13 +3049,54 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     );
   }
 
+  String? _extractMessageSenderId(Map<String, dynamic> message) {
+    final raw = message['sender_id'] ?? message['owner_id'] ?? message['user_id'] ?? message['owner']?['id'] ?? message['owner']?['base']?['id'];
+    final id = raw?.toString();
+    return (id == null || id.isEmpty) ? null : id;
+  }
+
+  Future<void> _confirmBlockUser(String userId) async {
+    Get.defaultDialog(
+      title: 'Block user?',
+      middleText: 'They will be blocked from this group.',
+      textConfirm: 'Block',
+      textCancel: 'Cancel',
+      confirmTextColor: Colors.white,
+      onConfirm: () async {
+        Get.back();
+        await blockMember(userId: int.parse(userId), threadId: widget.thread_id);
+      },
+    );
+  }
+
+  var isLoading = false.obs;
+  var errorMessage = ''.obs;
+
+  Future<void> blockMember({required int userId, required String threadId}) async {
+    try {
+      isLoading.value = true;
+      await NetworkAPICall().blockGroupUser(userId: userId, threadId: threadId);
+
+      Get.snackbar('Success', 'Member blocked successfully');
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to block member: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void _handleMessageDoubleTap(Map<String, dynamic> message) {
+    _handleReactionSelection(message, _heartReactionEmoji);
+  }
+
   Future<void> _handleReactionSelection(Map<String, dynamic> message, String emoji) async {
     if (widget.thread_id.isEmpty) return;
+    emoji = _normalizeReactionEmoji(emoji);
+    if (!_isSupportedReaction(emoji)) return;
     final messageId = message['id']?.toString();
     if (messageId == null || messageId.isEmpty) return;
     final reactionUsers = message['reaction_users'] as Map<String, dynamic>?;
     if (_userHasReacted(reactionUsers, emoji)) {
-      Get.snackbar('Reaction already sent', 'You have already reacted with $emoji');
       return;
     }
     final payloadEmoji = _serializeReactionEmoji(emoji);
@@ -2594,6 +3251,168 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     final hasReply = message['reply_to'] != null;
     final hasAttachment = mediaUrl.isNotEmpty || thumbnail.isNotEmpty || type != 'text';
     return text.isNotEmpty || hasAttachment || hasReply;
+  }
+}
+
+class MediaAttachment {
+  final String url;
+  final String? thumbnailUrl;
+  final bool isVideo;
+  final DateTime? timestamp;
+  final String messageId;
+
+  const MediaAttachment({
+    required this.url,
+    this.thumbnailUrl,
+    required this.isVideo,
+    this.timestamp,
+    required this.messageId,
+  });
+}
+
+class _MediaCollections {
+  final List<MediaAttachment> images;
+  final List<MediaAttachment> videos;
+
+  const _MediaCollections({
+    required this.images,
+    required this.videos,
+  });
+}
+
+class MediaGalleryScreen extends StatelessWidget {
+  final List<MediaAttachment> images;
+  final List<MediaAttachment> videos;
+
+  const MediaGalleryScreen({
+    Key? key,
+    required this.images,
+    required this.videos,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: const Color(0xff1F1A37),
+        appBar: AppBar(
+          backgroundColor: const Color(0xff1F1A37),
+          title: const Text('Shared Media'),
+          centerTitle: true,
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Images'),
+              Tab(text: 'Videos'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _buildMediaGrid(context, images, false),
+            _buildMediaGrid(context, videos, true),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMediaGrid(BuildContext context, List<MediaAttachment> media, bool isVideo) {
+    if (media.isEmpty) {
+      return Center(
+        child: Text(
+          isVideo ? 'No videos yet' : 'No images yet',
+          style: const TextStyle(color: Colors.white70),
+        ),
+      );
+    }
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+      ),
+      itemCount: media.length,
+      itemBuilder: (context, index) {
+        final attachment = media[index];
+        final previewUrl = isVideo ? (attachment.thumbnailUrl ?? attachment.url) : attachment.url;
+        return GestureDetector(
+          onTap: () {
+            if (isVideo) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => VideoPlayerScreen(videoUrl: attachment.url),
+                ),
+              );
+            } else {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => FullScreenImageViewer(imageUrl: attachment.url),
+                ),
+              );
+            }
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CachedNetworkImage(
+                  imageUrl: previewUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey[800],
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey[900],
+                    child: const Icon(Icons.broken_image, color: Colors.white54),
+                  ),
+                ),
+                if (isVideo)
+                  const Align(
+                    alignment: Alignment.center,
+                    child: Icon(
+                      Icons.play_circle_fill,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class FullScreenImageViewer extends StatelessWidget {
+  final String imageUrl;
+
+  const FullScreenImageViewer({Key? key, required this.imageUrl}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
+            fit: BoxFit.contain,
+            placeholder: (context, url) => const CircularProgressIndicator(),
+            errorWidget: (context, url, error) => const Icon(Icons.broken_image, color: Colors.white),
+          ),
+        ),
+      ),
+    );
   }
 }
 

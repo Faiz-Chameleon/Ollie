@@ -37,6 +37,14 @@ class PusherService extends GetxService {
     'App\\Events\\ReactionRemoved',
     'App\\Events\\ThreadReactionRemoved',
   ];
+  static const List<String> _userBlockedEventNames = [
+    '.thread.blocked',
+    'thread.blocked',
+    '.user.blocked',
+    'user.blocked',
+    'App\\Events\\ThreadBlocked',
+    'App\\Events\\UserBlocked',
+  ];
 
   // Reactive controllers for different event types
   final Rx<Map<String, dynamic>> _currentMessage = Rx<Map<String, dynamic>>({});
@@ -182,13 +190,15 @@ class PusherService extends GetxService {
   Future<bool> _authenticateChannel(String channelName) async {
     try {
       final token = _storage.read("token");
+      final currentUserId = _storage.read("current_uid");
       final socketId = _getSocketId();
       if (token == null || socketId == null) {
         log("❌ No token or socket ID for auth");
         return false;
       }
 
-      log("🔐 Authenticating channel: $channelName");
+      log("🔐 Authenticating channel: $channelName for userId: ${currentUserId ?? 'unknown'}");
+      log("🔐 Socket ID: $socketId");
 
       final response = await http.post(
         Uri.parse('$BASE_URL/api/broadcasting/auth'),
@@ -196,6 +206,7 @@ class PusherService extends GetxService {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
           'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
         },
         body: json.encode({
           'socket_id': socketId,
@@ -279,6 +290,7 @@ class PusherService extends GetxService {
   // Private Channel: User-specific events
   Future<void> subscribeToMessengerUser(String userId) async {
     try {
+      log("👤 subscribeToMessengerUser called with userId: $userId");
       if (!_isConnected.value) {
         final connected = await waitUntilConnected(timeout: const Duration(seconds: 10));
         if (!connected) {
@@ -287,32 +299,40 @@ class PusherService extends GetxService {
         }
       }
 
-      final channelName = 'private-messenger.user.$userId';
-      if (_channels.containsKey(channelName)) {
-        log("⚠️ Already subscribed to user channel: $userId");
-        return;
+      final channelNames = [
+        'private-messenger.user.$userId',
+        'private-App.Models.User.$userId',
+      ];
+
+      log("👤 User channels to subscribe: ${channelNames.join(', ')}");
+      for (final channelName in channelNames) {
+        if (_channels.containsKey(channelName)) {
+          log("⚠️ Already subscribed to user channel: $channelName");
+          continue;
+        }
+
+        final authenticated = await _authenticateChannel(channelName);
+        if (!authenticated) {
+          log("❌ Authentication failed for $channelName, skipping subscription");
+          continue;
+        }
+
+        log("👤 Subscribing to user channel: $channelName");
+        final channel = _pusher!.subscribe(channelName);
+        _channels[channelName] = channel;
+
+        channel.bind('pusher:subscription_succeeded', (event) {
+          log("✅ User channel subscribed: $channelName");
+        });
+
+        channel.bind('pusher:subscription_error', (event) {
+          log("❌ User channel subscription error ($channelName): $event");
+        });
+
+        // Bind all private channel events
+        log("👤 Binding events for user channel: $channelName");
+        _bindPrivateChannelEvents(channel, userId);
       }
-
-      final authenticated = await _authenticateChannel(channelName);
-      if (!authenticated) {
-        log("❌ Authentication failed for $channelName, skipping subscription");
-        return;
-      }
-
-      log("👤 Subscribing to messenger user: $userId");
-      final channel = _pusher!.subscribe(channelName);
-      _channels[channelName] = channel;
-
-      channel.bind('pusher:subscription_succeeded', (event) {
-        log("✅ User channel subscribed: $userId");
-      });
-
-      channel.bind('pusher:subscription_error', (event) {
-        log("❌ User channel subscription error ($userId): $event");
-      });
-
-      // Bind all private channel events
-      _bindPrivateChannelEvents(channel, userId);
     } catch (e) {
       log("❌ Error subscribing to user: $e");
     }
@@ -349,6 +369,8 @@ class PusherService extends GetxService {
     channel.bind('.promoted.admin', (event) => _handlePromotedAdmin(event));
     channel.bind('.demoted.admin', (event) => _handleDemotedAdmin(event));
     channel.bind('.permissions.updated', (event) => _handlePermissionsUpdated(event));
+    channel.bind('thread.blocked', (event) => _handleUserBlocked(event));
+    _bindEventVariations(channel, _userBlockedEventNames, _handleUserBlocked);
 
     // Reaction Events
     _bindEventVariations(channel, _reactionAddedEventNames, _handleReactionAdded);
@@ -422,6 +444,7 @@ class PusherService extends GetxService {
     channel.bind('.message.edited', (event) => _handleMessageEdited(event));
     _bindEventVariations(channel, _reactionAddedEventNames, _handleThreadReactionAdded);
     _bindEventVariations(channel, _reactionRemovedEventNames, _handleThreadReactionRemoved);
+    _bindEventVariations(channel, _userBlockedEventNames, _handleUserBlocked);
     channel.bind('.embeds.removed', (event) => _handleEmbedsRemoved(event));
   }
 
@@ -614,6 +637,19 @@ class PusherService extends GetxService {
     });
   }
 
+  void _handleUserBlocked(dynamic event) {
+    log("⛔ User blocked");
+    log("🔥 USER BLOCKED EVENT TRIGGERED");
+    log("🔥 Raw event: ${event.toString()}");
+    log("🔥 Event type: ${event.runtimeType}");
+    _processEvent(event, (data) {
+      if (data.containsKey('thread_id') && data['thread_id'] == 'a0d47d92-a557-4b89-ba4c-7b195c4b24ca') {
+        log("🎯 MATCHING THREAD ID FOUND - THIS IS YOUR EVENT!");
+      }
+      _messageController.add({'type': 'user_blocked', 'data': data});
+    });
+  }
+
   // Reaction Handlers
   // void _handleReactionAdded(dynamic event) {
   //   log("😊 Reaction added");
@@ -705,6 +741,9 @@ class PusherService extends GetxService {
       channelsToResubscribe.forEach((channelName, _) {
         if (channelName.startsWith('private-messenger.user.')) {
           final userId = channelName.replaceFirst('private-messenger.user.', '');
+          subscribeToMessengerUser(userId);
+        } else if (channelName.startsWith('private-App.Models.User.')) {
+          final userId = channelName.replaceFirst('private-App.Models.User.', '');
           subscribeToMessengerUser(userId);
         } else if (channelName.startsWith('presence-messenger.thread.')) {
           final threadId = channelName.replaceFirst('presence-messenger.thread.', '');

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'group_members_controller.dart';
 import 'invite_members_screen.dart';
+import 'blocked_users_screen.dart';
 
 class GroupMembersScreen extends StatefulWidget {
   final String groupId;
-  GroupMembersScreen({required this.groupId});
+  final String threadId;
+  GroupMembersScreen({required this.groupId, required this.threadId});
 
   @override
   State<GroupMembersScreen> createState() => _GroupMembersScreenState();
@@ -23,7 +25,19 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Members')),
+      appBar: AppBar(
+        title: Text('Members'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.block),
+            onPressed: widget.threadId.isEmpty
+                ? null
+                : () {
+                    Get.to(() => BlockedUsersScreen(threadId: widget.threadId));
+                  },
+          ),
+        ],
+      ),
       backgroundColor: Color(0xFF18162A),
       body: Obx(() {
         if (controller.isLoading.value) {
@@ -103,17 +117,31 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
                         member.email,
                         style: TextStyle(color: Colors.grey),
                       ),
-                      trailing: TextButton(
-                        onPressed: () => controller.removeMember(member.userId),
-                        style: TextButton.styleFrom(
-                          backgroundColor: Colors.white, // white background
-                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), // optional: adjust padding
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8), // optional: rounded corners
-                            side: BorderSide(color: Colors.black), // optional: red border
+                      trailing: PopupMenuButton<String>(
+                        onSelected: (value) async {
+                          if (value == 'uninvite') {
+                            await controller.removeMember(member.userId);
+                            return;
+                          }
+                          if (value == 'block') {
+                            if (widget.threadId.isEmpty) {
+                              Get.snackbar('Error', 'Chat thread is not enabled for this group');
+                              return;
+                            }
+                            await controller.blockMember(userId: member.userId, threadId: widget.threadId);
+                          }
+                        },
+                        icon: Icon(Icons.more_vert, color: Colors.white),
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'uninvite',
+                            child: Text('UnInvite'),
                           ),
-                        ),
-                        child: Text('UnInvite', style: TextStyle(color: Colors.black)),
+                          PopupMenuItem(
+                            value: 'block',
+                            child: Text('Block'),
+                          ),
+                        ],
                       ),
                     );
                   },

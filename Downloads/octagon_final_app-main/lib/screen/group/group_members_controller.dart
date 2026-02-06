@@ -41,12 +41,24 @@ class GroupMembersController extends GetxController {
   Future<void> removeMember(int userId) async {
     try {
       isLoading.value = true;
-      await NetworkAPICall()
-          .removeMember(userId: userId, groupId: int.parse(groupId));
+      await NetworkAPICall().removeMember(userId: userId, groupId: int.parse(groupId));
       members.removeWhere((m) => m.userId == userId);
       Get.snackbar('Success', 'Member removed successfully');
     } catch (e) {
       Get.snackbar('Error', 'Failed to remove member: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> blockMember({required int userId, required String threadId}) async {
+    try {
+      isLoading.value = true;
+      await NetworkAPICall().blockGroupUser(userId: userId, threadId: threadId);
+      members.removeWhere((m) => m.userId == userId);
+      Get.snackbar('Success', 'Member blocked successfully');
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to block member: $e');
     } finally {
       isLoading.value = false;
     }

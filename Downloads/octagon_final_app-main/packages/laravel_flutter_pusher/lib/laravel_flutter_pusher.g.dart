@@ -38,9 +38,7 @@ Map<String, dynamic> _$InitArgsToJson(InitArgs instance) => <String, dynamic>{
 
 PusherOptions _$PusherOptionsFromJson(Map<String, dynamic> json) {
   return PusherOptions(
-    auth: json['auth'] == null
-        ? null
-        : PusherAuth.fromJson(json['auth'] as Map<String, dynamic>),
+    auth: json['auth'] == null ? null : PusherAuth.fromJson(json['auth'] as Map<String, dynamic>),
     cluster: json['cluster'] as String?,
     host: json['host'] as String,
     port: json['port'] as int,
@@ -74,33 +72,22 @@ PusherAuth _$PusherAuthFromJson(Map<String, dynamic> json) {
   );
 }
 
-Map<String, dynamic> _$PusherAuthToJson(PusherAuth instance) =>
-    <String, dynamic>{
+Map<String, dynamic> _$PusherAuthToJson(PusherAuth instance) => <String, dynamic>{
       'endpoint': instance.endpoint,
       'headers': instance.headers,
     };
 
-PusherEventStreamMessage _$PusherEventStreamMessageFromJson(
-    Map<String, dynamic> json) {
+PusherEventStreamMessage _$PusherEventStreamMessageFromJson(Map<String, dynamic> json) {
   return PusherEventStreamMessage(
-    event: json['event'] == null
-        ? null
-        : Event.fromJson(json['event'] as Map<String, dynamic>),
+    event: json['event'] == null ? null : Event.fromJson(json['event'] as Map<String, dynamic>),
     instanceId: json['instanceId'] as String?,
-    connectionStateChange: json['connectionStateChange'] == null
-        ? null
-        : ConnectionStateChange.fromJson(
-            json['connectionStateChange'] as Map<String, dynamic>),
-    connectionError: json['connectionError'] == null
-        ? null
-        : ConnectionError.fromJson(
-            json['connectionError'] as Map<String, dynamic>),
+    connectionStateChange:
+        json['connectionStateChange'] == null ? null : ConnectionStateChange.fromJson(json['connectionStateChange'] as Map<String, dynamic>),
+    connectionError: json['connectionError'] == null ? null : ConnectionError.fromJson(json['connectionError'] as Map<String, dynamic>),
   );
 }
 
-Map<String, dynamic> _$PusherEventStreamMessageToJson(
-        PusherEventStreamMessage instance) =>
-    <String, dynamic>{
+Map<String, dynamic> _$PusherEventStreamMessageToJson(PusherEventStreamMessage instance) => <String, dynamic>{
       'event': instance.event,
       'instanceId': instance.instanceId,
       'connectionStateChange': instance.connectionStateChange,
@@ -121,31 +108,27 @@ Map<String, dynamic> _$EventToJson(Event instance) => <String, dynamic>{
       'data': instance.data,
     };
 
-ConnectionStateChange _$ConnectionStateChangeFromJson(
-    Map<String, dynamic> json) {
+ConnectionStateChange _$ConnectionStateChangeFromJson(Map<String, dynamic> json) {
   return ConnectionStateChange(
     currentState: json['currentState'] as String,
     previousState: json['previousState'] as String,
   );
 }
 
-Map<String, dynamic> _$ConnectionStateChangeToJson(
-        ConnectionStateChange instance) =>
-    <String, dynamic>{
+Map<String, dynamic> _$ConnectionStateChangeToJson(ConnectionStateChange instance) => <String, dynamic>{
       'currentState': instance.currentState,
       'previousState': instance.previousState,
     };
 
 ConnectionError _$ConnectionErrorFromJson(Map<String, dynamic> json) {
   return ConnectionError(
-    message: json['message'] as String,
-    code: json['code'] as String,
-    exception: json['exception'] as String,
+    message: json['message'] as String? ?? '',
+    code: json['code'] as String? ?? '',
+    exception: json['exception'] as String? ?? '',
   );
 }
 
-Map<String, dynamic> _$ConnectionErrorToJson(ConnectionError instance) =>
-    <String, dynamic>{
+Map<String, dynamic> _$ConnectionErrorToJson(ConnectionError instance) => <String, dynamic>{
       'message': instance.message,
       'code': instance.code,
       'exception': instance.exception,

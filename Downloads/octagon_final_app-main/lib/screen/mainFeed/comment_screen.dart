@@ -525,11 +525,7 @@ import '../profile/other_user_profile.dart';
 String getUserName(String s, {required List<Users> usersList}) {
   try {
     if (s.contains("@")) {
-      String name = usersList
-              .firstWhere((element) =>
-                  element.id.toString() == s.substring(1, s.indexOf(" ")))
-              .name ??
-          "";
+      String name = usersList.firstWhere((element) => element.id.toString() == s.substring(1, s.indexOf(" "))).name ?? "";
 
       return "@$name ";
     } else {
@@ -548,8 +544,7 @@ class CommentScreen extends StatelessWidget {
 
   final controller = Get.put(CommentController());
 
-  CommentScreen(
-      {super.key, this.captionTxt, this.name, this.profilePic, this.postData});
+  CommentScreen({super.key, this.captionTxt, this.name, this.profilePic, this.postData});
 
   @override
   Widget build(BuildContext context) {
@@ -593,9 +588,7 @@ class CommentScreen extends StatelessWidget {
                                     text: "${name!} ".capitalize!,
                                     style: whiteColor14BoldTextStyle,
                                     children: [
-                                      TextSpan(
-                                          text: captionTxt!,
-                                          style: whiteColor14TextStyle),
+                                      TextSpan(text: captionTxt!, style: whiteColor14TextStyle),
                                     ],
                                   ),
                                 ),
@@ -603,8 +596,7 @@ class CommentScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                      if (post?.comments != null)
-                        buildCommentList(post!.comments!, true),
+                      if (post?.comments != null) buildCommentList(post!.comments!, true),
                     ],
                   ),
                 ),
@@ -651,8 +643,7 @@ class CommentScreen extends StatelessWidget {
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 8),
             leading: GestureDetector(
-              onTap: () => Get.to(
-                  () => OtherUserProfileScreen(userId: comment.users!.id!)),
+              onTap: () => Get.to(() => OtherUserProfileScreen(userId: comment.users!.id!)),
               child: Container(
                 height: 35,
                 width: 35,
@@ -683,14 +674,11 @@ class CommentScreen extends StatelessWidget {
                 style: whiteColor14BoldTextStyle,
                 children: [
                   TextSpan(
-                    text: getUserName(comment.comment ?? "",
-                        usersList: controller.usersList),
-                    style: TextStyle(
-                        fontSize: 15, color: Colors.blue.withOpacity(0.8)),
+                    text: getUserName(comment.comment ?? "", usersList: controller.usersList),
+                    style: TextStyle(fontSize: 15, color: Colors.blue.withOpacity(0.8)),
                   ),
                   TextSpan(
-                    text:
-                        "${isReplyMessage(comment.comment ?? "") ? getMessageContent(comment.comment ?? "") : comment.comment ?? ""} ",
+                    text: "${isReplyMessage(comment.comment ?? "") ? getMessageContent(comment.comment ?? "") : comment.comment ?? ""} ",
                     style: whiteColor16TextStyle,
                   ),
                 ],
@@ -699,13 +687,11 @@ class CommentScreen extends StatelessWidget {
             trailing: comment.users?.id == controller.myId
                 ? IconButton(
                     icon: Icon(Icons.delete, color: greyColor),
-                    onPressed: () =>
-                        controller.deleteComment(comment.id.toString()),
+                    onPressed: () => controller.deleteComment(comment.id.toString()),
                   )
                 : GestureDetector(
                     onTap: () => showReplyDialog(comment),
-                    child: const Text("Reply",
-                        style: TextStyle(color: Colors.white)),
+                    child: const Text("Reply", style: TextStyle(color: Colors.white)),
                   ),
           ),
           if (comment.comments != null && comment.comments!.isNotEmpty)
@@ -721,8 +707,7 @@ class CommentScreen extends StatelessWidget {
                 ],
               ),
             ),
-          if (comment.comments != null && comment.isShowMore)
-            buildCommentList(comment.comments!, false),
+          if (comment.comments != null && comment.isShowMore) buildCommentList(comment.comments!, false),
         ],
       ),
     );

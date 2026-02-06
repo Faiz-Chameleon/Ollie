@@ -317,6 +317,24 @@ class NetworkAPICall {
     }
   }
 
+  Future<dynamic> deleteThreadMessage({required String threadId, required String messageId}) async {
+    final client = http.Client();
+    try {
+      final apiPath = 'delete/message/threads/$threadId/messages/$messageId';
+      final response = await client.post(
+        Uri.parse(baseUrl + apiPath),
+        headers: {
+          'Authorization': 'Bearer ${getUserToken()}',
+          'Accept': 'application/json',
+        },
+      );
+      return checkResponse(response, url: apiPath);
+    } catch (exception) {
+      client.close();
+      throw AppException.exceptionHandler(exception);
+    }
+  }
+
   ///put api
   Future<dynamic> putApiCall(
     String apiName,
@@ -474,6 +492,84 @@ class NetworkAPICall {
     }
   }
 
+  // Check if a user is blocked from a group thread
+  Future<Map<String, dynamic>> checkGroupUserBlocked({required String threadId, required String userId}) async {
+    final url = Uri.parse('${baseUrl}groups/thread/$threadId/blocked/check/$userId');
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${getUserToken()}',
+          'Accept': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to check blocked status: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  // Block a group member (admin action)
+  Future<dynamic> blockGroupUser({required int userId, required String threadId}) async {
+    final url = Uri.parse('${baseUrl}block/group/user/$userId/thread/$threadId');
+    try {
+      var request = http.MultipartRequest('POST', url);
+      request.headers['Authorization'] = 'Bearer ${getUserToken()}';
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to block user: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  // Fetch blocked users for a group thread
+  Future<Map<String, dynamic>> getGroupBlockedUsers({required String threadId}) async {
+    final url = Uri.parse('${baseUrl}groups/thread/$threadId/blocked-users');
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${getUserToken()}',
+          'Accept': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to fetch blocked users: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  // Unblock a group member (admin action)
+  Future<dynamic> unblockGroupUser({required int userId, required String threadId}) async {
+    final url = Uri.parse('${baseUrl}block/group/user/$userId/thread/$threadId');
+    try {
+      var request = http.MultipartRequest('DELETE', url);
+      request.headers['Authorization'] = 'Bearer ${getUserToken()}';
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to unblock user: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
   // Fetch users for invite (not in group)
   Future<List<dynamic>> getUsersForGroupInvite(String groupId) async {
     final url = Uri.parse('${baseUrl}user-groups-list');
@@ -499,13 +595,15 @@ class NetworkAPICall {
   }
 
   // Invite a user to the group
-  Future<dynamic> inviteUserToGroup({required String groupId, required int userId}) async {
+  Future<dynamic> inviteUserToGroup({required String groupId, required int userId, required int isInvite, required String status}) async {
     final url = Uri.parse('${baseUrl}groups-member-create');
     try {
       var request = http.MultipartRequest('POST', url);
       request.headers['Authorization'] = 'Bearer ${getUserToken()}';
       request.fields['group_id'] = groupId;
       request.fields['user_id'] = userId.toString();
+      request.fields['is_invited'] = "1";
+      request.fields['status'] = status;
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
       if (response.statusCode == 200) {

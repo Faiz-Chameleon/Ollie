@@ -68,8 +68,7 @@ class LoginScreen extends StatelessWidget {
               TextFormBox(
                 textEditingController: emailController,
                 hintText: "Email",
-                suffixIcon:
-                    const Icon(Icons.email_outlined, color: Colors.white),
+                suffixIcon: const Icon(Icons.email_outlined, color: Colors.white),
               ),
               const SizedBox(height: 20),
 
@@ -78,8 +77,7 @@ class LoginScreen extends StatelessWidget {
                 textEditingController: passwordController,
                 hintText: "Password",
                 passwordVisible: 1,
-                suffixIcon:
-                    const Icon(Icons.lock_outline_rounded, color: Colors.white),
+                suffixIcon: const Icon(Icons.lock_outline_rounded, color: Colors.white),
               ),
               const SizedBox(height: 40),
 
@@ -96,7 +94,7 @@ class LoginScreen extends StatelessWidget {
                       final result = await authController.loginUser(
                         email: email,
                         password: password,
-                        fcmToken: storage.read("fcmToken") ?? "",
+                        fcmToken: storage.read("fcmToken") ?? "abc",
                       );
 
                       final data = result.data;
@@ -116,8 +114,7 @@ class LoginScreen extends StatelessWidget {
 
                       if (success.name == null) {
                         Get.off(() => EditProfileScreen(
-                              profileData:
-                                  UserModel(email: success.email ?? ""),
+                              profileData: UserModel(email: success.email ?? ""),
                               isUpdate: false,
                               update: (_) {},
                             ));
@@ -158,8 +155,7 @@ class LoginScreen extends StatelessWidget {
                         // storage.write('sportInfo',
                         //     sportInfo.map((e) => e.toJson()).toList());
 
-                        Get.snackbar(
-                            "Octagon", "You logged in as ${success.name}");
+                        Get.snackbar("Octagon", "You logged in as ${success.name}");
                         Get.offAll(() => TabScreen());
                       }
                     },
@@ -172,8 +168,7 @@ class LoginScreen extends StatelessWidget {
                 margin: const EdgeInsets.only(top: 10),
                 child: GestureDetector(
                   onTap: () => Get.to(() => MobileNumberScreen()),
-                  child: Text("Forget your password ?",
-                      style: whiteColor14TextStyle),
+                  child: Text("Forget your password ?", style: whiteColor14TextStyle),
                 ),
               ),
 
@@ -232,8 +227,7 @@ class LoginScreen extends StatelessWidget {
                         TextSpan(
                           text: " Sign Up",
                           style: whiteColor16TextStyle,
-                          recognizer: TapGestureRecognizer()
-                            ..onTap = () => Get.to(() => SignupScreen()),
+                          recognizer: TapGestureRecognizer()..onTap = () => Get.to(() => SignupScreen()),
                         )
                       ],
                     ),

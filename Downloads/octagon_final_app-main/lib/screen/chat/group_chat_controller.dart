@@ -26,6 +26,7 @@ class GroupChatController extends GetxController {
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final storage = GetStorage();
   final postController = Get.put(PostController());
+  final CreatePostController _createPostController = Get.put(CreatePostController());
   final ImagePicker _picker = ImagePicker();
   final CloudinaryService _cloudinaryService = CloudinaryService();
 
@@ -129,7 +130,7 @@ class GroupChatController extends GetxController {
   /// Upload a local video file directly to the messenger API for a given thread.
   /// Sends a multipart POST to `messenger/threads/{thread}/videos` with a
   /// `temporary_id` so the server can echo it back for optimistic UI replacement.
-  Future<Map<String, dynamic>?> uploadVideoToThread(String threadId, File file) async {
+  Future<Map<String, dynamic>?> uploadVideoToThread(String threadId, File file, {String? caption}) async {
     try {
       final token = storage.read("token");
       if (token == null) {
@@ -149,6 +150,9 @@ class GroupChatController extends GetxController {
       request.fields.addAll({
         'temporary_id': tempId,
       });
+      if (caption != null && caption.trim().isNotEmpty) {
+        request.fields['extra'] = json.encode({'caption': caption.trim()});
+      }
 
       request.files.add(await http.MultipartFile.fromPath('video', file.path));
 
@@ -180,7 +184,7 @@ class GroupChatController extends GetxController {
   /// Upload a local image file directly to the messenger API for a given thread.
   /// This mirrors [uploadVideoToThread] but targets the `/images` endpoint and
   /// sends the picked file under the `image` field.
-  Future<Map<String, dynamic>?> uploadImageToThread(String threadId, File file) async {
+  Future<Map<String, dynamic>?> uploadImageToThread(String threadId, File file, {String? caption}) async {
     try {
       final token = storage.read("token");
       if (token == null) {
@@ -198,6 +202,9 @@ class GroupChatController extends GetxController {
       });
 
       request.fields.addAll({'temporary_id': tempId});
+      if (caption != null && caption.trim().isNotEmpty) {
+        request.fields['extra'] = json.encode({'caption': caption.trim()});
+      }
       request.files.add(await http.MultipartFile.fromPath('image', file.path));
 
       print('Sending image to $uri (temp id: $tempId) ...');
@@ -427,7 +434,12 @@ class GroupChatController extends GetxController {
     }
   }
 
-  Future<void> pickMedia(BuildContext context, {String? threadId, void Function(Map<String, dynamic> payload)? onMessengerMessage}) async {
+  Future<void> pickMedia(
+    BuildContext context, {
+    String? threadId,
+    void Function(Map<String, dynamic> payload)? onMessengerMessage,
+    bool usePostApi = false,
+  }) async {
     try {
       print('Starting media picker...');
       final source = await showImagePicker(context);
@@ -574,17 +586,48 @@ class GroupChatController extends GetxController {
           final imageFiles = processedFiles.where((file) => !file.isVideo).toList();
           final videoFiles = processedFiles.where((file) => file.isVideo).toList();
 
+          if (usePostApi) {
+            final posted = await _createPostController.submitPostFromFiles(
+              images: imageFiles,
+              videos: videoFiles,
+            );
+            if (!posted) {
+              Get.snackbar('Error', 'Failed to create post');
+            }
+            isUploading.value = false;
+            return;
+          }
+
           // If we have threadId, prefer uploading media directly to messenger API
           if (threadId != null && (videoFiles.isNotEmpty || imageFiles.isNotEmpty)) {
             if (imageFiles.isNotEmpty) {
               print('Uploading ${imageFiles.length} image(s) directly to messenger API for thread $threadId');
-              for (var file in imageFiles) {
+              for (var i = 0; i < imageFiles.length; i++) {
+                final file = imageFiles[i];
                 try {
-                  final uploadRes = await uploadImageToThread(threadId, File(file.filePath));
+                  final caption = await _promptMediaCaption(
+                    context,
+                    isVideo: false,
+                    position: i + 1,
+                    total: imageFiles.length,
+                  );
+                  if (caption == null) {
+                    Get.snackbar('Upload cancelled', 'Image upload cancelled');
+                    isUploading.value = false;
+                    return;
+                  }
+                  final uploadRes = await uploadImageToThread(
+                    threadId,
+                    File(file.filePath),
+                    caption: caption.isEmpty ? null : caption,
+                  );
                   print('Direct image upload result: $uploadRes');
                   if (uploadRes != null) {
                     Get.snackbar('Success', 'Image uploaded to thread');
                     if (uploadRes.isNotEmpty) {
+                      if (caption.isNotEmpty) {
+                        _injectCaptionIntoPayload(uploadRes, caption);
+                      }
                       onMessengerMessage?.call(uploadRes);
                     }
                   } else {
@@ -599,13 +642,32 @@ class GroupChatController extends GetxController {
 
             if (videoFiles.isNotEmpty) {
               print('Uploading ${videoFiles.length} video(s) directly to messenger API for thread $threadId');
-              for (var file in videoFiles) {
+              for (var i = 0; i < videoFiles.length; i++) {
+                final file = videoFiles[i];
                 try {
-                  final uploadRes = await uploadVideoToThread(threadId, File(file.filePath));
+                  final caption = await _promptMediaCaption(
+                    context,
+                    isVideo: true,
+                    position: i + 1,
+                    total: videoFiles.length,
+                  );
+                  if (caption == null) {
+                    Get.snackbar('Upload cancelled', 'Video upload cancelled');
+                    isUploading.value = false;
+                    return;
+                  }
+                  final uploadRes = await uploadVideoToThread(
+                    threadId,
+                    File(file.filePath),
+                    caption: caption.isEmpty ? null : caption,
+                  );
                   print('Direct video upload result: $uploadRes');
                   if (uploadRes != null) {
                     Get.snackbar('Success', 'Video uploaded to thread');
                     if (uploadRes.isNotEmpty) {
+                      if (caption.isNotEmpty) {
+                        _injectCaptionIntoPayload(uploadRes, caption);
+                      }
                       onMessengerMessage?.call(uploadRes);
                     }
                   } else {
@@ -822,6 +884,101 @@ class GroupChatController extends GetxController {
       isUploading.value = false;
       print('Media picker finished');
     }
+  }
+
+  Future<String?> _promptMediaCaption(
+    BuildContext context, {
+    required bool isVideo,
+    required int position,
+    required int total,
+  }) async {
+    final TextEditingController captionController = TextEditingController();
+    final String mediaLabel = isVideo ? 'Video' : 'Photo';
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xff1F1A37),
+          title: Text(
+            'Add $mediaLabel Caption',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (total > 1)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Media $position of $total',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ),
+              TextField(
+                controller: captionController,
+                maxLines: 3,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Add an optional caption...',
+                  hintStyle: const TextStyle(color: Colors.white54),
+                  filled: true,
+                  fillColor: const Color(0xff2A2444),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(null),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(''),
+              child: const Text('Skip', style: TextStyle(color: Colors.white70)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(captionController.text.trim()),
+              child: const Text('Attach', style: TextStyle(color: Colors.white70)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _injectCaptionIntoPayload(Map<String, dynamic> payload, String caption) {
+    if (caption.trim().isEmpty) return;
+    final existingExtra = payload['extra'];
+    if (existingExtra == null) {
+      payload['extra'] = {'caption': caption};
+      return;
+    }
+    if (existingExtra is Map) {
+      existingExtra['caption'] = caption;
+      return;
+    }
+    if (existingExtra is String && existingExtra.trim().isNotEmpty) {
+      try {
+        final decoded = json.decode(existingExtra);
+        if (decoded is Map) {
+          decoded['caption'] = caption;
+          payload['extra'] = decoded;
+          return;
+        }
+      } catch (_) {}
+    }
+    payload['extra'] = {'caption': caption};
   }
 
   Future<String> saveImage(Uint8List data) async {

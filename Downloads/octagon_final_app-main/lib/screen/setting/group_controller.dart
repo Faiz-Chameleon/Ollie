@@ -122,6 +122,16 @@ class GroupController extends GetxController {
           allGroups.add(PublicGroupModel.fromJson(group));
         }
       }
+      // if (allGroups.length <= 1) return allGroups;
+
+      // final first = allGroups.first;
+      // final rest = allGroups.sublist(1);
+      // rest.sort((a, b) {
+      //   final aCount = int.tryParse(a.membersCount) ?? 0;
+      //   final bCount = int.tryParse(b.membersCount) ?? 0;
+      //   return bCount.compareTo(aCount);
+      // });
+      // return [first, ...rest];
       return allGroups;
     } else {
       print(response.reasonPhrase);
@@ -260,6 +270,8 @@ class PublicGroupModel {
   final String createdAt;
   final String? updatedAt;
   final String thread_id;
+  final String groupType;
+  final String membersCount;
 
   PublicGroupModel({
     required this.id,
@@ -271,6 +283,8 @@ class PublicGroupModel {
     required this.createdAt,
     required this.updatedAt,
     required this.thread_id,
+    required this.membersCount,
+    required this.groupType,
   });
 
   factory PublicGroupModel.fromJson(Map<String, dynamic> json) {
@@ -284,6 +298,8 @@ class PublicGroupModel {
       createdAt: json['created_at'] ?? '',
       updatedAt: json['updated_at'],
       thread_id: json['thread_id'] == null || json['thread_id'].toString().toLowerCase() == 'null' ? '' : json['thread_id'].toString(),
+      groupType: json['group_type'] ?? '',
+      membersCount: json['members_count']?.toString() ?? '0',
     );
   }
 
@@ -297,6 +313,8 @@ class PublicGroupModel {
     String? createdAt,
     String? updatedAt,
     String? thread_id,
+    String? groupType,
+    String? membersCount,
   }) {
     return PublicGroupModel(
       id: id ?? this.id,
@@ -308,6 +326,8 @@ class PublicGroupModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       thread_id: thread_id ?? this.thread_id,
+      groupType: groupType ?? this.groupType,
+      membersCount: membersCount ?? this.membersCount,
     );
   }
 }

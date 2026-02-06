@@ -196,7 +196,7 @@ class InviteMembersController extends GetxController {
   Future<void> inviteUser(int userId, int index, BuildContext context) async {
     loadingUserIds.add(userId);
     try {
-      await NetworkAPICall().inviteUserToGroup(groupId: groupId, userId: userId);
+      await NetworkAPICall().inviteUserToGroup(groupId: groupId, userId: userId, isInvite: 1, status: 'invited');
 
       // Remove user from both lists
       users.removeWhere((user) => user.id == userId);

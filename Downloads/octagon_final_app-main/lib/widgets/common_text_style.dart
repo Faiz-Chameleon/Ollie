@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:sizer/sizer.dart';
 
 TextStyle getNormalFontStyle({double? fontSize, Color color = Colors.white,FontWeight fontWeight = FontWeight.normal }){
-  return GoogleFonts.overpass(
+  return TextStyle(
       fontSize: fontSize ?? 12.sp,
       color: color,
       fontWeight:fontWeight,
@@ -11,7 +10,7 @@ TextStyle getNormalFontStyle({double? fontSize, Color color = Colors.white,FontW
 }
 
 getUnderLineFontStyle({double? fontSize, Color color = Colors.white,FontWeight fontWeight = FontWeight.normal }){
-  return GoogleFonts.overpass(
+  return TextStyle(
     fontSize: fontSize ?? 12.sp,
     color: color,
     // decorationColor: blueColor,
@@ -21,7 +20,7 @@ getUnderLineFontStyle({double? fontSize, Color color = Colors.white,FontWeight f
 }
 
 getMediumFontStyle({double? fontSize, Color color = Colors.white,FontWeight fontWeight = FontWeight.w500 }){
-  return GoogleFonts.overpass(
+  return TextStyle(
     fontSize: fontSize ?? 12.sp,
     color: color,
     fontWeight:fontWeight,
@@ -29,7 +28,7 @@ getMediumFontStyle({double? fontSize, Color color = Colors.white,FontWeight font
 }
 
 getSemiBoldFontStyle({double? fontSize, Color color = Colors.white,FontWeight fontWeight = FontWeight.bold }){
-  return GoogleFonts.overpass(
+  return TextStyle(
     fontSize: fontSize ?? 12.sp,
     color: color,
     fontWeight:fontWeight,

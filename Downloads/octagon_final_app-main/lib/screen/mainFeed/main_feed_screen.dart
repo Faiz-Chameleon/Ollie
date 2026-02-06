@@ -10,6 +10,7 @@ import 'package:octagon/utils/theme/theme_constants.dart';
 import 'package:octagon/widgets/post_container_widget.dart';
 
 import 'package:resize/resize.dart';
+import 'package:shape_maker/shape_maker.dart';
 
 import 'package:share_plus/share_plus.dart';
 
@@ -51,49 +52,67 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: appBgColor,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.camera_alt, color: Colors.white),
-          onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => CreatePostScreen())).then((value) {
-              if (value != null) {
-                // Refresh both controllers to ensure new posts appear
-                controller.refreshPage();
-                newHomeController.refreshPosts();
-              }
-            });
-          },
-        ),
         backgroundColor: appBgColor,
-        elevation: 0.0,
-        title: Text(
-          "Octagon",
-          style: whiteColor20BoldTextStyle.copyWith(fontSize: 22, fontWeight: FontWeight.w800),
-        ),
-        centerTitle: true,
-        actions: <Widget>[
-          GestureDetector(
-            onTap: () {
-              Share.share('My Favourite app for sports https://octagonapp.com/app-download');
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.camera_alt, color: Colors.white),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => CreatePostScreen())).then((value) {
+                if (value != null) {
+                  // Refresh both controllers to ensure new posts appear
+                  controller.refreshPage();
+                  newHomeController.refreshPosts();
+                }
+              });
             },
-            child: Container(
-              color: Colors.transparent,
-              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10),
-              child: const Icon(
-                Icons.near_me_rounded,
-                color: Colors.white,
-                size: 24,
+          ),
+          backgroundColor: appBgColor,
+          elevation: 0.0,
+          title: Text(
+            "Octagon",
+            style: whiteColor20BoldTextStyle.copyWith(fontSize: 22, fontWeight: FontWeight.w800),
+          ),
+          centerTitle: true,
+          actions: <Widget>[
+            GestureDetector(
+              onTap: () {
+                Share.share('My Favourite app for sports https://octagonapp.com/app-download');
+              },
+              child: Container(
+                color: Colors.transparent,
+                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10),
+                child: const Icon(
+                  Icons.near_me_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
-            ),
-          )
-        ],
-      ),
-      body: Obx(() => RefreshIndicator(
+            )
+          ],
+        ),
+        body: Obx(() {
+          final displayGroups = (() {
+            final all = controller.groups.toList();
+
+            if (all.length <= 1) return all;
+
+            final first = all.first;
+            final rest = all.sublist(1);
+
+            rest.sort((a, b) {
+              final aCount = int.tryParse(a.membersCount.toString()) ?? 0;
+              final bCount = int.tryParse(b.membersCount.toString()) ?? 0;
+              return bCount.compareTo(aCount); // descending
+            });
+
+            return [first, ...rest];
+          })();
+          return RefreshIndicator(
             onRefresh: () async {
               await controller.refreshPage();
             },
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 500),
@@ -102,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ListView.builder(
                     controller: controller.scrollController,
                     scrollDirection: Axis.horizontal,
-                    itemCount: controller.groups.length,
+                    itemCount: displayGroups.length,
                     shrinkWrap: true,
                     padding: EdgeInsets.symmetric(horizontal: 4.w),
                     itemBuilder: (_, index) {
@@ -110,29 +129,39 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 8.0),
                         child: GestureDetector(
                           onTap: () async {
-                            final selectedGroup = controller.groups[index];
-                            final joined = await controller.groupController.joinGroupIfNeeded(selectedGroup.id);
-                            if (!joined) return;
-                            String threadId = selectedGroup.thread_id;
-                            if (threadId.isEmpty) {
-                              final resolvedThreadId = await controller.ensureThreadIdForGroup(selectedGroup);
-                              if (resolvedThreadId == null || resolvedThreadId.isEmpty) {
-                                Get.snackbar('Error', 'Unable to open chat for this group. Please try again later.');
-                                return;
+                            if (controller.groups[index].isPublic == "1") {
+                              Get.snackbar("Message", "This is a public group", backgroundColor: Colors.white);
+                            } else {
+                              final selectedGroup = controller.groups[index];
+                              final currentUserId = storage.read("current_uid")?.toString();
+                              final isAuthor = currentUserId != null && currentUserId.isNotEmpty && selectedGroup.userId.toString() == currentUserId;
+                              if (!isAuthor) {
+                                final joined = await controller.groupController.joinGroupIfNeeded(selectedGroup.id);
+                                if (!joined) return;
                               }
-                              threadId = resolvedThreadId;
+                              String threadId = selectedGroup.thread_id;
+                              if (threadId.isEmpty) {
+                                final resolvedThreadId = await controller.ensureThreadIdForGroup(selectedGroup);
+                                if (resolvedThreadId == null || resolvedThreadId.isEmpty) {
+                                  Get.snackbar('Error', 'Unable to open chat for this group. Please try again later.');
+                                  return;
+                                }
+                                threadId = resolvedThreadId;
+                              }
+                              Get.to(() => NewGroupChatScreen(
+                                    groupId: selectedGroup.id.toString(),
+                                    // ignore: unrelated_type_equality_checks
+                                    isPublic: selectedGroup.isPublic == "0" ? true : false,
+                                    userId: storage.read("current_uid").toString(),
+                                    userName: storage.read("user_name").toString(),
+                                    groupName: selectedGroup.title,
+                                    groupImage: selectedGroup.photo.toString(),
+                                    userImage: storage.read('image_url'),
+                                    thread_id: threadId,
+                                    otheruserId: selectedGroup.userId,
+                                  ));
                             }
-                            Get.to(() => NewGroupChatScreen(
-                                  groupId: selectedGroup.id.toString(),
-                                  // ignore: unrelated_type_equality_checks
-                                  isPublic: selectedGroup.isPublic == "0" ? true : false,
-                                  userId: storage.read("current_uid").toString(),
-                                  userName: storage.read("user_name").toString(),
-                                  groupName: selectedGroup.title,
-                                  groupImage: selectedGroup.photo.toString(),
-                                  userImage: storage.read('image_url'),
-                                  thread_id: threadId,
-                                ));
+                            ;
                           },
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -171,6 +200,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                             ),
                                           ),
                                         ),
+                                        Positioned(
+                                          left: 50,
+                                          top: -1,
+                                          child: Icon(
+                                            Icons.lock,
+                                            color: Colors.amber,
+                                            size: 20,
+                                          ),
+                                        )
                                       ],
                                     )
                                   : Stack(
@@ -186,22 +224,40 @@ class _HomeScreenState extends State<HomeScreen> {
                                         // Centered network image
                                         ClipPath(
                                           clipper: OctagonClipper(),
-                                          child: Image.network(
-                                            'http://3.134.119.154/${controller.groups[index].photo}', // Replace with your image URL
-                                            width: 45,
-                                            height: 45,
-                                            fit: BoxFit.fill,
-                                            errorBuilder: (context, error, stackTrace) => Container(
-                                              width: 45,
-                                              height: 45,
-                                              color: Colors.transparent,
-                                              child: Icon(
-                                                Icons.error,
-                                                color: Colors.red,
-                                                size: 24,
-                                              ),
-                                            ),
-                                          ),
+                                          child: controller.groups[index].title == "Octagon"
+                                              ? ShapeMaker(
+                                                  height: 50,
+                                                  width: 50,
+                                                  bgColor: Colors.yellow,
+                                                  widget: Container(
+                                                    margin: const EdgeInsets.all(6),
+                                                    child: ShapeMaker(
+                                                      bgColor: Colors.black,
+                                                      widget: Container(
+                                                        margin: const EdgeInsets.all(8),
+                                                        child: ShapeMaker(
+                                                          bgColor: appBgColor,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                )
+                                              : Image.network(
+                                                  'http://3.134.119.154/${controller.groups[index].photo}', // Replace with your image URL
+                                                  width: 45,
+                                                  height: 45,
+                                                  fit: BoxFit.fill,
+                                                  errorBuilder: (context, error, stackTrace) => Container(
+                                                    width: 45,
+                                                    height: 45,
+                                                    color: Colors.transparent,
+                                                    child: Icon(
+                                                      Icons.error,
+                                                      color: Colors.red,
+                                                      size: 24,
+                                                    ),
+                                                  ),
+                                                ),
                                         ),
                                       ],
                                     ),
@@ -239,6 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         final reactivePost = post.obs;
 
                         return Obx(() => PostWidgets(
+                              groupType: reactivePost.value.groupType,
                               name: reactivePost.value.userName,
                               post: reactivePost.value.post,
                               postData: reactivePost.value,
@@ -296,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-          )),
-    );
+          );
+        }));
   }
 }

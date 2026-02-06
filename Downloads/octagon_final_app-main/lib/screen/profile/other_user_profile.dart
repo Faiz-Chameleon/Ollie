@@ -13,6 +13,7 @@ import 'package:octagon/screen/mainFeed/home/postController.dart';
 import 'package:octagon/screen/profile/follow_following.dart';
 import 'package:octagon/screen/profile/other_user_profile_controller.dart';
 import 'package:octagon/screen/profile/profile_posts.dart';
+import 'package:octagon/screen/common/full_screen_post.dart';
 import 'package:octagon/utils/constants.dart';
 import 'package:octagon/utils/image_picker_inapp.dart';
 
@@ -834,7 +835,17 @@ class OtherUserProfileScreen extends StatelessWidget {
         itemBuilder: (context, index) {
           final post = mediaPosts[index];
           return GestureDetector(
-            onTap: () => Get.toNamed('/fullscreen-post', arguments: post),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FullScreenPost(
+                    postData: post,
+                    updateData: () {},
+                  ),
+                ),
+              );
+            },
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),

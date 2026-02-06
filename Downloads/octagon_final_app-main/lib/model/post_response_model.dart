@@ -7,22 +7,12 @@ import 'package:octagon/networking/model/response_model/SportInfoModel.dart';
 
 import 'user_data_model.dart';
 
-PostResponseModel postResponseModelFromJson(String str) =>
-    PostResponseModel.fromJson(json.decode(str));
+PostResponseModel postResponseModelFromJson(String str) => PostResponseModel.fromJson(json.decode(str));
 
-String postResponseModelToJson(PostResponseModel data) =>
-    json.encode(data.toJson());
+String postResponseModelToJson(PostResponseModel data) => json.encode(data.toJson());
 
 class PostResponseModel {
-  PostResponseModel(
-      {this.success,
-      this.successForCreatePost,
-      this.size,
-      this.more,
-      this.page,
-      this.total,
-      this.totalPage,
-      this.error});
+  PostResponseModel({this.success, this.successForCreatePost, this.size, this.more, this.page, this.total, this.totalPage, this.error});
 
   List<PostResponseModelData>? success;
   PostResponseModelData? successForCreatePost;
@@ -33,12 +23,8 @@ class PostResponseModel {
   bool? more;
   String? error;
 
-  factory PostResponseModel.fromJson(Map<String, dynamic> json) =>
-      PostResponseModel(
-        success: json["success"] != null
-            ? List<PostResponseModelData>.from(
-                json["success"].map((x) => PostResponseModelData.fromJson(x)))
-            : [],
+  factory PostResponseModel.fromJson(Map<String, dynamic> json) => PostResponseModel(
+        success: json["success"] != null ? List<PostResponseModelData>.from(json["success"].map((x) => PostResponseModelData.fromJson(x))) : [],
         size: "${json["size"]}",
         more: json["more"],
         page: "${json["page"]}",
@@ -47,14 +33,12 @@ class PostResponseModel {
         error: json["error"] == null ? null : json["error"],
       );
 
-  factory PostResponseModel.fromJsonForCreatePost(Map<String, dynamic> json) =>
-      PostResponseModel(
+  factory PostResponseModel.fromJsonForCreatePost(Map<String, dynamic> json) => PostResponseModel(
         successForCreatePost: PostResponseModelData.fromJson(json["success"]),
       );
 
   Map<String, dynamic> toJson() => {
-        "success":
-            List<PostResponseModelData>.from(success!.map((x) => x.toJson())),
+        "success": List<PostResponseModelData>.from(success!.map((x) => x.toJson())),
       };
 }
 
@@ -84,8 +68,14 @@ class PostResponseModelData {
     this.images,
     this.sportInfo,
     this.user_group_img,
+    this.groupType,
+    this.originalUser,
+    this.is_repost,
+    this.userGroupType,
   });
 
+  int? is_repost;
+  String? groupType;
   int? id;
   int? userId;
   String? post;
@@ -113,9 +103,10 @@ class PostResponseModelData {
   bool isUserFollowedByMe;
   bool isSaveByMe;
   List<SportInfo>? sportInfo;
+  OriginalUser? originalUser;
+  String? userGroupType;
 
-  factory PostResponseModelData.fromJson(Map<String, dynamic> json) =>
-      PostResponseModelData(
+  factory PostResponseModelData.fromJson(Map<String, dynamic> json) => PostResponseModelData(
         id: json["id"],
         user_group_img: json["user_group_img"],
         userId: json["user_id"],
@@ -125,42 +116,27 @@ class PostResponseModelData {
         location: json["location"],
         shareUrl: json["share_url"],
         comment: json["comment"],
-        createdAt: json["created_at"] == null
-            ? null
-            : DateTime.parse(json["created_at"]).toLocal(),
-        updatedAt: json["updated_at"] == null
-            ? null
-            : DateTime.parse(json["updated_at"]).toLocal(),
+        createdAt: json["created_at"] == null ? null : DateTime.parse(json["created_at"]).toLocal(),
+        updatedAt: json["updated_at"] == null ? null : DateTime.parse(json["updated_at"]).toLocal(),
         isDeleted: json["is_deleted"],
         userName: json["user_name"],
         photo: json["photo"],
         likes: json["likes"],
         isLikedByMe: json["like_by_me"] != 0,
         isUserFollowedByMe: json["is_user_follow"] != 0,
+        groupType: json["user_type_label"] ?? "",
 
         ///koi mane follow kartu hoi to.
         isSaveByMe: json["save_by_me"] != 0,
-        sportInfo: json["sport_info"] == null
-            ? null
-            : List<SportInfo>.from(
-                json["sport_info"].map((x) => SportInfo.fromJson(x))),
-        userLikes: json["user_likes"] != null
-            ? List<UserLikes>.from(
-                json["user_likes"].map((x) => UserLikes.fromJson(x)))
-            : null,
-        comments: json["comments"] == null
-            ? null
-            : List<SuccessComment>.from(
-                json["comments"].map((x) => SuccessComment.fromJson(x))),
-        videos: json["videos"] == null
-            ? null
-            : List<ImageData>.from(
-                json["videos"].map((x) => ImageData.fromJson(x))),
+        sportInfo: json["sport_info"] == null ? null : List<SportInfo>.from(json["sport_info"].map((x) => SportInfo.fromJson(x))),
+        userLikes: json["user_likes"] != null ? List<UserLikes>.from(json["user_likes"].map((x) => UserLikes.fromJson(x))) : null,
+        comments: json["comments"] == null ? null : List<SuccessComment>.from(json["comments"].map((x) => SuccessComment.fromJson(x))),
+        videos: json["videos"] == null ? null : List<ImageData>.from(json["videos"].map((x) => ImageData.fromJson(x))),
         thumbUrl: json["thumb_url"] == null ? null : json["thumb_url"] ?? "",
-        images: json["images"] == null
-            ? null
-            : List<ImageData>.from(
-                json["images"].map((x) => ImageData.fromJson(x))),
+        images: json["images"] == null ? null : List<ImageData>.from(json["images"].map((x) => ImageData.fromJson(x))),
+        originalUser: json["original_user"] != null ? OriginalUser.fromJson(json["original_user"]) : null,
+        is_repost: json["is_repost"],
+        userGroupType: json["user_type_label"] ?? "",
       );
 
   Map<String, dynamic> toJson() => {
@@ -187,20 +163,44 @@ class PostResponseModelData {
         "videos": List<ImageData>.from(videos!.map((x) => x.toJson())),
         "thumb_url": thumbUrl,
         "images": List<ImageData>.from(images!.map((x) => x.toJson())),
+        "groupType": groupType,
+        "original_user": originalUser?.toJson(),
+        "is_repost": is_repost,
+        "userGroupType": userGroupType,
+      };
+}
+
+class OriginalUser {
+  OriginalUser({
+    this.id,
+    this.name,
+    this.photo,
+    this.userType,
+  });
+
+  int? id;
+  String? name;
+  String? photo;
+  String? userType;
+
+  factory OriginalUser.fromJson(Map<String, dynamic> json) => OriginalUser(
+        id: json["id"],
+        name: json["name"],
+        photo: json["photo"],
+        userType: json["user_type"],
+      );
+
+  Map<String, dynamic> toJson() => {
+        "id": id,
+        "name": name,
+        "photo": photo,
+        "user_type": userType,
       };
 }
 
 class SuccessComment {
   SuccessComment(
-      {this.id,
-      this.userId,
-      this.postId,
-      this.comment,
-      this.parentCommentId,
-      this.createdAt,
-      this.users,
-      this.comments,
-      this.isShowMore = false});
+      {this.id, this.userId, this.postId, this.comment, this.parentCommentId, this.createdAt, this.users, this.comments, this.isShowMore = false});
 
   int? id;
   int? userId;
@@ -220,10 +220,7 @@ class SuccessComment {
       parentCommentId: json["parent_comment_id"],
       createdAt: DateTime.parse(json["created_at"]),
       users: Users.fromJson(json["users"]),
-      comments: json["comments"] == null
-          ? null
-          : List<SuccessComment>.from(
-              json["comments"].map((x) => SuccessComment.fromJson(x))),
+      comments: json["comments"] == null ? null : List<SuccessComment>.from(json["comments"].map((x) => SuccessComment.fromJson(x))),
       isShowMore: false);
 
   Map<String, dynamic> toJson() => {
@@ -234,9 +231,7 @@ class SuccessComment {
         "parent_comment_id": parentCommentId,
         "created_at": createdAt!.toIso8601String(),
         "users": users!.toJson(),
-        "comments": comments == null
-            ? null
-            : List<SuccessComment>.from(comments!.map((x) => x.toJson())),
+        "comments": comments == null ? null : List<SuccessComment>.from(comments!.map((x) => x.toJson())),
       };
 }
 
@@ -256,11 +251,7 @@ class UserLikes {
   DateTime? createdAt;
 
   factory UserLikes.fromJson(Map<String, dynamic> json) => UserLikes(
-      id: json["id"],
-      userId: json["user_id"],
-      contentId: json["content_id"],
-      type: json["comment"],
-      createdAt: DateTime.parse(json["created_at"]));
+      id: json["id"], userId: json["user_id"], contentId: json["content_id"], type: json["comment"], createdAt: DateTime.parse(json["created_at"]));
 
   Map<String, dynamic> toJson() => {
         "id": id,

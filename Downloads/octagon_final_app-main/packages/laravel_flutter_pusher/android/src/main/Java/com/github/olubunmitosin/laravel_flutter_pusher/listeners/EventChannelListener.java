@@ -4,11 +4,9 @@ import android.os.Handler;
 import android.util.Log;
 import android.os.Looper;
 
+import com.google.gson.JsonObject;
 import com.pusher.client.channel.ChannelEventListener;
 import com.pusher.client.channel.PusherEvent;
-
-import java.util.HashMap;
-import java.util.Map;
 
 import org.json.JSONObject;
 
@@ -29,13 +27,12 @@ public class EventChannelListener implements ChannelEventListener {
     }
 
     static PusherEvent toPusherEvent(String channel, String event, String userId, String data) {
-        final Map<String, Object> eventData = new HashMap<>();
-
-        eventData.put("channel", channel);
-        eventData.put("event", event);
-        eventData.put("data", data != null ? data : "");
+        final JsonObject eventData = new JsonObject();
+        eventData.addProperty("channel", channel);
+        eventData.addProperty("event", event);
+        eventData.addProperty("data", data != null ? data : "");
         if (userId != null) {
-            eventData.put("user_id", userId);
+            eventData.addProperty("user_id", userId);
         }
 
         return new PusherEvent(eventData);

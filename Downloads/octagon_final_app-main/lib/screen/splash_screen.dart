@@ -1,6 +1,5 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:octagon/screen/login/login_screen.dart';
 import 'package:octagon/screen/sign_up/sign_up_screen.dart';
 import 'package:octagon/screen/sign_up/signup_step.dart';
@@ -40,7 +39,7 @@ class _SplashScreenState extends State<SplashScreen> {
                       children: [
                         Text(
                           "Octagon",
-                          style: GoogleFonts.comicNeue(
+                          style: const TextStyle(
                               fontSize: 68,
                               color: Colors.white,
                               fontWeight: FontWeight.w600),

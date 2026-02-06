@@ -227,18 +227,27 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                                     padding: const EdgeInsets.all(7.0),
                                     child: ClipPath(
                                       clipper: OctagonClipper(),
-                                      child: Image.network(
-                                        'http://3.134.119.154/${controller.groupProfileUrl}', // Replace with your image URL
-                                        width: 40,
-                                        height: 40,
-                                        fit: BoxFit.fill,
-                                        errorBuilder: (context, error, stackTrace) => Container(
-                                          width: 40,
-                                          height: 40,
-                                          color: Color(0xff211D39),
-                                          child: Icon(Icons.error, color: Colors.red),
-                                        ),
-                                      ),
+                                      child: controller.groupProfileUrl.contains("http")
+                                          ? Image.network(
+                                              controller.groupProfileUrl.contains("http")
+                                                  ? "${controller.groupProfileUrl.toString()}"
+                                                  : 'http://3.134.119.154/${controller.groupProfileUrl}', // Replace with your image URL
+                                              width: 40,
+                                              height: 40,
+                                              fit: BoxFit.fill,
+                                              errorBuilder: (context, error, stackTrace) => Container(
+                                                width: 40,
+                                                height: 40,
+                                                color: Color(0xff211D39),
+                                                child: Icon(Icons.error, color: Colors.red),
+                                              ),
+                                            )
+                                          : Image.asset(
+                                              'assets/ic/Group 4.png',
+                                              width: 40,
+                                              height: 40,
+                                              fit: BoxFit.contain,
+                                            ),
                                     ),
                                   ),
                                 ),

@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:io';
 
 // import 'package:app_links/app_links.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -35,15 +36,32 @@ void main() async {
   await GetStorage.init();
   storage = GetStorage();
   Get.put<PusherService>(PusherService(), permanent: true);
-  await FirebaseMessaging.instance.requestPermission().then(
-    (value) async {
-      final fcmToken = await FirebaseMessaging.instance.getToken();
-      log("FCM---- $fcmToken");
-      if (fcmToken != null || fcmToken == "") {
-        storage.write("fcmToken", fcmToken);
-      }
-    },
-  );
+  final messaging = FirebaseMessaging.instance;
+  await messaging.requestPermission();
+  messaging.onTokenRefresh.listen((token) {
+    if (token.isNotEmpty) {
+      storage.write("fcmToken", token);
+    }
+  });
+  String? fcmToken;
+  if (Platform.isIOS || Platform.isMacOS) {
+    final apnsToken = await messaging.getAPNSToken();
+    if (apnsToken == null) {
+      log('APNS token not set yet; will wait for onTokenRefresh.');
+    } else {
+      fcmToken = await messaging.getToken();
+    }
+  } else {
+    try {
+      fcmToken = await messaging.getToken();
+    } catch (e) {
+      log('Failed to fetch FCM token: $e');
+    }
+  }
+  log("FCM---- $fcmToken");
+  if (fcmToken != null && fcmToken.isNotEmpty) {
+    storage.write("fcmToken", fcmToken);
+  }
 
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
       statusBarColor: statusBarColor, // status bar color

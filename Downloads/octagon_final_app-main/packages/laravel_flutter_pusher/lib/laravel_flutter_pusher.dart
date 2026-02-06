@@ -41,8 +41,17 @@ class Channel {
     await pusher._bind(name, eventName, onEvent: onEvent);
   }
 
+  /// Bind to listen for all events sent on the given channel
+  Future bindGlobal(Function onEvent) async {
+    await pusher._bindGlobal(name, onEvent: onEvent);
+  }
+
   Future unbind(String eventName) async {
     await pusher._unbind(name, eventName);
+  }
+
+  Future unbindGlobal() async {
+    await pusher._unbindGlobal(name);
   }
 
   /// Trigger [eventName] (will be prefixed with "client-" in case you have not) for [Channel].
@@ -66,6 +75,7 @@ class LaravelFlutterPusher {
   int _instanceId = 0;
   String? _socketId;
   final Map<String, Function> _eventCallbacks = <String, Function>{};
+  final Map<String, List<Function>> _globalEventCallbacks = <String, List<Function>>{};
   void Function(ConnectionError)? _onError;
   void Function(ConnectionStateChange)? _onConnectionStateChange;
 
@@ -146,6 +156,7 @@ class LaravelFlutterPusher {
       if (callback != null) {
         callback(_decodeCallbackPayload(message.event!.data));
       }
+      _emitGlobalCallbacks(message.event!);
     } else if (message.isConnectionStateChange) {
       _socketId = await _channel.invokeMethod('getSocketId', jsonEncode({'instanceId': _instanceId}));
       if (_onConnectionStateChange != null) {
@@ -155,6 +166,21 @@ class LaravelFlutterPusher {
       if (_onError != null) {
         _onError!(message.connectionError!);
       }
+    }
+  }
+
+  void _emitGlobalCallbacks(Event event) {
+    final callbacks = _globalEventCallbacks[event.channel];
+    if (callbacks == null || callbacks.isEmpty) {
+      return;
+    }
+    final payload = <String, dynamic>{
+      'channel': event.channel,
+      'event': event.event,
+      'data': _decodeCallbackPayload(event.data),
+    };
+    for (final callback in List<Function>.from(callbacks)) {
+      callback(payload);
     }
   }
 
@@ -173,6 +199,19 @@ class LaravelFlutterPusher {
     await _channel.invokeMethod('bind', bindArgs);
   }
 
+  Future _bindGlobal(
+    String channelName, {
+    required Function onEvent,
+  }) async {
+    final bindArgs = jsonEncode({
+      'instanceId': _instanceId,
+      'channelName': channelName,
+    });
+
+    _globalEventCallbacks.putIfAbsent(channelName, () => <Function>[]).add(onEvent);
+    await _channel.invokeMethod('bindGlobal', bindArgs);
+  }
+
   Future _unbind(String channelName, String eventName) async {
     final bindArgs = jsonEncode(BindArgs(
       instanceId: _instanceId,
@@ -182,6 +221,16 @@ class LaravelFlutterPusher {
 
     _eventCallbacks.remove(channelName + eventName);
     await _channel.invokeMethod('unbind', bindArgs);
+  }
+
+  Future _unbindGlobal(String channelName) async {
+    final bindArgs = jsonEncode({
+      'instanceId': _instanceId,
+      'channelName': channelName,
+    });
+
+    _globalEventCallbacks.remove(channelName);
+    await _channel.invokeMethod('unbindGlobal', bindArgs);
   }
 
   Future _trigger(String channelName, String eventName) async {

@@ -31,6 +31,7 @@ class PostWidgets extends StatefulWidget {
   PostResponseModelData? postData;
 
   final String? name;
+  final String? groupType;
   final DateTime? dateTime;
   final String? post;
   int likes = 0;
@@ -54,7 +55,8 @@ class PostWidgets extends StatefulWidget {
       this.updateData,
       required this.onLike,
       required this.onFollow,
-      required this.onSavePost});
+      required this.onSavePost,
+      this.groupType});
 
   @override
   _PostWidgetsState createState() => _PostWidgetsState();
@@ -223,71 +225,128 @@ class _PostWidgetsState extends State<PostWidgets> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ///user thumb
-                      GestureDetector(
-                        onTap: () {
-                          print('Navigating to user profile with userId: ${widget.postData!.userId}');
-                          Get.to(() => OtherUserProfileScreen(userId: widget.postData!.userId!));
-                        },
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Container(
-                              height: 85,
-                            ),
-                            Container(
-                                width: 50,
-                                height: 65,
-                                decoration: BoxDecoration(
-                                    color: greyColor,
-                                    borderRadius: const BorderRadius.all(Radius.circular(20)),
-                                    image: DecorationImage(
-                                      image: NetworkImage(widget.postData?.photo ?? ""),
-                                      fit: BoxFit.fill,
-                                    )),
-                                child: !isProfilePicAvailable(widget.postData?.photo) ? defaultThumb() : null),
-                            Positioned(
-                              top: 45,
-                              left: 7,
-                              right: 7,
-                              child: Container(
-                                height: 35,
-                                width: 35,
-                                child: ClipPath(
-                                  clipper: OctagonClipper(),
-                                  child: CustomPaint(
-                                    painter: OctagonBorderPainter(
-                                      strokeWidth: 20.0,
-                                      borderColor: Color(0xff211D39), // Change border color
+
+                      widget.groupType == "team"
+                          ? GestureDetector(
+                              onTap: () {
+                                print('Navigating to user profile with userId: ${widget.postData!.userId}');
+                                Get.to(() => OtherUserProfileScreen(userId: widget.postData!.userId!));
+                              },
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                alignment: Alignment.center,
+                                children: [
+                                  // Octagon background image
+                                  Image.asset(
+                                    // widget.postData?.groupType == "personal"
+                                    //     ?
+                                    // 'assets/ic/Group 5.png'
+                                    // :
+                                    'assets/ic/Group 4.png', // Your uploaded PNG asset
+                                    width: 80,
+                                    height: 80,
+                                    fit: BoxFit.cover,
+                                  ),
+
+                                  // Centered network image
+                                  ClipPath(
+                                    clipper: OctagonClipper(),
+                                    child: CustomPaint(
+                                      painter: OctagonBorderPainter(
+                                        strokeWidth: 20.0,
+                                        borderColor: Color(0xff211D39), // Change border color
+                                      ),
+                                      child: Image.network(
+                                        widget.postData!.user_group_img!.contains("http")
+                                            ? '${widget.postData?.user_group_img}'
+                                            : "http://3.134.119.154/${widget.postData?.user_group_img}", // Replace with your image URL
+                                        width: 45,
+                                        height: 45,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) => Container(
+                                          width: 45,
+                                          height: 45,
+                                          color: Colors.transparent,
+                                          child: Icon(
+                                            Icons.error,
+                                            color: Colors.red,
+                                            size: 24,
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(7.0),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : GestureDetector(
+                              onTap: () {
+                                print('Navigating to user profile with userId: ${widget.postData!.userId}');
+                                Get.to(() => OtherUserProfileScreen(userId: widget.postData!.userId!));
+                              },
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Container(
+                                    height: 85,
+                                  ),
+                                  Container(
+                                      width: 50,
+                                      height: 65,
+                                      decoration: BoxDecoration(
+                                          color: greyColor,
+                                          borderRadius: const BorderRadius.all(Radius.circular(20)),
+                                          image: DecorationImage(
+                                            image: NetworkImage(widget.postData?.photo ?? ""),
+                                            fit: BoxFit.fill,
+                                          )),
+                                      child: !isProfilePicAvailable(widget.postData?.photo) ? defaultThumb() : null),
+                                  Positioned(
+                                    top: 45,
+                                    left: 7,
+                                    right: 7,
+                                    child: Container(
+                                      height: 35,
+                                      width: 35,
                                       child: ClipPath(
                                         clipper: OctagonClipper(),
-                                        child: Image.network(
-                                          'http://3.134.119.154/${widget.postData?.user_group_img}', // Replace with your image URL
-                                          width: 40,
-                                          height: 40,
-                                          fit: BoxFit.fill,
-                                          errorBuilder: (context, error, stackTrace) => Container(
-                                            width: 40,
-                                            height: 40,
-                                            color: Color(0xff211D39),
-                                            child: Icon(
-                                              Icons.error,
-                                              color: Colors.red,
-                                              size: 24,
+                                        child: CustomPaint(
+                                          painter: OctagonBorderPainter(
+                                            strokeWidth: 20.0,
+                                            borderColor: Color(0xff211D39), // Change border color
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(7.0),
+                                            child: ClipPath(
+                                              clipper: OctagonClipper(),
+                                              child: Image.network(
+                                                widget.postData!.user_group_img!.contains("http")
+                                                    ? '${widget.postData?.user_group_img}'
+                                                    : "http://3.134.119.154/${widget.postData?.user_group_img}", // Replace with your image URL
+                                                width: 40,
+                                                height: 40,
+                                                fit: BoxFit.fill,
+                                                errorBuilder: (context, error, stackTrace) => Container(
+                                                  width: 40,
+                                                  height: 40,
+                                                  color: Color(0xff211D39),
+                                                  child: Icon(
+                                                    Icons.error,
+                                                    color: Colors.red,
+                                                    size: 24,
+                                                  ),
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
+
                       Flexible(
                         child: Container(
                           padding: const EdgeInsets.all(8.0),
@@ -297,21 +356,45 @@ class _PostWidgetsState extends State<PostWidgets> {
                             mainAxisAlignment: MainAxisAlignment.start,
                             mainAxisSize: MainAxisSize.max,
                             children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(widget.name?.capitalize ?? "", style: whiteColor16BoldTextStyle),
-                                  if (widget.postData?.userId != storage.read("current_uid"))
-                                    FollowButton(
-                                      text: widget.postData!.isUserFollowedByMe ? "Following" : "Follow",
-                                      onClick: () {
-                                        widget.onFollow();
-                                        print("follow");
-                                      },
+                              widget.postData?.is_repost == 1
+                                  ? Row(
+                                      mainAxisAlignment: MainAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Icon(Icons.reply_outlined, color: Colors.white, size: 18),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            "${widget.postData?.userName ?? ""} Reposted From ${widget.postData?.originalUser?.name ?? ""}",
+                                            style: whiteColor16BoldTextStyle,
+                                            softWrap: true,
+                                          ),
+                                        ),
+                                        if (widget.postData?.userId != storage.read("current_uid"))
+                                          FollowButton(
+                                            text: widget.postData!.isUserFollowedByMe ? "Following" : "Follow",
+                                            onClick: () {
+                                              widget.onFollow();
+                                              print("follow");
+                                            },
+                                          ),
+                                      ],
+                                    )
+                                  : Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(widget.name?.capitalize ?? "", style: whiteColor16BoldTextStyle),
+                                        if (widget.postData?.userId != storage.read("current_uid"))
+                                          FollowButton(
+                                            text: widget.postData!.isUserFollowedByMe ? "Following" : "Follow",
+                                            onClick: () {
+                                              widget.onFollow();
+                                              print("follow");
+                                            },
+                                          ),
+                                      ],
                                     ),
-                                ],
-                              ),
                               RichText(
                                 maxLines: 3,
                                 textAlign: TextAlign.start,
@@ -588,18 +671,16 @@ class _PostWidgetsState extends State<PostWidgets> {
                             ),
                             onTap: () {
                               Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => CommentScreen(
-                                          captionTxt: widget.postData?.title ?? "",
-                                          name: widget.name!,
-                                          profilePic: widget.imgUrl ?? "",
-                                          postData: widget.postData))).then((_) {
-                                if (widget.updateData != null) {
-                                  print("fas");
-                                  widget.updateData!.call();
-                                }
-                              });
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => CommentScreen(
+                                    captionTxt: widget.postData?.title ?? "",
+                                    name: widget.name!,
+                                    profilePic: widget.imgUrl ?? "",
+                                    postData: widget.postData,
+                                  ),
+                                ),
+                              );
                             },
                           ),
                           Text(

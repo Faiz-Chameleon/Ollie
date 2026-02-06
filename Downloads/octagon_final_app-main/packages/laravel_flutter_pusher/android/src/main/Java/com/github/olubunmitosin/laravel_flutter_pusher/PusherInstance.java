@@ -70,6 +70,12 @@ public class PusherInstance implements MethodChannel.MethodCallHandler {
             case "unbind":
                 unbind(call, result);
                 break;
+            case "bindGlobal":
+                bindGlobal(call, result);
+                break;
+            case "unbindGlobal":
+                unbindGlobal(call, result);
+                break;
             case "trigger":
                 // trigger(call, result);
                 break;
@@ -353,6 +359,78 @@ public class PusherInstance implements MethodChannel.MethodCallHandler {
         } catch (Exception e) {
             if (isLoggingEnabled) {
                 Log.d(TAG, String.format("unbind exception: %s", e.getMessage()));
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void bindGlobal(MethodCall call, MethodChannel.Result result) {
+        try {
+            final JSONObject json = new JSONObject(call.arguments.toString());
+            final String channelName = json.getString("channelName");
+            final String channelType = channelName.split("-")[0];
+
+            Channel channel = channels.get(channelName);
+            if (channel == null) {
+                result.success(null);
+                return;
+            }
+
+            switch (channelType) {
+                case "private":
+                    channel.bindGlobal(eventListenerPrivate);
+                    break;
+                case "presence":
+                    channel.bindGlobal(eventListenerPresence);
+                    break;
+                default:
+                    channel.bindGlobal(eventListener);
+                    break;
+            }
+
+            if (isLoggingEnabled) {
+                Log.d(TAG, String.format("bindGlobal (%s)", channelName));
+            }
+            result.success(null);
+        } catch (Exception e) {
+            if (isLoggingEnabled) {
+                Log.d(TAG, String.format("bindGlobal exception: %s", e.getMessage()));
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void unbindGlobal(MethodCall call, MethodChannel.Result result) {
+        try {
+            final JSONObject json = new JSONObject(call.arguments.toString());
+            final String channelName = json.getString("channelName");
+            final String channelType = channelName.split("-")[0];
+
+            Channel channel = channels.get(channelName);
+            if (channel == null) {
+                result.success(null);
+                return;
+            }
+
+            switch (channelType) {
+                case "private":
+                    channel.unbindGlobal(eventListenerPrivate);
+                    break;
+                case "presence":
+                    channel.unbindGlobal(eventListenerPresence);
+                    break;
+                default:
+                    channel.unbindGlobal(eventListener);
+                    break;
+            }
+
+            if (isLoggingEnabled) {
+                Log.d(TAG, String.format("unbindGlobal (%s)", channelName));
+            }
+            result.success(null);
+        } catch (Exception e) {
+            if (isLoggingEnabled) {
+                Log.d(TAG, String.format("unbindGlobal exception: %s", e.getMessage()));
                 e.printStackTrace();
             }
         }

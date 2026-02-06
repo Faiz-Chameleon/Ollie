@@ -158,6 +158,7 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
                       onTap: () {
                         Get.to(() => GroupMembersScreen(
                               groupId: widget.groupId,
+                              threadId: group.threadId.toString(),
                             ));
                       },
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
