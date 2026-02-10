@@ -334,11 +334,11 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       if (data['owner'] != null) {
         final avatar = data['owner']['base'];
         if (avatar is Map) {
-          userIndividualGroupImage = _absUrl(avatar['user_group_img'] ?? '');
+          userIndividualGroupImage = _absUrl(avatar['group_photo'] ?? '');
         }
       }
       if (userIndividualGroupImage.isEmpty && data['owner'] != null) {
-        userIndividualGroupImage = _absUrl(data['owner']['base']['user_group_img']?.toString());
+        userIndividualGroupImage = _absUrl(data['owner']['base']['group_photo']?.toString());
       }
     } catch (_) {
       userIndividualGroupImage = _absUrl(data['owner']?.toString());
@@ -1228,46 +1228,82 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
           iconTheme: const IconThemeData(color: Colors.white),
           automaticallyImplyLeading: false,
           flexibleSpace: SafeArea(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              // mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(width: 30),
-                GestureDetector(
-                  onTap: () {
-                    Get.back();
-                  },
-                  child: Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 96),
+              child: Row(
+                mainAxisSize: MainAxisSize.max,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(width: 30),
+                  GestureDetector(
+                    onTap: () {
+                      Get.back();
+                    },
+                    child: Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 20),
+                  const SizedBox(width: 20),
 
-                widget.isPublic == true
-                    ? Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Image.asset(
-                            'assets/ic/Group 5.png',
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.contain,
-                          ),
+                  widget.isPublic == true
+                      ? Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Image.asset(
+                              'assets/ic/Group 5.png',
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.contain,
+                            ),
 
-                          // Centered network image
-                          GestureDetector(
-                            onTap: () {
-                              Get.to(() => OtherUserProfileScreen(userId: widget.otheruserId));
-                            },
-                            child: ClipPath(
+                            // Centered network image
+                            GestureDetector(
+                              onTap: () {
+                                Get.to(() => OtherUserProfileScreen(userId: widget.otheruserId));
+                              },
+                              child: ClipPath(
+                                clipper: OctagonClipper(),
+                                child: Image.network(
+                                  'http://3.134.119.154/${widget.groupImage}', // Replace with your image URL
+                                  width: 45,
+                                  height: 45,
+                                  fit: BoxFit.fill,
+                                  errorBuilder: (context, error, stackTrace) => Container(
+                                    width: 45,
+                                    height: 45,
+                                    color: Colors.transparent,
+                                    child: Icon(
+                                      Icons.error,
+                                      color: Colors.red,
+                                      size: 24,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Stack(
+                          clipBehavior: Clip.none,
+                          alignment: Alignment.center,
+                          children: [
+                            // Octagon background image
+                            Image.asset(
+                              'assets/ic/Group 4.png', // Your uploaded PNG asset
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            ),
+
+                            // Centered network image
+                            ClipPath(
                               clipper: OctagonClipper(),
                               child: Image.network(
                                 'http://3.134.119.154/${widget.groupImage}', // Replace with your image URL
                                 width: 45,
                                 height: 45,
-                                fit: BoxFit.fill,
+                                fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) => Container(
                                   width: 45,
                                   height: 45,
@@ -1280,75 +1316,46 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                                 ),
                               ),
                             ),
-                          ),
-                        ],
-                      )
-                    : Stack(
-                        clipBehavior: Clip.none,
-                        alignment: Alignment.center,
-                        children: [
-                          // Octagon background image
-                          Image.asset(
-                            'assets/ic/Group 4.png', // Your uploaded PNG asset
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                          ),
+                          ],
+                        ),
 
-                          // Centered network image
-                          ClipPath(
-                            clipper: OctagonClipper(),
-                            child: Image.network(
-                              'http://3.134.119.154/${widget.groupImage}', // Replace with your image URL
-                              width: 45,
-                              height: 45,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Container(
-                                width: 45,
-                                height: 45,
-                                color: Colors.transparent,
-                                child: Icon(
-                                  Icons.error,
-                                  color: Colors.red,
-                                  size: 24,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                // Image.network(
-                //   "http://3.134.119.154/$groupImage",
-                //   scale: 4,
-                //   errorBuilder: (context, error, stackTrace) => const Icon(
-                //     Icons.broken_image,
-                //     color: Colors.white,
-                //     size: 32,
-                //   ),
-                // ),
-                const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.isPublic == true ? "Public Group" : "Private Group",
-                      style: whiteColor14TextStyle,
-                      overflow: TextOverflow.ellipsis,
+                  // Image.network(
+                  //   "http://3.134.119.154/$groupImage",
+                  //   scale: 4,
+                  //   errorBuilder: (context, error, stackTrace) => const Icon(
+                  //     Icons.broken_image,
+                  //     color: Colors.white,
+                  //     size: 32,
+                  //   ),
+                  // ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.isPublic == true ? "Public Group" : "Private Group",
+                          style: whiteColor14TextStyle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          widget.groupName,
+                          style: whiteColor20BoldTextStyle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          "Chat Room",
+                          style: whiteColor16TextStyle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
-                    Text(
-                      widget.groupName,
-                      style: whiteColor20BoldTextStyle,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      "Chat Room",
-                      style: whiteColor16TextStyle,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -1883,6 +1890,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
               message['sender_id']?.toString() ?? '',
               message['sender_image']?.toString() ?? '',
               message["group_image"]?.toString() ?? '',
+              message["raw"] ?? message,
               isThreadReply: isThreadReply,
               userType: message["userType"]?.toString() ?? '0',
             ),
@@ -2689,13 +2697,14 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     );
   }
 
-  Widget _buildUserAvatar(String? userId, String? imageUrl, String groupImage, {bool isThreadReply = false, String? userType}) {
+  Widget _buildUserAvatar(String? userId, String? imageUrl, String groupImage, Map<String, dynamic> message,
+      {bool isThreadReply = false, String? userType}) {
     final double avatarWidth = isThreadReply ? 40 : 50;
     final double avatarHeight = isThreadReply ? 50 : 60;
     final double badgeSize = isThreadReply ? 25 : 30;
     final double badgeOffset = isThreadReply ? -15 : -20;
     final double iconSize = isThreadReply ? 15 : 20;
-    return userType == "2"
+    return userType == "2" && message["owner"]["base"]["created_group"]["user_id"] == storage.read("current_uid")
         ? GestureDetector(
             onTap: () {
               int changeUserId = int.parse(userId.toString());
@@ -2768,7 +2777,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                     child: imageUrl != null && imageUrl.isNotEmpty
                         ? Image.network(
                             imageUrl,
-                            fit: BoxFit.fill,
+                            fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) => Icon(
                               Icons.person,
                               color: Colors.white,
@@ -2794,7 +2803,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                     color: Colors.black, // Optional: for border effect
                     child: Image.network(
                       groupImage,
-                      fit: BoxFit.contain,
+                      fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
                         color: Colors.grey,
                         child: Icon(Icons.broken_image, color: Colors.white, size: 16),

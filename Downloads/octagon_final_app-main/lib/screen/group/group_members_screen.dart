@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'group_members_controller.dart';
 import 'invite_members_screen.dart';
 import 'blocked_users_screen.dart';
+import 'group_requests_screen.dart';
 
 class GroupMembersScreen extends StatefulWidget {
   final String groupId;
@@ -28,13 +29,31 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
       appBar: AppBar(
         title: Text('Members'),
         actions: [
-          IconButton(
-            icon: Icon(Icons.block),
-            onPressed: widget.threadId.isEmpty
-                ? null
-                : () {
-                    Get.to(() => BlockedUsersScreen(threadId: widget.threadId));
-                  },
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_horiz),
+            onSelected: (value) {
+              if (value == 'blocked') {
+                if (widget.threadId.isEmpty) {
+                  Get.snackbar('Error', 'Chat thread is not enabled for this group');
+                  return;
+                }
+                Get.to(() => BlockedUsersScreen(threadId: widget.threadId));
+                return;
+              }
+              if (value == 'requests') {
+                Get.to(() => GroupRequestsScreen(groupId: widget.groupId));
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'blocked',
+                child: Text('Blocked users'),
+              ),
+              PopupMenuItem(
+                value: 'requests',
+                child: Text('Request list'),
+              ),
+            ],
           ),
         ],
       ),

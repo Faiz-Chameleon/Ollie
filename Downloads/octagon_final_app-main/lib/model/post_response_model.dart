@@ -72,9 +72,12 @@ class PostResponseModelData {
     this.originalUser,
     this.is_repost,
     this.userGroupType,
+    this.groupIs,
+    this.finalUserGroupType,
   });
 
   int? is_repost;
+  int? groupIs;
   String? groupType;
   int? id;
   int? userId;
@@ -105,6 +108,7 @@ class PostResponseModelData {
   List<SportInfo>? sportInfo;
   OriginalUser? originalUser;
   String? userGroupType;
+  int? finalUserGroupType;
 
   factory PostResponseModelData.fromJson(Map<String, dynamic> json) => PostResponseModelData(
         id: json["id"],
@@ -137,6 +141,8 @@ class PostResponseModelData {
         originalUser: json["original_user"] != null ? OriginalUser.fromJson(json["original_user"]) : null,
         is_repost: json["is_repost"],
         userGroupType: json["user_type_label"] ?? "",
+        groupIs: json["is_public"] ?? 0,
+        finalUserGroupType: json["user_group_is_public"] ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -167,6 +173,8 @@ class PostResponseModelData {
         "original_user": originalUser?.toJson(),
         "is_repost": is_repost,
         "userGroupType": userGroupType,
+        "is_public": groupIs,
+        "final_user_group_type": finalUserGroupType,
       };
 }
 

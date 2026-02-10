@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:octagon/screen/groups/create_group_screen.dart';
 import 'package:octagon/screen/setting/update_group_screen.dart';
@@ -6,6 +7,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:octagon/networking/network.dart';
 import 'package:octagon/services/group_thread_service.dart';
+import 'package:octagon/utils/constants.dart';
 
 class GroupController extends GetxController {
   final NetworkAPICall _networkApi = NetworkAPICall();
@@ -100,6 +102,21 @@ class GroupController extends GetxController {
     }
   }
 
+  Future<bool?> isUserAlreadyMember(int groupId) async {
+    final storage = GetStorage();
+    final dynamic storedUserId = storage.read("current_uid") ?? storage.read("user_id") ?? storage.read("id");
+    final int? currentUserId = storedUserId != null ? int.tryParse(storedUserId.toString()) : null;
+    if (currentUserId == null) {
+      return null;
+    }
+    try {
+      return await _isUserAlreadyMember(groupId, currentUserId);
+    } catch (e) {
+      print('isUserAlreadyMember error: $e');
+      return null;
+    }
+  }
+
   // Fetch all groups for main feed (public groups)
   Future<List<PublicGroupModel>> fetchAllGroups() async {
     final storage = GetStorage();
@@ -136,6 +153,46 @@ class GroupController extends GetxController {
     } else {
       print(response.reasonPhrase);
       return [];
+    }
+  }
+
+  Future<bool> sendJoinRequest(int groupId) async {
+    final storage = GetStorage();
+    final token = storage.read("token");
+    if (token == null) {
+      Get.snackbar('Error', 'Authentication token missing. Please log in again.');
+      return false;
+    }
+
+    final uri = Uri.parse(Uri.encodeFull('${baseUrl}send-request'));
+    final request = http.MultipartRequest('POST', uri);
+    request.headers.addAll({'Authorization': 'Bearer $token'});
+    request.fields['group_id'] = groupId.toString();
+
+    try {
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      if (response.statusCode == 201) {
+        return true;
+      }
+      if (response.statusCode == 409) {
+        String message = 'You have already sent a request to this group.';
+        try {
+          final decoded = jsonDecode(responseBody);
+          if (decoded is Map && decoded['error'] != null) {
+            message = decoded['error'].toString();
+          }
+        } catch (_) {}
+        Get.snackbar('Request already sent', message, backgroundColor: Colors.white);
+        return false;
+      }
+      print('sendJoinRequest failed ($groupId): ${response.statusCode} - ${response.reasonPhrase} - $responseBody');
+      Get.snackbar('Error', 'Failed to send request. Please try again.');
+      return false;
+    } catch (e) {
+      print('sendJoinRequest error: $e');
+      Get.snackbar('Error', 'Failed to send request. Please try again.');
+      return false;
     }
   }
 

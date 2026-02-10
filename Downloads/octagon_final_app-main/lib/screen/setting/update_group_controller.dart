@@ -84,7 +84,7 @@ class UpdateGroupController extends GetxController {
         optionsController.text = groupData.value!.options == '""' ? "" : groupData.value!.options;
         dateController.text = groupData.value!.dates;
         descriptionController.text = groupData.value!.description == '""' ? "" : groupData.value!.description;
-        isPrivate.value = groupData.value!.isPublic == "1";
+        isPrivate.value = groupData.value!.isPublic == "0" ? false : true;
         groupMembers.value = data["success"]["members_count"];
 
         print("Group details loaded successfully");
@@ -206,6 +206,7 @@ class UpdateGroupController extends GetxController {
         'dates': dateController.text.trim(),
         'description': descriptionController.text.trim().isEmpty ? '""' : descriptionController.text.trim(),
         'group_id': groupId!,
+        'public_private': isPrivate.value ? '1' : '0',
       });
 
       // Add image if selected

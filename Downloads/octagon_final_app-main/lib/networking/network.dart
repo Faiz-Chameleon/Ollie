@@ -552,6 +552,63 @@ class NetworkAPICall {
     }
   }
 
+  // Fetch join requests for a group
+  Future<Map<String, dynamic>> getGroupJoinRequests({required String groupId}) async {
+    final url = Uri.parse('${baseUrl}groups/$groupId/requests');
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer ${getUserToken()}',
+          'Accept': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to fetch join requests: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  Future<dynamic> acceptGroupJoinRequest({required int requestId}) async {
+    final url = Uri.parse('${baseUrl}group/request/accept');
+    try {
+      var request = http.MultipartRequest('POST', url);
+      request.headers['Authorization'] = 'Bearer ${getUserToken()}';
+      request.fields['request_id'] = requestId.toString();
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to accept request: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  Future<dynamic> rejectGroupJoinRequest({required int requestId}) async {
+    final url = Uri.parse('${baseUrl}group/request/reject');
+    try {
+      var request = http.MultipartRequest('POST', url);
+      request.headers['Authorization'] = 'Bearer ${getUserToken()}';
+      request.fields['request_id'] = requestId.toString();
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to reject request: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
   // Unblock a group member (admin action)
   Future<dynamic> unblockGroupUser({required int userId, required String threadId}) async {
     final url = Uri.parse('${baseUrl}block/group/user/$userId/thread/$threadId');

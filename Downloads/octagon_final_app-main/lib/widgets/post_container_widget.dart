@@ -226,7 +226,7 @@ class _PostWidgetsState extends State<PostWidgets> {
                     children: [
                       ///user thumb
 
-                      widget.groupType == "team"
+                      widget.groupType == "team" && widget.postData?.finalUserGroupType == 1
                           ? GestureDetector(
                               onTap: () {
                                 print('Navigating to user profile with userId: ${widget.postData!.userId}');
@@ -279,61 +279,136 @@ class _PostWidgetsState extends State<PostWidgets> {
                                 ],
                               ),
                             )
-                          : GestureDetector(
-                              onTap: () {
-                                print('Navigating to user profile with userId: ${widget.postData!.userId}');
-                                Get.to(() => OtherUserProfileScreen(userId: widget.postData!.userId!));
-                              },
-                              child: Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  Container(
-                                    height: 85,
-                                  ),
-                                  Container(
-                                      width: 50,
-                                      height: 65,
-                                      decoration: BoxDecoration(
-                                          color: greyColor,
-                                          borderRadius: const BorderRadius.all(Radius.circular(20)),
-                                          image: DecorationImage(
-                                            image: NetworkImage(widget.postData?.photo ?? ""),
-                                            fit: BoxFit.fill,
-                                          )),
-                                      child: !isProfilePicAvailable(widget.postData?.photo) ? defaultThumb() : null),
-                                  Positioned(
-                                    top: 45,
-                                    left: 7,
-                                    right: 7,
-                                    child: Container(
-                                      height: 35,
-                                      width: 35,
-                                      child: ClipPath(
+                          : widget.groupType == "team" && widget.postData?.groupIs == 0
+                              ? GestureDetector(
+                                  onTap: () {
+                                    print('Navigating to user profile with userId: ${widget.postData!.userId}');
+                                    Get.to(() => OtherUserProfileScreen(userId: widget.postData!.userId!));
+                                  },
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    alignment: Alignment.center,
+                                    children: [
+                                      // Octagon background image
+                                      Image.asset(
+                                        // widget.postData?.groupType == "personal"
+                                        //     ?
+                                        // 'assets/ic/Group 5.png'
+                                        // :
+                                        'assets/ic/Group 5.png', // Your uploaded PNG asset
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                      ),
+
+                                      // Centered network image
+                                      ClipPath(
                                         clipper: OctagonClipper(),
                                         child: CustomPaint(
                                           painter: OctagonBorderPainter(
                                             strokeWidth: 20.0,
                                             borderColor: Color(0xff211D39), // Change border color
                                           ),
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(7.0),
-                                            child: ClipPath(
-                                              clipper: OctagonClipper(),
-                                              child: Image.network(
-                                                widget.postData!.user_group_img!.contains("http")
-                                                    ? '${widget.postData?.user_group_img}'
-                                                    : "http://3.134.119.154/${widget.postData?.user_group_img}", // Replace with your image URL
-                                                width: 40,
-                                                height: 40,
+                                          child: Image.network(
+                                            widget.postData!.user_group_img!.contains("http")
+                                                ? '${widget.postData?.user_group_img}'
+                                                : "http://3.134.119.154/${widget.postData?.user_group_img}", // Replace with your image URL
+                                            width: 45,
+                                            height: 45,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) => Container(
+                                                width: 45,
+                                                height: 45,
+                                                color: Colors.transparent,
+                                                child: Image.asset(
+                                                  // widget.postData?.groupType == "personal"
+                                                  //     ?
+                                                  // 'assets/ic/Group 5.png'
+                                                  // :
+                                                  'assets/ic/Group 5.png', // Your uploaded PNG asset
+                                                  width: 80,
+                                                  height: 80,
+                                                  fit: BoxFit.cover,
+                                                )
+                                                //  Icon(
+                                                //   Icons.error,
+                                                //   color: Colors.red,
+                                                //   size: 24,
+                                                // ),
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : GestureDetector(
+                                  onTap: () {
+                                    print('Navigating to user profile with userId: ${widget.postData!.userId}');
+                                    Get.to(() => OtherUserProfileScreen(userId: widget.postData!.userId!));
+                                  },
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      Container(
+                                        height: 85,
+                                      ),
+                                      Container(
+                                          width: 50,
+                                          height: 65,
+                                          decoration: BoxDecoration(
+                                              color: greyColor,
+                                              borderRadius: const BorderRadius.all(Radius.circular(20)),
+                                              image: DecorationImage(
+                                                image: NetworkImage(widget.postData?.photo ?? ""),
                                                 fit: BoxFit.fill,
-                                                errorBuilder: (context, error, stackTrace) => Container(
-                                                  width: 40,
-                                                  height: 40,
-                                                  color: Color(0xff211D39),
-                                                  child: Icon(
-                                                    Icons.error,
-                                                    color: Colors.red,
-                                                    size: 24,
+                                              )),
+                                          child: !isProfilePicAvailable(widget.postData?.photo) ? defaultThumb() : null),
+                                      Positioned(
+                                        top: 45,
+                                        left: 7,
+                                        right: 7,
+                                        child: Container(
+                                          height: 35,
+                                          width: 35,
+                                          child: ClipPath(
+                                            clipper: OctagonClipper(),
+                                            child: CustomPaint(
+                                              painter: OctagonBorderPainter(
+                                                strokeWidth: 20.0,
+                                                borderColor: Color(0xff211D39), // Change border color
+                                              ),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(7.0),
+                                                child: ClipPath(
+                                                  clipper: OctagonClipper(),
+                                                  child: Image.network(
+                                                    widget.postData!.user_group_img!.contains("http")
+                                                        ? '${widget.postData?.user_group_img}'
+                                                        : "http://3.134.119.154/${widget.postData?.user_group_img}", // Replace with your image URL
+                                                    width: 40,
+                                                    height: 40,
+                                                    fit: BoxFit.fill,
+                                                    errorBuilder: (context, error, stackTrace) => Container(
+                                                        width: 40,
+                                                        height: 40,
+                                                        color: Color(0xff211D39),
+                                                        child: Image.asset(
+                                                          // widget.postData?.groupType == "personal"
+                                                          //     ?
+                                                          // 'assets/ic/Group 5.png'
+                                                          // :
+                                                          'assets/ic/Group 4.png', // Your uploaded PNG asset
+                                                          width: 80,
+                                                          height: 80,
+                                                          fit: BoxFit.cover,
+                                                        )
+                                                        // Icon(
+                                                        //   Icons.error,
+                                                        //   color: Colors.red,
+                                                        //   size: 24,
+                                                        // ),
+                                                        ),
                                                   ),
                                                 ),
                                               ),
@@ -341,11 +416,9 @@ class _PostWidgetsState extends State<PostWidgets> {
                                           ),
                                         ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
+                                ),
 
                       Flexible(
                         child: Container(
@@ -364,10 +437,16 @@ class _PostWidgetsState extends State<PostWidgets> {
                                         const Icon(Icons.reply_outlined, color: Colors.white, size: 18),
                                         const SizedBox(width: 6),
                                         Expanded(
-                                          child: Text(
-                                            "${widget.postData?.userName ?? ""} Reposted From ${widget.postData?.originalUser?.name ?? ""}",
-                                            style: whiteColor16BoldTextStyle,
-                                            softWrap: true,
+                                          child: GestureDetector(
+                                            onTap: () {
+                                              print('Navigating to user profile with userId: ${widget.postData!.userId}');
+                                              Get.to(() => OtherUserProfileScreen(userId: widget.postData?.originalUser?.id ?? 0));
+                                            },
+                                            child: Text(
+                                              "${widget.postData?.userName ?? ""} Reposted From ${widget.postData?.originalUser?.name ?? ""}",
+                                              style: whiteColor16BoldTextStyle,
+                                              softWrap: true,
+                                            ),
                                           ),
                                         ),
                                         if (widget.postData?.userId != storage.read("current_uid"))
@@ -926,7 +1005,7 @@ class _PostWidgetsState extends State<PostWidgets> {
               itemBuilder: (context, index) {
                 return CachedNetworkImage(
                   imageUrl: images[index].filePath ?? "",
-                  fit: BoxFit.fill,
+                  fit: BoxFit.contain,
                   width: double.infinity,
                   height: 400,
                   placeholder: (context, url) => Container(

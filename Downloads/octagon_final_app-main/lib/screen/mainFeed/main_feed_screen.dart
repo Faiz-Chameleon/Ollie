@@ -35,6 +35,39 @@ class _HomeScreenState extends State<HomeScreen> {
   final postController = Get.put(PostController());
   final newHomeController = Get.find<NewHomecontroller>();
 
+  void _showJoinRequestDialog(int groupId, String groupTitle) {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Join Request'),
+        content: Text(
+          groupTitle.isNotEmpty ? 'Send a request to join "$groupTitle"?' : 'Send a request to join this group?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Get.back();
+              final sent = await controller.groupController.sendJoinRequest(groupId);
+              if (sent) {
+                Get.snackbar(
+                  'Request sent',
+                  'Your request has been sent successfully.',
+                  backgroundColor: Colors.white,
+                  colorText: Colors.black,
+                );
+              }
+            },
+            child: const Text('Send request'),
+          ),
+        ],
+      ),
+      barrierDismissible: true,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -129,39 +162,48 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 8.0),
                         child: GestureDetector(
                           onTap: () async {
-                            if (controller.groups[index].isPublic == "1") {
-                              Get.snackbar("Message", "This is a public group", backgroundColor: Colors.white);
-                            } else {
-                              final selectedGroup = controller.groups[index];
-                              final currentUserId = storage.read("current_uid")?.toString();
-                              final isAuthor = currentUserId != null && currentUserId.isNotEmpty && selectedGroup.userId.toString() == currentUserId;
-                              if (!isAuthor) {
-                                final joined = await controller.groupController.joinGroupIfNeeded(selectedGroup.id);
-                                if (!joined) return;
+                            final selectedGroup = controller.groups[index];
+                            final currentUserId = storage.read("current_uid")?.toString();
+                            final isAuthor = currentUserId != null && currentUserId.isNotEmpty && selectedGroup.userId.toString() == currentUserId;
+
+                            if (selectedGroup.isPublic == "1" && !isAuthor) {
+                              final isMember = await controller.groupController.isUserAlreadyMember(selectedGroup.id);
+                              if (isMember == true) {
+                                // continue to chat flow below
+                              } else if (isMember == false) {
+                                _showJoinRequestDialog(selectedGroup.id, selectedGroup.title);
+                                return;
+                              } else {
+                                Get.snackbar('Error', 'Unable to verify group membership. Please try again.');
+                                return;
                               }
-                              String threadId = selectedGroup.thread_id;
-                              if (threadId.isEmpty) {
-                                final resolvedThreadId = await controller.ensureThreadIdForGroup(selectedGroup);
-                                if (resolvedThreadId == null || resolvedThreadId.isEmpty) {
-                                  Get.snackbar('Error', 'Unable to open chat for this group. Please try again later.');
-                                  return;
-                                }
-                                threadId = resolvedThreadId;
-                              }
-                              Get.to(() => NewGroupChatScreen(
-                                    groupId: selectedGroup.id.toString(),
-                                    // ignore: unrelated_type_equality_checks
-                                    isPublic: selectedGroup.isPublic == "0" ? true : false,
-                                    userId: storage.read("current_uid").toString(),
-                                    userName: storage.read("user_name").toString(),
-                                    groupName: selectedGroup.title,
-                                    groupImage: selectedGroup.photo.toString(),
-                                    userImage: storage.read('image_url'),
-                                    thread_id: threadId,
-                                    otheruserId: selectedGroup.userId,
-                                  ));
                             }
-                            ;
+
+                            if (!isAuthor) {
+                              final joined = await controller.groupController.joinGroupIfNeeded(selectedGroup.id);
+                              if (!joined) return;
+                            }
+                            String threadId = selectedGroup.thread_id;
+                            if (threadId.isEmpty) {
+                              final resolvedThreadId = await controller.ensureThreadIdForGroup(selectedGroup);
+                              if (resolvedThreadId == null || resolvedThreadId.isEmpty) {
+                                Get.snackbar('Error', 'Unable to open chat for this group. Please try again later.');
+                                return;
+                              }
+                              threadId = resolvedThreadId;
+                            }
+                            Get.to(() => NewGroupChatScreen(
+                                  groupId: selectedGroup.id.toString(),
+                                  // ignore: unrelated_type_equality_checks
+                                  isPublic: selectedGroup.isPublic == "0" ? true : false,
+                                  userId: storage.read("current_uid").toString(),
+                                  userName: storage.read("user_name").toString(),
+                                  groupName: selectedGroup.title,
+                                  groupImage: selectedGroup.photo.toString(),
+                                  userImage: storage.read('image_url'),
+                                  thread_id: threadId,
+                                  otheruserId: selectedGroup.userId,
+                                ));
                           },
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
