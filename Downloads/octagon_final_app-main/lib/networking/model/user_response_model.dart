@@ -18,7 +18,9 @@ class UserModel {
       this.updatedAt,
       this.isDeleted,
       this.groupPhoto,
-      this.isSelected = false});
+      this.isSelected = false,
+      this.user_type,
+      this.teamGroupPhoto});
 
   int? id;
   String? name;
@@ -39,27 +41,32 @@ class UserModel {
   String? isDeleted;
   bool isSelected = false;
   String? groupPhoto;
+  String? user_type;
+  String? teamGroupPhoto;
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
-      id: json["id"],
-      name: json["name"],
-      email: json["email"],
-      gender: json["gender"],
-      userType: json["user_type"],
-      profileAccess: json["profile_access"],
-      mobile: json["mobile"],
-      photo: json["photo"] == null ? null : json["photo"],
-      background: json["background"] == null ? null : json["background"],
-      dob: json["dob"] == null ? null : json["dob"],
-      bio: json["bio"] == null ? null : json["bio"],
-      country: json["country"],
-      emailVerifiedAt: json["email_verified_at"],
-      password: json["password"],
-      createdAt: DateTime.parse(json["created_at"]),
-      updatedAt: DateTime.parse(json["updated_at"]),
-      isDeleted: json["is_deleted"],
-      isSelected: false,
-      groupPhoto: json["user_group_img"]);
+        id: json["id"],
+        name: json["name"],
+        email: json["email"],
+        gender: json["gender"],
+        userType: json["user_type"],
+        profileAccess: json["profile_access"],
+        mobile: json["mobile"],
+        photo: json["photo"] == null ? null : json["photo"],
+        background: json["background"] == null ? null : json["background"],
+        dob: json["dob"] == null ? null : json["dob"],
+        bio: json["bio"] == null ? null : json["bio"],
+        country: json["country"],
+        emailVerifiedAt: json["email_verified_at"],
+        password: json["password"],
+        createdAt: DateTime.parse(json["created_at"]),
+        updatedAt: DateTime.parse(json["updated_at"]),
+        isDeleted: json["is_deleted"],
+        isSelected: false,
+        groupPhoto: json["user_group_img"],
+        user_type: json["user_type"],
+        teamGroupPhoto: json["group_photo"],
+      );
 
   Map<String, dynamic> toJson() => {
         "id": id,
@@ -80,5 +87,7 @@ class UserModel {
         "updated_at": updatedAt!.toIso8601String(),
         "is_deleted": isDeleted,
         "user_group_img": groupPhoto,
+        "user_type": user_type,
+        "team_group_img": teamGroupPhoto,
       };
 }

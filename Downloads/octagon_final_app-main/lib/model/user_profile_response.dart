@@ -28,25 +28,25 @@ class UserProfileResponseModel {
 }
 
 class Success {
-  Success(
-      {this.following,
-      this.followingUsers,
-      this.followers,
-      this.followersUsers,
-      this.user,
-      this.postCount,
-      // ignore: non_constant_identifier_names
-      this.follow_status,
-      // this.post,
-      this.favoritePostCount,
-      // this.favoritePost,
-      this.savePostCount,
-      // this.savePost,
-      this.likePostCount,
-      this.sportInfo
+  Success({
+    this.following,
+    this.followingUsers,
+    this.followers,
+    this.followersUsers,
+    this.user,
+    this.postCount,
+    // ignore: non_constant_identifier_names
+    this.follow_status,
+    // this.post,
+    this.favoritePostCount,
+    // this.favoritePost,
+    this.savePostCount,
+    // this.savePost,
+    this.likePostCount,
+    this.sportInfo,
 
-      // this.likePost,
-      });
+    // this.likePost,
+  });
 
   int? following;
   List<UserModel>? followingUsers;

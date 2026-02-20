@@ -375,7 +375,7 @@ class _PostWidgetsState extends State<PostWidgets> {
                                             clipper: OctagonClipper(),
                                             child: CustomPaint(
                                               painter: OctagonBorderPainter(
-                                                strokeWidth: 20.0,
+                                                strokeWidth: 18.0,
                                                 borderColor: Color(0xff211D39), // Change border color
                                               ),
                                               child: Padding(

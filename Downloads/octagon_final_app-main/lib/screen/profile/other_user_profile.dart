@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:octagon/main.dart';
+import 'package:octagon/screen/chat/new_groupchat_screen.dart';
 import 'package:octagon/screen/mainFeed/bloc/post_bloc.dart';
 import 'package:octagon/screen/mainFeed/bloc/post_event.dart';
 import 'package:octagon/screen/mainFeed/bloc/post_state.dart';
@@ -14,11 +15,13 @@ import 'package:octagon/screen/profile/follow_following.dart';
 import 'package:octagon/screen/profile/other_user_profile_controller.dart';
 import 'package:octagon/screen/profile/profile_posts.dart';
 import 'package:octagon/screen/common/full_screen_post.dart';
+import 'package:octagon/utils/chat_room.dart';
 import 'package:octagon/utils/constants.dart';
 import 'package:octagon/utils/image_picker_inapp.dart';
 
 import 'package:octagon/utils/theme/theme_constants.dart';
 import 'package:octagon/utils/toast_utils.dart';
+import 'package:octagon/widgets/default_user_image.dart';
 import 'package:octagon/widgets/follow_button_widget.dart';
 import '../../model/post_response_model.dart';
 import '../../model/user_profile_response.dart';
@@ -728,11 +731,131 @@ class OtherUserProfileScreen extends StatelessWidget {
     return Column(
       children: [
         SizedBox(height: 20),
-        CircleAvatar(
-          radius: 50,
-          backgroundImage: NetworkImage(user.user.photo ?? ""),
-        ),
-        const SizedBox(height: 10),
+        user.user.user_type == "0"
+            ? Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                          color: greyColor,
+                          // borderRadius: const BorderRadius.all(Radius.circular(20)),
+                          shape: BoxShape.circle,
+                          image: DecorationImage(
+                            image: NetworkImage(user.user.photo ?? ""),
+                            fit: BoxFit.fill,
+                          )),
+                      child: !isProfilePicAvailable(user.user.photo) ? defaultThumb() : null),
+                  Positioned(
+                    top: 90,
+                    left: 35,
+                    right: 35,
+                    child: Container(
+                      height: 50,
+                      width: 50,
+                      child: ClipPath(
+                        clipper: OctagonClipper(),
+                        child: CustomPaint(
+                          painter: OctagonBorderPainter(
+                            strokeWidth: 20.0,
+                            borderColor: Color(0xff211D39), // Change border color
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(7.0),
+                            child: ClipPath(
+                              clipper: OctagonClipper(),
+                              child: Image.network(
+                                // widget.postData!.user_group_img!.contains("http")
+                                //     ? '${widget.postData?.user_group_img}'
+                                //     :
+                                "http://3.134.119.154/${user.user.teamGroupPhoto}", // Replace with your image URL
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.fill,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                    width: 40,
+                                    height: 40,
+                                    color: Color(0xff211D39),
+                                    child: Image.asset(
+                                      // widget.postData?.groupType == "personal"
+                                      //     ?
+                                      // 'assets/ic/Group 5.png'
+                                      // :
+                                      'assets/ic/Group 4.png', // Your uploaded PNG asset
+                                      width: 80,
+                                      height: 80,
+                                      fit: BoxFit.cover,
+                                    )
+                                    // Icon(
+                                    //   Icons.error,
+                                    //   color: Colors.red,
+                                    //   size: 24,
+                                    // ),
+                                    ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+
+            // CircleAvatar(
+            //     radius: 50,
+            //     // backgroundImage: user.user.user_type == "1"
+            //     //     ?
+            //     backgroundImage: NetworkImage(user.user.photo ?? "") as ImageProvider,
+            //     // : NetworkImage("http://3.134.119.154/${user.user.teamGroupPhoto}") as ImageProvider,
+            //   )
+            : Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  // Octagon background image
+                  Image.asset(
+                    // widget.postData?.groupType == "personal"
+                    //     ?
+                    // 'assets/ic/Group 5.png'
+                    // :
+                    user.user.user_type == "1" ? 'assets/ic/Group 4.png' : 'assets/ic/Group 5.png', // Your uploaded PNG asset
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                  ),
+
+                  // Centered network image
+                  ClipPath(
+                    clipper: OctagonClipper(),
+                    child: CustomPaint(
+                      painter: OctagonBorderPainter(
+                        strokeWidth: 15.0,
+                        borderColor: Color(0xff211D39), // Change border color
+                      ),
+                      child: Image.network(
+                        "http://3.134.119.154/${user.user.teamGroupPhoto}", // Replace with your image URL
+                        width: 70,
+                        height: 70,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: 45,
+                          height: 45,
+                          color: Colors.transparent,
+                          child: Icon(
+                            Icons.error,
+                            color: Colors.red,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+        const SizedBox(height: 20),
         Text(user.user.name ?? "", style: whiteColor20BoldTextStyle),
         if (user.user.bio != null)
           Padding(

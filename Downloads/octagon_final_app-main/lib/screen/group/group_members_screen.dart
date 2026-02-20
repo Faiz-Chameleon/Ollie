@@ -122,47 +122,49 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
                   itemCount: controller.members.length,
                   itemBuilder: (context, index) {
                     final member = controller.members[index];
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundImage: (member.photo.isNotEmpty) ? NetworkImage(member.photo) : null,
-                        child: (member.photo.isEmpty) ? Icon(Icons.person, color: Colors.white) : null,
-                        backgroundColor: Colors.deepPurple,
-                      ),
-                      title: Text(
-                        member.name,
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      subtitle: Text(
-                        member.email,
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                      trailing: PopupMenuButton<String>(
-                        onSelected: (value) async {
-                          if (value == 'uninvite') {
-                            await controller.removeMember(member.userId);
-                            return;
-                          }
-                          if (value == 'block') {
-                            if (widget.threadId.isEmpty) {
-                              Get.snackbar('Error', 'Chat thread is not enabled for this group');
-                              return;
-                            }
-                            await controller.blockMember(userId: member.userId, threadId: widget.threadId);
-                          }
-                        },
-                        icon: Icon(Icons.more_vert, color: Colors.white),
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            value: 'uninvite',
-                            child: Text('UnInvite'),
-                          ),
-                          PopupMenuItem(
-                            value: 'block',
-                            child: Text('Block'),
-                          ),
-                        ],
-                      ),
-                    );
+                    return member.isInvited == 1 || member.requestStatus == "approved"
+                        ? ListTile(
+                            leading: CircleAvatar(
+                              backgroundImage: (member.photo.isNotEmpty) ? NetworkImage(member.photo) : null,
+                              child: (member.photo.isEmpty) ? Icon(Icons.person, color: Colors.white) : null,
+                              backgroundColor: Colors.deepPurple,
+                            ),
+                            title: Text(
+                              member.isInvited == 1 ? "${member.name} (Invited)" : member.name,
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            subtitle: Text(
+                              member.email,
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (value) async {
+                                if (value == 'uninvite') {
+                                  await controller.removeMember(member.userId);
+                                  return;
+                                }
+                                if (value == 'block') {
+                                  if (widget.threadId.isEmpty) {
+                                    Get.snackbar('Error', 'Chat thread is not enabled for this group');
+                                    return;
+                                  }
+                                  await controller.blockMember(userId: member.userId, threadId: widget.threadId);
+                                }
+                              },
+                              icon: Icon(Icons.more_vert, color: Colors.white),
+                              itemBuilder: (context) => [
+                                PopupMenuItem(
+                                  value: 'uninvite',
+                                  child: Text('UnInvite'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'block',
+                                  child: Text('Block'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : SizedBox.shrink();
                   },
                 ),
               ),

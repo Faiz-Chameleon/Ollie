@@ -676,27 +676,34 @@ class _SportSelectionState extends State<SportSelection> {
                                                 padding: EdgeInsets.all(5),
                                                 child: ClipPath(
                                                   clipper: OctagonClipper(),
-                                                  child: Image.network(
-                                                    "http://3.134.119.154/${group['photo']}",
-                                                    width: 90,
-                                                    height: 90,
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder: (context, error, stackTrace) {
-                                                      // Fallback image if network image fails to load
-                                                      return Padding(
-                                                        padding: EdgeInsets.all(5),
-                                                        child: ClipPath(
-                                                          clipper: OctagonClipper(),
-                                                          child: Image.network(
-                                                            'https://www.shutterstock.com/shutterstock/photos/1737334631/display_1500/stock-vector-image-not-found-grayscale-image-photo-1737334631.jpg', // Dummy image
-                                                            // width: 50,
-                                                            // height: 50,
-                                                            fit: BoxFit.cover,
-                                                          ),
+                                                  child: group['title'] == "Octagon"
+                                                      ? Image.asset(
+                                                          "assets/ic/Group 4.png",
+                                                          width: 90,
+                                                          height: 90,
+                                                          fit: BoxFit.cover,
+                                                        )
+                                                      : Image.network(
+                                                          "http://3.134.119.154/${group['photo']}",
+                                                          width: 90,
+                                                          height: 90,
+                                                          fit: BoxFit.cover,
+                                                          errorBuilder: (context, error, stackTrace) {
+                                                            // Fallback image if network image fails to load
+                                                            return Padding(
+                                                              padding: EdgeInsets.all(5),
+                                                              child: ClipPath(
+                                                                clipper: OctagonClipper(),
+                                                                child: Image.network(
+                                                                  'https://www.shutterstock.com/shutterstock/photos/1737334631/display_1500/stock-vector-image-not-found-grayscale-image-photo-1737334631.jpg', // Dummy image
+                                                                  // width: 50,
+                                                                  // height: 50,
+                                                                  fit: BoxFit.cover,
+                                                                ),
+                                                              ),
+                                                            );
+                                                          },
                                                         ),
-                                                      );
-                                                    },
-                                                  ),
                                                 ),
                                               ),
                                             ),

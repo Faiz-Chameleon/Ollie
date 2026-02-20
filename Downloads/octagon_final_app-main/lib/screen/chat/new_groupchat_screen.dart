@@ -86,6 +86,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   static const int _defaultVisibleReplies = 3;
   bool _showJumpToLatest = false;
   bool _isBlockedByAdmin = false;
+  bool? _canSharePostFromGroup;
   String _blockNotice = 'You have been blocked from this group by an admin.';
 
   @override
@@ -135,6 +136,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         return;
       }
 
+      await _refreshSharePostPermission();
       await _loadHistory();
 
       // Initialize Pusher first
@@ -1180,6 +1182,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     final text = controller.messageController.text.trim();
     if (text.isEmpty || widget.thread_id.isEmpty) return;
     final replyTarget = controller.replyingTo.value;
+    final payloadReplyToId = _resolveReplyToIdForSend(replyTarget);
     final tempId = Uuid().v4();
     final optimistic = {
       'temporary_id': tempId,
@@ -1197,23 +1200,61 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     _hideMentionPanel();
     try {
       final payload = {'message': text, 'temporary_id': tempId};
-      if (replyTarget != null && (replyTarget['id']?.toString().isNotEmpty ?? false)) {
-        payload['reply_to_id'] = replyTarget['id'].toString();
+      if (payloadReplyToId != null && payloadReplyToId.isNotEmpty) {
+        payload['reply_to_id'] = payloadReplyToId;
       }
       final res = await _api.postApiCall('messenger/threads/${widget.thread_id}/messages', payload);
       if (res is Map) {
         final Map<String, dynamic> normalizedRes = res is Map<String, dynamic> ? res : Map<String, dynamic>.from(res);
+        final responsePayload = _unwrapMessagePayload(normalizedRes);
+        final mapped = _mapIncomingToMessage(responsePayload);
+        // Some message send responses omit reply fields; keep local threading context in that case.
+        if ((mapped['reply_to_id']?.toString().isEmpty ?? true) && (replyTarget?['id']?.toString().isNotEmpty ?? false)) {
+          mapped['reply_to_id'] = replyTarget!['id'].toString();
+          mapped['reply_to'] = replyTarget;
+        }
+        final shouldApplyMapped = _isRenderableMessage(mapped);
         final idx = controller.messages.indexWhere((m) => m['temporary_id'] == tempId);
-        if (idx != -1)
-          controller.messages[idx] = _mapIncomingToMessage(normalizedRes);
-        else
-          controller.messages.insert(0, _mapIncomingToMessage(normalizedRes));
-        controller.messages.refresh();
+        if (shouldApplyMapped) {
+          if (idx != -1) {
+            controller.messages[idx] = mapped;
+          } else {
+            controller.messages.insert(0, mapped);
+          }
+          controller.messages.refresh();
+        } else {
+          log('⚠️ Send response did not contain renderable message payload, keeping optimistic entry. Response keys: ${normalizedRes.keys}');
+        }
       }
       controller.replyingTo.value = null;
     } catch (e) {
       Get.snackbar('Error', 'Failed to send message');
     }
+  }
+
+  String? _resolveReplyToIdForSend(Map<String, dynamic>? replyTarget) {
+    if (replyTarget == null) return null;
+    String currentId = replyTarget['id']?.toString() ?? '';
+    if (currentId.isEmpty) return null;
+
+    final messageLookup = <String, Map<String, dynamic>>{};
+    for (final msg in controller.messages) {
+      final id = msg['id']?.toString() ?? '';
+      if (id.isNotEmpty) {
+        messageLookup[id] = msg;
+      }
+    }
+
+    final visited = <String>{};
+    Map<String, dynamic>? current = replyTarget;
+    while (current != null && visited.add(currentId)) {
+      final parentId = current['reply_to_id']?.toString() ?? current['reply_to']?['id']?.toString() ?? '';
+      if (parentId.isEmpty) break;
+      currentId = parentId;
+      current = messageLookup[parentId] ?? (current['reply_to'] is Map ? Map<String, dynamic>.from(current['reply_to']) : null);
+    }
+
+    return currentId;
   }
 
   @override
@@ -1880,7 +1921,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onDoubleTap: () => _handleMessageDoubleTap(message),
-      onLongPress: () => _showMessageActions(message),
+      onLongPress: () async => _showMessageActions(message, isThreadReply: isThreadReply),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1892,7 +1933,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
               message["group_image"]?.toString() ?? '',
               message["raw"] ?? message,
               isThreadReply: isThreadReply,
-              userType: message["userType"]?.toString() ?? '0',
+              userType: message["userType"]?.toString() ?? '',
             ),
           ),
           const SizedBox(width: 12),
@@ -2699,12 +2740,17 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
 
   Widget _buildUserAvatar(String? userId, String? imageUrl, String groupImage, Map<String, dynamic> message,
       {bool isThreadReply = false, String? userType}) {
-    final double avatarWidth = isThreadReply ? 40 : 50;
-    final double avatarHeight = isThreadReply ? 50 : 60;
+    final double avatarWidth = isThreadReply ? 45 : 55;
+    final double avatarHeight = isThreadReply ? 60 : 65;
     final double badgeSize = isThreadReply ? 25 : 30;
     final double badgeOffset = isThreadReply ? -15 : -20;
     final double iconSize = isThreadReply ? 15 : 20;
-    return userType == "2" && message["owner"]["base"]["created_group"]["user_id"] == storage.read("current_uid")
+    final double teamOuterSize = isThreadReply ? 44 : 65;
+    final double teamInnerSize = isThreadReply ? 30 : 45;
+    final double teamErrorIconSize = isThreadReply ? 16 : 24;
+    final double teamBorderStroke = isThreadReply ? 12 : 20;
+    return userType == "2"
+        // && message["owner"]["base"]["created_group"]["user_id"] == storage.read("current_uid")
         ? GestureDetector(
             onTap: () {
               int changeUserId = int.parse(userId.toString());
@@ -2721,9 +2767,11 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                   //     ?
                   // 'assets/ic/Group 5.png'
                   // :
-                  'assets/ic/Group 4.png', // Your uploaded PNG asset
-                  width: 80,
-                  height: 80,
+                  message["owner"]["base"]["created_group"]["is_public"] == 1
+                      ? 'assets/ic/Group 4.png'
+                      : 'assets/ic/Group 5.png', // Your uploaded PNG asset
+                  width: teamOuterSize,
+                  height: teamOuterSize,
                   fit: BoxFit.cover,
                 ),
 
@@ -2732,22 +2780,22 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                   clipper: OctagonClipper(),
                   child: CustomPaint(
                     painter: OctagonBorderPainter(
-                      strokeWidth: 20.0,
+                      strokeWidth: teamBorderStroke,
                       borderColor: Color(0xff211D39), // Change border color
                     ),
                     child: Image.network(
                       groupImage.contains("http") ? '$groupImage' : "http://3.134.119.154/$groupImage", // Replace with your image URL
-                      width: 45,
-                      height: 45,
+                      width: teamInnerSize,
+                      height: teamInnerSize,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
-                        width: 45,
-                        height: 45,
+                        width: teamInnerSize,
+                        height: teamInnerSize,
                         color: Colors.transparent,
                         child: Icon(
                           Icons.error,
                           color: Colors.red,
-                          size: 24,
+                          size: teamErrorIconSize,
                         ),
                       ),
                     ),
@@ -2771,11 +2819,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                   height: avatarHeight,
                   decoration: BoxDecoration(
                     color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: const BorderRadius.all(Radius.circular(15)),
                   ),
-                  child: ClipOval(
-                    child: imageUrl != null && imageUrl.isNotEmpty
-                        ? Image.network(
+                  child: imageUrl != null && imageUrl.isNotEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.network(
                             imageUrl,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) => Icon(
@@ -2783,44 +2832,146 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                               color: Colors.white,
                               size: iconSize,
                             ),
-                          )
-                        : Image.asset(
-                            'assets/ic/Group 4.png', // Your uploaded PNG asset
+                          ),
+                        )
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.asset(
+                            'assets/splash/splash.png', // Your uploaded PNG asset
                             width: 80,
                             height: 80,
                             fit: BoxFit.cover,
                           ),
-                  ),
+                        ),
                 ),
               ),
               Positioned(
-                bottom: badgeOffset,
-                child: ClipPath(
-                  clipper: OctagonClipper(),
-                  child: Container(
-                    width: badgeSize,
-                    height: badgeSize,
-                    color: Colors.black, // Optional: for border effect
-                    child: Image.network(
-                      groupImage,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: Colors.grey,
-                        child: Icon(Icons.broken_image, color: Colors.white, size: 16),
+                  bottom: badgeOffset,
+                  child: ClipPath(
+                    clipper: OctagonClipper(),
+                    child: Container(
+                      width: badgeSize,
+                      height: badgeSize,
+                      color: Color(0xff211D39), // Optional: for border effect
+                      child: ClipPath(
+                        clipper: OctagonClipper(),
+                        child: CustomPaint(
+                          painter: OctagonBorderPainter(
+                            strokeWidth: 18.0,
+                            borderColor: Color(0xff211D39), // Change border color
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(5.0),
+                            child: ClipPath(
+                              clipper: OctagonClipper(),
+                              child: Image.network(
+                                groupImage,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  color: Colors.grey,
+                                  child: Icon(Icons.broken_image, color: Colors.white, size: 16),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
+                  )),
             ],
           );
   }
 
   String? _currentUserId() {
-    final raw = widget.userId.isNotEmpty ? widget.userId : (storage.read("current_uid") ?? storage.read("user_id") ?? storage.read("id"));
+    final raw = storage.read("current_uid") ?? storage.read("user_id") ?? storage.read("id") ?? widget.userId;
     if (raw == null) return null;
     final id = raw.toString().trim();
     return id.isEmpty ? null : id;
+  }
+
+  int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString().trim());
+  }
+
+  List<Map<String, dynamic>> _extractGroupMembers(dynamic payload) {
+    List<dynamic> rawList = const [];
+    if (payload is Map<String, dynamic>) {
+      final success = payload['success'];
+      if (success is List) {
+        rawList = success;
+      } else if (success is Map<String, dynamic>) {
+        final nested = success['data'] ?? success['members'] ?? success['users'];
+        if (nested is List) rawList = nested;
+      }
+      if (rawList.isEmpty) {
+        final fallback = payload['data'] ?? payload['members'] ?? payload['users'];
+        if (fallback is List) rawList = fallback;
+      }
+    } else if (payload is List) {
+      rawList = payload;
+    }
+    return rawList.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  bool _isInvitedMember(Map<String, dynamic> member) {
+    final invitedValue = member['is_invited'] ?? member['is_invite'] ?? member['isInvite'] ?? member['invited'];
+    final isMemberValue = member['is_member'] ?? member['ismember'] ?? member['member'];
+    final statusValue = member['status']?.toString().trim().toLowerCase();
+
+    bool parseFlag(dynamic value) {
+      if (value == null) return false;
+      if (value is bool) return value;
+      if (value is num) return value == 1;
+      final normalized = value.toString().trim().toLowerCase();
+      return normalized == '1' || normalized == 'true' || normalized == 'yes';
+    }
+
+    if (parseFlag(isMemberValue)) return true;
+    if (parseFlag(invitedValue)) return true;
+    if (statusValue == 'accepted' || statusValue == 'member' || statusValue == 'joined') return true;
+
+    // Fallback: this endpoint returns members; if user is present and no explicit deny flag exists, allow share.
+    return invitedValue == null && isMemberValue == null && (statusValue == null || statusValue.isEmpty);
+  }
+
+  Future<void> _refreshSharePostPermission() async {
+    final groupId = _toInt(widget.groupId);
+    final currentUserId = _toInt(_currentUserId());
+    log('🔐 Share permission check start: groupId=$groupId currentUserId=$currentUserId');
+    if (groupId == null || currentUserId == null) {
+      _canSharePostFromGroup = false;
+      log('🔐 Share permission denied: missing groupId/currentUserId');
+      return;
+    }
+    try {
+      final response = await _api.getGroupMembers(groupId.toString());
+      final members = _extractGroupMembers(response);
+      log('🔐 Share permission members fetched: count=${members.length}');
+      if (members.isEmpty) {
+        _canSharePostFromGroup = false;
+        log('🔐 Share permission denied: empty members list');
+        return;
+      }
+      for (int i = 0; i < members.length; i++) {
+        final member = members[i];
+        final memberUserId = _toInt(
+          member['user_id'] ?? member['member_id'] ?? member['id'] ?? member['user']?['id'] ?? member['owner']?['id'],
+        );
+        log('🔐 Share permission member row[$i]: memberUserId=$memberUserId is_invited=${member["is_invited"]}');
+        if (memberUserId != currentUserId) continue;
+        _canSharePostFromGroup = _toInt(member["is_invited"]) == 1;
+        log('🔐 Share permission matched row[$i] for current user: allowed=$_canSharePostFromGroup');
+        return;
+      }
+      _canSharePostFromGroup = false;
+      log('🔐 Share permission denied: current user not found in members');
+    } catch (e) {
+      log('Failed to resolve share permission: $e');
+      _canSharePostFromGroup = false;
+    }
   }
 
   String? _extractMessageId(Map<String, dynamic> message) {
@@ -2991,11 +3142,16 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     }
   }
 
-  void _showMessageActions(Map<String, dynamic> message) {
+  Future<void> _showMessageActions(Map<String, dynamic> message, {bool isThreadReply = false}) async {
     if (widget.thread_id.isEmpty) return;
+    final canShare = _isShareableMediaMessage(message);
+    log('📋 Bottom sheet open: messageType=${message['type']} canShareMedia=$canShare');
+    if (canShare) {
+      await _refreshSharePostPermission();
+    }
+    log('📋 Bottom sheet decision: canSharePostFromGroup=$_canSharePostFromGroup');
     final canDelete = _canDeleteMessage(message);
     final messageId = _extractMessageId(message);
-    final canShare = _isShareableMediaMessage(message);
     final currentUserId = _currentUserId();
     final senderId = _extractMessageSenderId(message);
     final isGroupCreator = currentUserId != null && currentUserId == widget.otheruserId.toString();
@@ -3016,14 +3172,18 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                   title: const Text('Reply', style: TextStyle(color: Colors.white)),
                   onTap: () {
                     Navigator.of(sheetContext).pop();
-                    final senderName = message['sender_name']?.toString() ?? 'Unknown';
-                    final mentionText = '@$senderName ';
-                    final currentText = controller.messageController.text;
-                    controller.messageController.text = mentionText + currentText;
+                    final parentReplyId = message['reply_to_id']?.toString() ?? message['reply_to']?['id']?.toString() ?? '';
+                    final shouldAutoMention = parentReplyId.isNotEmpty;
+                    if (shouldAutoMention) {
+                      final senderName = message['sender_name']?.toString() ?? 'Unknown';
+                      final mentionText = '@$senderName ';
+                      final currentText = controller.messageController.text;
+                      controller.messageController.text = mentionText + currentText;
+                    }
                     controller.startReply(message);
                   },
                 ),
-                if (canShare)
+                if (canShare && (_canSharePostFromGroup ?? false))
                   ListTile(
                     leading: const Icon(Icons.ios_share, color: Colors.white),
                     title: const Text('Share/Post', style: TextStyle(color: Colors.white)),

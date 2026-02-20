@@ -6,6 +6,8 @@ class GroupMember {
   final String email;
   final String photo;
   final bool isDeleted;
+  final int isInvited;
+  final String? requestStatus;
 
   GroupMember({
     required this.id,
@@ -15,6 +17,8 @@ class GroupMember {
     required this.email,
     required this.photo,
     required this.isDeleted,
+    required this.isInvited,
+    required this.requestStatus,
   });
 
   factory GroupMember.fromJson(Map<String, dynamic> json) {
@@ -27,6 +31,8 @@ class GroupMember {
       email: user['email'] ?? '',
       photo: user['photo'] ?? '',
       isDeleted: json['is_deleted'] == "1" || json['is_deleted'] == 1,
+      isInvited: json['is_invited'] ?? 0,
+      requestStatus: json['status'],
     );
   }
 }

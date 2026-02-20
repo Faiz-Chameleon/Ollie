@@ -406,101 +406,103 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                                 itemBuilder: (context, index) {
                                   try {
                                     final member = controller.groupMembers[index];
-                                    return Padding(
-                                      padding: const EdgeInsets.all(2.0),
-                                      child: Column(
-                                        children: [
-                                          Container(
-                                            width: 60.w,
-                                            decoration: BoxDecoration(
-                                              borderRadius: BorderRadius.circular(5.r),
-                                              color: purpleColor,
-                                            ),
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(5.0),
-                                              child: Column(
-                                                children: [
-                                                  GestureDetector(
-                                                    onTap: () {
-                                                      print('Navigating to user profile with userId: ${controller.groupMembers[index]["id"]}');
-                                                      Get.to(() => OtherUserProfileScreen(userId: controller.groupMembers[index]["id"]));
-                                                    },
-                                                    child: ShapeMaker(
-                                                      height: 50,
-                                                      width: 50,
-                                                      bgColor: Colors.yellow,
-                                                      widget: Container(
-                                                        margin: const EdgeInsets.all(6),
-                                                        child: ShapeMaker(
-                                                          bgColor: Colors.black,
-                                                          widget: Container(
-                                                            margin: const EdgeInsets.all(8),
-                                                            child: ShapeMaker(
-                                                              bgColor: appBgColor,
-                                                              widget: CachedNetworkImage(
-                                                                imageUrl: "${member["photo"]}",
-                                                                fit: BoxFit.cover,
-                                                                placeholder: (context, url) => const SizedBox(height: 10),
-                                                                errorWidget: (context, url, error) => const Icon(Icons.error, size: 20),
+                                    return member["is_invited"] == 0 && member["status"] == "pending"
+                                        ? SizedBox.shrink()
+                                        : Padding(
+                                            padding: const EdgeInsets.all(2.0),
+                                            child: Column(
+                                              children: [
+                                                Container(
+                                                  width: 60.w,
+                                                  decoration: BoxDecoration(
+                                                    borderRadius: BorderRadius.circular(5.r),
+                                                    color: purpleColor,
+                                                  ),
+                                                  child: Padding(
+                                                    padding: const EdgeInsets.all(5.0),
+                                                    child: Column(
+                                                      children: [
+                                                        GestureDetector(
+                                                          onTap: () {
+                                                            print('Navigating to user profile with userId: ${controller.groupMembers[index]["id"]}');
+                                                            Get.to(() => OtherUserProfileScreen(userId: controller.groupMembers[index]["id"]));
+                                                          },
+                                                          child: ShapeMaker(
+                                                            height: 50,
+                                                            width: 50,
+                                                            bgColor: Colors.yellow,
+                                                            widget: Container(
+                                                              margin: const EdgeInsets.all(6),
+                                                              child: ShapeMaker(
+                                                                bgColor: Colors.black,
+                                                                widget: Container(
+                                                                  margin: const EdgeInsets.all(8),
+                                                                  child: ShapeMaker(
+                                                                    bgColor: appBgColor,
+                                                                    widget: CachedNetworkImage(
+                                                                      imageUrl: "${member["photo"]}",
+                                                                      fit: BoxFit.cover,
+                                                                      placeholder: (context, url) => const SizedBox(height: 10),
+                                                                      errorWidget: (context, url, error) => const Icon(Icons.error, size: 20),
+                                                                    ),
+                                                                  ),
+                                                                ),
                                                               ),
                                                             ),
                                                           ),
                                                         ),
-                                                      ),
+                                                        // Container(
+                                                        //   width: 30,
+                                                        //   height: 30,
+                                                        //   decoration: BoxDecoration(
+                                                        //     shape: BoxShape.circle,
+                                                        //     image: DecorationImage(
+                                                        //         image: NetworkImage(
+                                                        //           "${member["photo"]}",
+                                                        //         ),
+                                                        //         fit: BoxFit.fill),
+                                                        //   ),
+                                                        // ),
+                                                        SizedBox(
+                                                          width: 5,
+                                                        ),
+                                                        Container(
+                                                          constraints: BoxConstraints(maxWidth: 80),
+                                                          child: Text(
+                                                            member["name"] ?? "",
+                                                            style: TextStyle(
+                                                              color: Colors.white,
+                                                              fontSize: 15,
+                                                            ),
+                                                            textAlign: TextAlign.center,
+                                                            maxLines: 1,
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
                                                   ),
-                                                  // Container(
-                                                  //   width: 30,
-                                                  //   height: 30,
-                                                  //   decoration: BoxDecoration(
-                                                  //     shape: BoxShape.circle,
-                                                  //     image: DecorationImage(
-                                                  //         image: NetworkImage(
-                                                  //           "${member["photo"]}",
-                                                  //         ),
-                                                  //         fit: BoxFit.fill),
-                                                  //   ),
-                                                  // ),
-                                                  SizedBox(
-                                                    width: 5,
-                                                  ),
-                                                  Container(
-                                                    constraints: BoxConstraints(maxWidth: 80),
-                                                    child: Text(
-                                                      member["name"] ?? "",
-                                                      style: TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 15,
-                                                      ),
-                                                      textAlign: TextAlign.center,
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
+                                                ),
+                                                // CircleAvatar(
+                                                //   radius: 15,
+                                                //   backgroundImage: (member["photo"] !=
+                                                //               null &&
+                                                //           member["photo"].isNotEmpty)
+                                                //       ? NetworkImage(
+                                                //           "http://3.134.119.154/${member["photo"]}")
+                                                //       : null,
+                                                //   backgroundColor: Colors.deepPurple,
+                                                //   child: (member["photo"] == null ||
+                                                //           member["photo"].isEmpty)
+                                                //       ? Icon(Icons.person,
+                                                //           color: Colors.white,
+                                                //           size: 20)
+                                                //       : null,
+                                                // ),
+                                                SizedBox(height: 2),
+                                              ],
                                             ),
-                                          ),
-                                          // CircleAvatar(
-                                          //   radius: 15,
-                                          //   backgroundImage: (member["photo"] !=
-                                          //               null &&
-                                          //           member["photo"].isNotEmpty)
-                                          //       ? NetworkImage(
-                                          //           "http://3.134.119.154/${member["photo"]}")
-                                          //       : null,
-                                          //   backgroundColor: Colors.deepPurple,
-                                          //   child: (member["photo"] == null ||
-                                          //           member["photo"].isEmpty)
-                                          //       ? Icon(Icons.person,
-                                          //           color: Colors.white,
-                                          //           size: 20)
-                                          //       : null,
-                                          // ),
-                                          SizedBox(height: 2),
-                                        ],
-                                      ),
-                                    );
+                                          );
                                   } catch (e) {
                                     return SizedBox.shrink();
                                   }

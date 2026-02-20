@@ -165,7 +165,7 @@ class InviteMembersController extends GetxController {
       isLoading.value = true;
       errorMessage.value = '';
       final data = await NetworkAPICall().getUsersForGroupInvite(groupId);
-      users.value = data.where((u) => u['is_member'] == 0 || u['is_member'] == '0').map<Users>((u) => Users.fromJson(u)).toList();
+      users.value = data.where((u) => u['is_member'] == 1).map<Users>((u) => Users.fromJson(u)).toList();
       filteredUsers.value = users; // Initialize filteredUsers with all users
     } catch (e) {
       errorMessage.value = 'Failed to load users: $e';
