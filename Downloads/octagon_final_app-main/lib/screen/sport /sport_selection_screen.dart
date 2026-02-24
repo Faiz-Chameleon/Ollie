@@ -651,12 +651,14 @@ class _SportSelectionState extends State<SportSelection> {
                                     groupController.filteredgroups.isEmpty ? groupController.groupData[index] : groupController.filteredgroups[index];
 
                                 return Obx(() {
-                                  final isSelected = groupController.selectedGroupId.value == group['id'];
+                                  final groupId = int.tryParse('${group['id']}') ?? 0;
+                                  final isSelected = groupController.selectedGroupId.value == groupId;
+                                  final isDefaultGroup = groupController.defaultGroupId.value == groupId;
                                   print("Is Selected: $isSelected");
 
                                   return InkWell(
                                     onTap: () {
-                                      groupController.updateSelectedGroupId(group['id']);
+                                      groupController.updateSelectedGroupId(groupId);
 
                                       // Save to storage
                                       storage.write('userDefaultGroup', group['logo']);
@@ -666,47 +668,67 @@ class _SportSelectionState extends State<SportSelection> {
                                       crossAxisAlignment: CrossAxisAlignment.center,
                                       children: [
                                         Expanded(
-                                          child: ClipPath(
-                                            clipper: OctagonClipper(),
-                                            child: CustomPaint(
-                                              painter: OctagonBorderPainter(
-                                                borderColor: isSelected ? purpleColor : greyColor, // Change border color
-                                              ),
-                                              child: Padding(
-                                                padding: EdgeInsets.all(5),
-                                                child: ClipPath(
-                                                  clipper: OctagonClipper(),
-                                                  child: group['title'] == "Octagon"
-                                                      ? Image.asset(
-                                                          "assets/ic/Group 4.png",
-                                                          width: 90,
-                                                          height: 90,
-                                                          fit: BoxFit.cover,
-                                                        )
-                                                      : Image.network(
-                                                          "http://3.134.119.154/${group['photo']}",
-                                                          width: 90,
-                                                          height: 90,
-                                                          fit: BoxFit.cover,
-                                                          errorBuilder: (context, error, stackTrace) {
-                                                            // Fallback image if network image fails to load
-                                                            return Padding(
-                                                              padding: EdgeInsets.all(5),
-                                                              child: ClipPath(
-                                                                clipper: OctagonClipper(),
-                                                                child: Image.network(
-                                                                  'https://www.shutterstock.com/shutterstock/photos/1737334631/display_1500/stock-vector-image-not-found-grayscale-image-photo-1737334631.jpg', // Dummy image
-                                                                  // width: 50,
-                                                                  // height: 50,
-                                                                  fit: BoxFit.cover,
-                                                                ),
-                                                              ),
-                                                            );
-                                                          },
-                                                        ),
+                                          child: Stack(
+                                            children: [
+                                              ClipPath(
+                                                clipper: OctagonClipper(),
+                                                child: CustomPaint(
+                                                  painter: OctagonBorderPainter(
+                                                    borderColor: isSelected ? purpleColor : greyColor, // Change border color
+                                                  ),
+                                                  child: Padding(
+                                                    padding: EdgeInsets.all(5),
+                                                    child: ClipPath(
+                                                      clipper: OctagonClipper(),
+                                                      child: group['title'] == "Octagon"
+                                                          ? Image.asset(
+                                                              "assets/ic/Group 4.png",
+                                                              alignment: Alignment.center,
+                                                            )
+                                                          : Image.network(
+                                                              "http://3.134.119.154/${group['photo']}",
+                                                              width: 90,
+                                                              height: 90,
+                                                              fit: BoxFit.cover,
+                                                              errorBuilder: (context, error, stackTrace) {
+                                                                // Fallback image if network image fails to load
+                                                                return Padding(
+                                                                  padding: EdgeInsets.all(5),
+                                                                  child: ClipPath(
+                                                                    clipper: OctagonClipper(),
+                                                                    child: Image.network(
+                                                                      'https://www.shutterstock.com/shutterstock/photos/1737334631/display_1500/stock-vector-image-not-found-grayscale-image-photo-1737334631.jpg', // Dummy image
+                                                                      fit: BoxFit.cover,
+                                                                    ),
+                                                                  ),
+                                                                );
+                                                              },
+                                                            ),
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
-                                            ),
+                                              if (isDefaultGroup)
+                                                Positioned(
+                                                  top: 45,
+                                                  right: 26,
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.amber.withValues(alpha: 0.95),
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                    child: const Text(
+                                                      'DEFAULT',
+                                                      style: TextStyle(
+                                                        color: Colors.black,
+                                                        fontSize: 10,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
                                           ),
                                         ),
                                         FittedBox(

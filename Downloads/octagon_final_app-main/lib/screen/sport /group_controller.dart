@@ -163,6 +163,7 @@ class NewGroupController extends GetxController {
 
   var groupData = [].obs;
   RxInt selectedGroupId = 0.obs;
+  RxInt defaultGroupId = 0.obs;
   void updateSelectedGroupId(int id) {
     selectedGroupId.value = id;
   }
@@ -177,16 +178,17 @@ class NewGroupController extends GetxController {
 
     if (query.isEmpty) {
       // Show all users when search query is empty
-      filteredgroups.value = groupData;
+      filteredgroups.value = _moveOctagonToFirst(List<dynamic>.from(groupData));
     } else {
       // Filter users based on search query
-      filteredgroups.value = groupData.where((user) {
+      final filtered = groupData.where((user) {
         final title = user['title'].toString().toLowerCase();
 
         final searchLower = query.toLowerCase();
 
         return title.startsWith(searchLower);
       }).toList();
+      filteredgroups.value = _moveOctagonToFirst(filtered);
     }
   }
 
@@ -210,7 +212,14 @@ class NewGroupController extends GetxController {
       if (response.statusCode == 200) {
         String responseBody = await response.stream.bytesToString();
         var jsonData = jsonDecode(responseBody);
-        groupData.value = jsonData['success'] as List<dynamic>;
+        final groups = List<dynamic>.from(jsonData['success'] as List<dynamic>);
+        groupData.value = _moveOctagonToFirst(groups);
+        _autoSelectDefaultTaggedGroup();
+        if (searchQuery.value.isEmpty) {
+          filteredgroups.value = groupData;
+        } else {
+          filterUsers(searchQuery.value);
+        }
         print(jsonData);
       } else {
         print('Error: ${response.reasonPhrase}');
@@ -310,6 +319,62 @@ class NewGroupController extends GetxController {
     }
     return null;
   }
+
+  List<dynamic> _moveOctagonToFirst(List<dynamic> groups) {
+    if (groups.isEmpty) return groups;
+    final index = groups.indexWhere((group) {
+      if (group is! Map) return false;
+      final title = group['title']?.toString().trim().toLowerCase();
+      return title == 'octagon';
+    });
+    if (index <= 0) return groups;
+    final octagonGroup = groups.removeAt(index);
+    groups.insert(0, octagonGroup);
+    return groups;
+  }
+
+  void _autoSelectDefaultTaggedGroup() {
+    if (groupData.isEmpty) return;
+
+    dynamic defaultGroup = groupData.cast<dynamic>().firstWhereOrNull((group) => _isDefaultTaggedGroup(group));
+    defaultGroup ??= groupData.cast<dynamic>().firstWhereOrNull((group) {
+      if (group is! Map) return false;
+      final title = group['title']?.toString().trim().toLowerCase();
+      return title == 'octagon';
+    });
+    defaultGroup ??= groupData.first;
+    if (defaultGroup is! Map) return;
+
+    final id = _tryParseInt(defaultGroup['id']);
+    if (id == null) return;
+
+    defaultGroupId.value = id;
+    if (selectedGroupId.value == 0) {
+      selectedGroupId.value = id;
+    }
+    storage.write('userDefaultGroup', defaultGroup['logo'] ?? defaultGroup['photo']);
+    storage.write('userDefaultGroupName', defaultGroup['title']);
+  }
+
+  bool _isDefaultTaggedGroup(dynamic group) {
+    if (group is! Map) return false;
+
+    bool checkValue(dynamic value) {
+      if (value == null) return false;
+      if (value is bool) return value;
+      if (value is num) return value == 1;
+      final normalized = value.toString().trim().toLowerCase();
+      return normalized == 'default' || normalized == '1' || normalized == 'true' || normalized == 'yes';
+    }
+
+    final dynamic tagValue = group['tag'] ?? group['group_tag'] ?? group['label'] ?? group['badge'];
+    if (checkValue(tagValue)) return true;
+
+    final dynamic defaultValue = group['default'] ?? group['is_default'] ?? group['isDefault'];
+    return checkValue(defaultValue);
+  }
+
+  bool isDefaultTaggedGroup(dynamic group) => _isDefaultTaggedGroup(group);
 
   Future<void> createGroup({
     required String title,

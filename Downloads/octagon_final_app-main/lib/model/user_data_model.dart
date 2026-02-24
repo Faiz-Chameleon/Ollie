@@ -17,6 +17,7 @@ class Users {
     this.createdAt,
     this.updatedAt,
     this.isDeleted,
+    this.userGroupImage,
   });
 
   int? id;
@@ -36,6 +37,7 @@ class Users {
   DateTime? createdAt;
   DateTime? updatedAt;
   String? isDeleted;
+  String? userGroupImage;
 
   factory Users.fromJson(Map<String, dynamic> json) => Users(
         id: json["id"],
@@ -55,6 +57,7 @@ class Users {
         createdAt: json["created_at"] == null ? null : DateTime.parse(json["created_at"]),
         updatedAt: json["updated_at"] == null ? null : DateTime.parse(json["updated_at"]),
         isDeleted: json["is_deleted"],
+        userGroupImage: json["group_photo"],
       );
 
   Map<String, dynamic> toJson() => {
@@ -75,5 +78,6 @@ class Users {
         "created_at": createdAt?.toIso8601String(),
         "updated_at": updatedAt?.toIso8601String(),
         "is_deleted": isDeleted,
+        "group_photo": userGroupImage,
       };
 }

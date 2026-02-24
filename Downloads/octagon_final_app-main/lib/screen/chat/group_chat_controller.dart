@@ -434,6 +434,21 @@ class GroupChatController extends GetxController {
     }
   }
 
+  Future<String?> generateLocalVideoThumbnailPath(String videoFilePath) async {
+    try {
+      final thumbnailPath = await VideoThumbnail.thumbnailFile(
+        video: videoFilePath,
+        imageFormat: ImageFormat.JPEG,
+        maxWidth: 320,
+        quality: 75,
+      );
+      return thumbnailPath;
+    } catch (e) {
+      print('Error generating local thumbnail: $e');
+      return null;
+    }
+  }
+
   Future<void> pickMedia(
     BuildContext context, {
     String? threadId,
@@ -663,6 +678,13 @@ class GroupChatController extends GetxController {
                   );
                   print('Direct video upload result: $uploadRes');
                   if (uploadRes != null) {
+                    if ((uploadRes['thumbnail_url'] == null || '${uploadRes['thumbnail_url']}'.isEmpty) &&
+                        (uploadRes['thumbnail'] == null || '${uploadRes['thumbnail']}'.isEmpty)) {
+                      final localThumb = await generateLocalVideoThumbnailPath(file.filePath);
+                      if (localThumb != null && localThumb.isNotEmpty) {
+                        uploadRes['local_thumbnail_path'] = localThumb;
+                      }
+                    }
                     Get.snackbar('Success', 'Video uploaded to thread');
                     if (uploadRes.isNotEmpty) {
                       if (caption.isNotEmpty) {

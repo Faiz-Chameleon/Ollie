@@ -1,0 +1,269 @@
+{
+  "info": {
+    "_postman_id": "f8ac0af8-5c7e-4a8c-9e09-6f7d0fc8a901",
+    "name": "Octagon API (Generated)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://3.134.119.154/api" },
+    { "key": "token", "value": "" },
+    { "key": "user_id", "value": "1" },
+    { "key": "group_id", "value": "1" },
+    { "key": "thread_id", "value": "thread-uuid" },
+    { "key": "message_id", "value": "message-uuid" },
+    { "key": "post_id", "value": "1" },
+    { "key": "comment_id", "value": "1" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name", "value": "John Doe", "type": "text" },
+                { "key": "email", "value": "john@example.com", "type": "text" },
+                { "key": "user_type", "value": "1", "type": "text" },
+                { "key": "mobile", "value": "1234567890", "type": "text" },
+                { "key": "password", "value": "123456", "type": "text" },
+                { "key": "c_password", "value": "123456", "type": "text" },
+                { "key": "country", "value": "US", "type": "text" },
+                { "key": "gender", "value": "0", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/register"
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "email", "value": "john@example.com", "type": "text" },
+                { "key": "password", "value": "123456", "type": "text" },
+                { "key": "fcm_token", "value": "sample-fcm-token", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/login"
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "email", "value": "john@example.com", "type": "text" },
+                { "key": "otp", "value": "1234", "type": "text" },
+                { "key": "fcm_token", "value": "sample-fcm-token", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/otp-verify"
+          }
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "email", "value": "john@example.com", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/otp-create"
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "email", "value": "john@example.com", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/forgot-password"
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "email", "value": "john@example.com", "type": "text" },
+                { "key": "password", "value": "new-password", "type": "text" },
+                { "key": "c_password", "value": "new-password", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/reset-password"
+          }
+        },
+        {
+          "name": "Social Auth",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "email", "value": "john@example.com", "type": "text" },
+                { "key": "social_id", "value": "google-uid-123", "type": "text" },
+                { "key": "fcm_token", "value": "sample-fcm-token", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/social-auth"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sports",
+      "item": [
+        {
+          "name": "Sport List",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{base_url}}/sport-list"
+          }
+        },
+        {
+          "name": "Save User Sports",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "sports", "value": "[{\"sport_id\":11,\"sport_api_id\":112}]", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/save-user-sports"
+          }
+        },
+        {
+          "name": "Team List",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "sports", "value": "[{\"sport_id\":11,\"sport_api_id\":112}]", "type": "text" },
+                { "key": "limit", "value": "20000", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/team-list"
+          }
+        },
+        {
+          "name": "Save User Teams",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "teams", "value": "[{\"team_id\":1}]", "type": "text" }
+              ]
+            },
+            "url": "{{base_url}}/save-user-teams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Posts And Profile",
+      "item": [
+        { "name": "Get User Posts", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "type", "value": "1", "type": "text" }, { "key": "page_no", "value": "1", "type": "text" }, { "key": "limit", "value": "10", "type": "text" } ] }, "url": "{{base_url}}/get-user-posts" } },
+        { "name": "Get Post Details", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "post_id", "value": "{{post_id}}", "type": "text" }, { "key": "type", "value": "1", "type": "text" } ] }, "url": "{{base_url}}/get-post-details" } },
+        { "name": "Create Post", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "title", "value": "My post", "type": "text" }, { "key": "post", "value": "Post content", "type": "text" }, { "key": "type", "value": "1", "type": "text" }, { "key": "location", "value": "USA", "type": "text" }, { "key": "comment", "value": "1", "type": "text" }, { "key": "photo[]", "type": "file", "src": "" }, { "key": "video[]", "type": "file", "src": "" } ] }, "url": "{{base_url}}/save-user-post" } },
+        { "name": "Edit User Post", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "post_id", "value": "{{post_id}}", "type": "text" }, { "key": "title", "value": "Updated title", "type": "text" } ] }, "url": "{{base_url}}/edit-user-post" } },
+        { "name": "Delete Post", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "post_id", "value": "{{post_id}}", "type": "text" } ] }, "url": "{{base_url}}/delete-user-post" } },
+        { "name": "Like Or Unlike", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "content_id", "value": "{{post_id}}", "type": "text" }, { "key": "like", "value": "1", "type": "text" }, { "key": "type", "value": "1", "type": "text" } ] }, "url": "{{base_url}}/save-likes" } },
+        { "name": "Save Or Unsave Post", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "post_id", "value": "{{post_id}}", "type": "text" }, { "key": "save", "value": "1", "type": "text" } ] }, "url": "{{base_url}}/save-post" } },
+        { "name": "Favorite Or Unfavorite", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "post_id", "value": "{{post_id}}", "type": "text" }, { "key": "favorite", "value": "1", "type": "text" } ] }, "url": "{{base_url}}/save-post-favorite" } },
+        { "name": "Get Favorite Posts", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "page_no", "value": "1", "type": "text" }, { "key": "limit", "value": "100", "type": "text" } ] }, "url": "{{base_url}}/get-post-favorite" } },
+        { "name": "Get Saved Posts", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "page_no", "value": "1", "type": "text" }, { "key": "limit", "value": "100", "type": "text" } ] }, "url": "{{base_url}}/get-save-post" } },
+        { "name": "Comment On Post", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "post_id", "value": "{{post_id}}", "type": "text" }, { "key": "comment", "value": "Nice post", "type": "text" }, { "key": "parent_comment_id", "value": "0", "type": "text" } ] }, "url": "{{base_url}}/save-user-comment" } },
+        { "name": "Delete Comment", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "comment_id", "value": "{{comment_id}}", "type": "text" } ] }, "url": "{{base_url}}/delete-user-comment" } },
+        { "name": "Get User Comment", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "post_id", "value": "{{post_id}}", "type": "text" } ] }, "url": "{{base_url}}/get-user-comment" } },
+        { "name": "Follow Or Unfollow", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "follow_id", "value": "{{user_id}}", "type": "text" }, { "key": "follow", "value": "1", "type": "text" } ] }, "url": "{{base_url}}/set-user-followers" } },
+        { "name": "Remove Follower", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "following_id", "value": "{{user_id}}", "type": "text" } ] }, "url": "{{base_url}}/remove-following" } },
+        { "name": "Report Post", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "content_id", "value": "{{post_id}}", "type": "text" }, { "key": "title", "value": "Spam", "type": "text" }, { "key": "type", "value": "1", "type": "text" } ] }, "url": "{{base_url}}/save-post-report" } },
+        { "name": "User Details", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "body": { "mode": "raw", "raw": "{}" }, "url": "{{base_url}}/user-details" } },
+        { "name": "Other User Profile", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "user_id", "value": "{{user_id}}", "type": "text" } ] }, "url": "{{base_url}}/user-profile" } },
+        { "name": "Update Profile", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "name", "value": "John", "type": "text" }, { "key": "dob", "value": "1995-01-01", "type": "text" }, { "key": "country", "value": "US", "type": "text" }, { "key": "bio", "value": "Hello", "type": "text" }, { "key": "photo", "type": "file", "src": "" }, { "key": "background", "type": "file", "src": "" } ] }, "url": "{{base_url}}/user-update" } },
+        { "name": "Upload File", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "type", "value": "1", "type": "text" }, { "key": "files", "type": "file", "src": "" } ] }, "url": "{{base_url}}/user-upload-file" } },
+        { "name": "Block User", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "user_id", "value": "{{user_id}}", "type": "text" } ] }, "url": "{{base_url}}/user-block" } },
+        { "name": "Unblock User", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "user_id", "value": "{{user_id}}", "type": "text" } ] }, "url": "{{base_url}}/user-unblock" } },
+        { "name": "Blocked Users", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "page_no", "value": "1", "type": "text" }, { "key": "limit", "value": "100", "type": "text" } ] }, "url": "{{base_url}}/user-block-list" } },
+        { "name": "Remove User", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "user_id", "value": "{{user_id}}", "type": "text" } ] }, "url": "{{base_url}}/user-remove" } },
+        { "name": "Trending List", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "type", "value": "1", "type": "text" }, { "key": "page_no", "value": "1", "type": "text" }, { "key": "limit", "value": "50", "type": "text" } ] }, "url": "{{base_url}}/get-tranding-list" } },
+        { "name": "Notifications", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "body": { "mode": "raw", "raw": "{}" }, "url": "{{base_url}}/notification-list" } }
+      ]
+    },
+    {
+      "name": "Groups",
+      "item": [
+        { "name": "Create Group", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "title", "value": "Team Name", "type": "text" }, { "key": "options", "value": "\"\"", "type": "text" }, { "key": "dates", "value": "2026-02-24", "type": "text" }, { "key": "description", "value": "Group desc", "type": "text" }, { "key": "is_public", "value": "1", "type": "text" }, { "key": "user_id", "value": "{{user_id}}", "type": "text" }, { "key": "photo", "type": "file", "src": "" } ] }, "url": "{{base_url}}/user-groups-create" } },
+        { "name": "Update Group", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "title", "value": "Updated Team", "type": "text" }, { "key": "options", "value": "\"\"", "type": "text" }, { "key": "dates", "value": "2026-02-24", "type": "text" }, { "key": "description", "value": "Updated desc", "type": "text" }, { "key": "group_id", "value": "{{group_id}}", "type": "text" }, { "key": "public_private", "value": "1", "type": "text" }, { "key": "photo", "type": "file", "src": "" } ] }, "url": "{{base_url}}/user-groups-update" } },
+        { "name": "User Groups Get", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "user_id", "value": "{{user_id}}", "type": "text" } ] }, "url": "{{base_url}}/user-groups-get" } },
+        { "name": "Show Public Groups", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [] }, "url": "{{base_url}}/user-show-group" } },
+        { "name": "Group By Id", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "group_id", "value": "{{group_id}}", "type": "text" } ] }, "url": "{{base_url}}/user-groups-get-by-id" } },
+        { "name": "Group Members", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "group_id", "value": "{{group_id}}", "type": "text" } ] }, "url": "{{base_url}}/groups-member-get" } },
+        { "name": "Group Users For Invite", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "group_id", "value": "{{group_id}}", "type": "text" } ] }, "url": "{{base_url}}/user-groups-list" } },
+        { "name": "Invite User To Group", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "group_id", "value": "{{group_id}}", "type": "text" }, { "key": "user_id", "value": "{{user_id}}", "type": "text" }, { "key": "is_invited", "value": "1", "type": "text" }, { "key": "status", "value": "invited", "type": "text" } ] }, "url": "{{base_url}}/groups-member-create" } },
+        { "name": "Join Group (Personal)", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "group_id", "value": "{{group_id}}", "type": "text" } ] }, "url": "{{base_url}}/groups-member-personal-create" } },
+        { "name": "Delete Group Member", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "user_id", "value": "{{user_id}}", "type": "text" }, { "key": "group_id", "value": "{{group_id}}", "type": "text" } ] }, "url": "{{base_url}}/groups-member-delete" } },
+        { "name": "Search Group Members", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "group_id", "value": "{{group_id}}", "type": "text" }, { "key": "search", "value": "john", "type": "text" } ] }, "url": "{{base_url}}/groups-member-search" } },
+        { "name": "Send Join Request", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "group_id", "value": "{{group_id}}", "type": "text" } ] }, "url": "{{base_url}}/send-request" } },
+        { "name": "Join Default Group", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "group_id", "value": "{{group_id}}", "type": "text" } ] }, "url": "{{base_url}}/join-default-group" } },
+        { "name": "Create Or Get Chat Thread", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "group_id", "value": "{{group_id}}", "type": "text" } ] }, "url": "{{base_url}}/groups-create-chat-thread" } },
+        { "name": "Group Join Requests", "request": { "method": "GET", "url": "{{base_url}}/groups/{{group_id}}/requests" } },
+        { "name": "Accept Group Join Request", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "request_id", "value": "1", "type": "text" } ] }, "url": "{{base_url}}/group/request/accept" } },
+        { "name": "Reject Group Join Request", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "request_id", "value": "1", "type": "text" } ] }, "url": "{{base_url}}/group/request/reject" } },
+        { "name": "Check Group User Blocked", "request": { "method": "GET", "url": "{{base_url}}/groups/thread/{{thread_id}}/blocked/check/{{user_id}}" } },
+        { "name": "Get Group Blocked Users", "request": { "method": "GET", "url": "{{base_url}}/groups/thread/{{thread_id}}/blocked-users" } },
+        { "name": "Block Group User", "request": { "method": "POST", "url": "{{base_url}}/block/group/user/{{user_id}}/thread/{{thread_id}}" } },
+        { "name": "Unblock Group User", "request": { "method": "DELETE", "url": "{{base_url}}/block/group/user/{{user_id}}/thread/{{thread_id}}" } }
+      ]
+    },
+    {
+      "name": "Messenger",
+      "item": [
+        { "name": "Get Thread Messages", "request": { "method": "GET", "url": "{{base_url}}/messenger/threads/{{thread_id}}/messages?per_page=50" } },
+        { "name": "Send Message", "request": { "method": "POST", "header": [ { "key": "Content-Type", "value": "application/json" } ], "body": { "mode": "raw", "raw": "{\n  \"message\": \"hello\",\n  \"temporary_id\": \"temp-123\"\n}" }, "url": "{{base_url}}/messenger/threads/{{thread_id}}/messages" } },
+        { "name": "Send Thread Image", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "temporary_id", "value": "temp-123", "type": "text" }, { "key": "image", "type": "file", "src": "" } ] }, "url": "{{base_url}}/messenger/threads/{{thread_id}}/images" } },
+        { "name": "Send Thread Video", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "temporary_id", "value": "temp-123", "type": "text" }, { "key": "video", "type": "file", "src": "" } ] }, "url": "{{base_url}}/messenger/threads/{{thread_id}}/videos" } },
+        { "name": "React To Message", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "reaction", "value": "👍", "type": "text" } ] }, "url": "{{base_url}}/messenger/threads/{{thread_id}}/messages/{{message_id}}/reactions" } },
+        { "name": "Delete Message", "request": { "method": "POST", "url": "{{base_url}}/delete/message/threads/{{thread_id}}/messages/{{message_id}}" } },
+        { "name": "Broadcast Auth", "request": { "method": "POST", "body": { "mode": "formdata", "formdata": [ { "key": "channel_name", "value": "private-chat.{{thread_id}}", "type": "text" }, { "key": "socket_id", "value": "123.456", "type": "text" } ] }, "url": "{{base_url}}/broadcasting/auth" } }
+      ]
+    }
+  ]
+}

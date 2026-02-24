@@ -656,7 +656,8 @@ class CommentScreen extends StatelessWidget {
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: CachedNetworkImage(
-                  imageUrl: comment.users?.photo ?? "",
+                  imageUrl:
+                      comment.users?.userType == "2" ? "http://3.134.119.154/${comment.users?.userGroupImage}" ?? "" : comment.users?.photo ?? "",
                   fit: BoxFit.cover,
                   width: 28,
                   height: 28,

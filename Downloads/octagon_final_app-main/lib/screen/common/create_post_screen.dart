@@ -572,6 +572,22 @@ class CreatePostScreen extends StatelessWidget {
                   controller: controller.descriptionController,
                   maxLength: 120, // Flutter automatically displays this count below the TextFormField
                   maxLines: 3,
+                  inputFormatters: [
+                    TextInputFormatter.withFunction((oldValue, newValue) {
+                      final text = newValue.text;
+                      if (text.isEmpty) return newValue;
+
+                      final firstLetterIndex = text.indexOf(RegExp(r'[A-Za-z]'));
+                      if (firstLetterIndex == -1) return newValue;
+
+                      final currentChar = text[firstLetterIndex];
+                      final upperChar = currentChar.toUpperCase();
+                      if (currentChar == upperChar) return newValue;
+
+                      final updatedText = text.replaceRange(firstLetterIndex, firstLetterIndex + 1, upperChar);
+                      return newValue.copyWith(text: updatedText);
+                    }),
+                  ],
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                       border: OutlineInputBorder(),

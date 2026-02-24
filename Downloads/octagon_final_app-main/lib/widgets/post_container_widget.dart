@@ -68,6 +68,11 @@ class _PostWidgetsState extends State<PostWidgets> {
   ChewieController? _playerController;
   VideoPlayerController? _videoPlayerController;
   bool isCurrentPageOpen = true;
+  VoidCallback? _videoStateListener;
+  VoidCallback? _activePostListener;
+  static final ValueNotifier<String?> _activeVideoPostId = ValueNotifier<String?>(null);
+
+  String get _postId => (widget.postData?.id ?? '').toString();
 
   Widget _errorBuilder(BuildContext context, String url, dynamic error) {
     return const Center(
@@ -101,6 +106,22 @@ class _PostWidgetsState extends State<PostWidgets> {
       initializePlayer(widget.postData!.videos![0].filePath);
     }
 
+    _activePostListener = () {
+      final controller = _videoPlayerController;
+      if (controller == null) return;
+
+      final isActive = _activeVideoPostId.value == _postId;
+      if (!isActive) {
+        if (controller.value.isPlaying) {
+          controller.pause();
+        }
+        controller.setVolume(0);
+      } else if (controller.value.isPlaying) {
+        controller.setVolume(1.0);
+      }
+    };
+    _activeVideoPostId.addListener(_activePostListener!);
+
     setState(() {});
 
     currentPage.stream.listen((event) {
@@ -118,6 +139,15 @@ class _PostWidgetsState extends State<PostWidgets> {
 
   @override
   void dispose() {
+    if (_activePostListener != null) {
+      _activeVideoPostId.removeListener(_activePostListener!);
+    }
+    if (_videoPlayerController != null && _videoStateListener != null) {
+      _videoPlayerController!.removeListener(_videoStateListener!);
+    }
+    if (_activeVideoPostId.value == _postId) {
+      _activeVideoPostId.value = null;
+    }
     _playerController?.dispose();
     _videoPlayerController?.dispose();
     super.dispose();
@@ -127,6 +157,10 @@ class _PostWidgetsState extends State<PostWidgets> {
     try {
       // Only dispose if we're creating a new controller for a different video
       if (_videoPlayerController != null && _videoPlayerController!.dataSource != data) {
+        if (_videoStateListener != null) {
+          _videoPlayerController!.removeListener(_videoStateListener!);
+          _videoStateListener = null;
+        }
         _playerController?.dispose();
         _videoPlayerController?.dispose();
         _playerController = null;
@@ -148,6 +182,22 @@ class _PostWidgetsState extends State<PostWidgets> {
 
       _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(data));
       await _videoPlayerController!.initialize();
+      _videoPlayerController!.setVolume(0);
+
+      _videoStateListener = () {
+        final controller = _videoPlayerController;
+        if (controller == null) return;
+        if (!controller.value.isInitialized) return;
+
+        final isThisActive = _activeVideoPostId.value == _postId;
+        if (controller.value.isPlaying) {
+          if (!isThisActive) {
+            _activeVideoPostId.value = _postId;
+          }
+          controller.setVolume(1.0);
+        }
+      };
+      _videoPlayerController!.addListener(_videoStateListener!);
 
       _playerController = ChewieController(
         videoPlayerController: _videoPlayerController!,

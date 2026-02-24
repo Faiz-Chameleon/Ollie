@@ -351,13 +351,14 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     String type = 'text';
     final tv = (data['type_verbose']?.toString() ?? '').toLowerCase();
     final tn = data['type'];
-    if (tv.contains('image') || tn == 1)
+    final tnText = (tn?.toString() ?? '').toLowerCase();
+    if (tv.contains('image') || tn == 1 || tnText.contains('image'))
       type = 'image';
-    else if (tv.contains('video') || tn == 4)
+    else if (tv.contains('video') || tn == 4 || tnText.contains('video'))
       type = 'video';
-    else if (tv.contains('audio') || tn == 3)
+    else if (tv.contains('audio') || tn == 3 || tnText.contains('audio'))
       type = 'audio';
-    else if (tv.contains('document') || tn == 2) type = 'document';
+    else if (tv.contains('document') || tn == 2 || tnText.contains('document') || tnText.contains('file')) type = 'document';
 
     // Text/body
     String text = data['body']?.toString() ?? data['message']?.toString() ?? data['text']?.toString() ?? '';
@@ -365,6 +366,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     // Media URLs (image/audio/document/video)
     String mediaUrl = '';
     String thumbnailUrl = '';
+    String localThumbnailPath = '';
     try {
       if (type == 'image') {
         if (data['image'] is Map) {
@@ -380,14 +382,29 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       } else if (type == 'document') {
         mediaUrl = _absUrl(data['document']?.toString() ?? data['file']?.toString() ?? data['media_url']?.toString());
       } else if (type == 'video') {
-        mediaUrl = _absUrl(data['video']?.toString() ?? data['media_url']?.toString() ?? data['url']?.toString());
+        if (data['video'] is Map) {
+          final videoMap = data['video'] as Map;
+          mediaUrl = _absUrl(videoMap['lg'] ?? videoMap['md'] ?? videoMap['sm'] ?? videoMap['url'] ?? videoMap['path'] ?? '');
+        } else {
+          mediaUrl = _absUrl(data['video']?.toString() ?? data['media_url']?.toString() ?? data['url']?.toString());
+        }
         // some responses may provide a thumbnail field
-        thumbnailUrl = _absUrl(data['thumbnail']?.toString() ?? data['thumbnail_url']?.toString() ?? '');
+        thumbnailUrl = _absUrl(
+          data['thumbnail']?.toString() ?? data['thumbnail_url']?.toString() ?? data['poster']?.toString() ?? data['preview']?.toString() ?? '',
+        );
         if (thumbnailUrl.isEmpty && extraData != null) {
           final thumb = extraData['thumbnail']?.toString();
           if (thumb != null && thumb.isNotEmpty) {
             thumbnailUrl = _absUrl(thumb);
           }
+        }
+        if (thumbnailUrl.isEmpty && data['image'] is Map) {
+          final imageMap = data['image'] as Map;
+          thumbnailUrl = _absUrl(imageMap['md'] ?? imageMap['lg'] ?? imageMap['sm'] ?? imageMap['url'] ?? '');
+        }
+        final localThumb = data['local_thumbnail_path']?.toString();
+        if (localThumb != null && localThumb.isNotEmpty) {
+          localThumbnailPath = localThumb;
         }
       } else {
         // fallback: any common fields
@@ -434,6 +451,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       'text': text,
       'media_url': mediaUrl,
       'thumbnail_url': thumbnailUrl,
+      'local_thumbnail_path': localThumbnailPath,
       'extra': extraData ?? data['extra'],
       'reply_to': replyData,
       'reply_to_id': data['reply_to_id']?.toString() ?? replyData?['id']?.toString() ?? '',
@@ -600,6 +618,13 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   }
 
   Map<String, dynamic> _unwrapMessagePayload(Map<String, dynamic> payload) {
+    if (payload['success'] is Map) {
+      final successMap = Map<String, dynamic>.from(payload['success'] as Map);
+      if (successMap['message'] is Map) {
+        return Map<String, dynamic>.from(successMap['message'] as Map);
+      }
+      return successMap;
+    }
     if (payload['message'] is Map) {
       return Map<String, dynamic>.from(payload['message'] as Map);
     }
@@ -873,6 +898,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       if (message['raw'] == null && existing['raw'] != null) {
         message['raw'] = existing['raw'];
       }
+      if ((message['thumbnail_url']?.toString().isEmpty ?? true) && (existing['thumbnail_url']?.toString().isNotEmpty ?? false)) {
+        message['thumbnail_url'] = existing['thumbnail_url'];
+      }
+      if ((message['local_thumbnail_path']?.toString().isEmpty ?? true) && (existing['local_thumbnail_path']?.toString().isNotEmpty ?? false)) {
+        message['local_thumbnail_path'] = existing['local_thumbnail_path'];
+      }
       controller.messages[index] = message;
       _prefetchThumbnailIfNeeded(controller.messages[index]);
       controller.messages.refresh();
@@ -1012,7 +1043,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   }
 
   bool _shouldPrefetchThumbnail(String url) {
-    return url.contains('/storage/threads/');
+    return url.contains('/storage/');
   }
 
   Future<bool> _ensureThumbnailAvailable(String url) async {
@@ -1305,22 +1336,29 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                               },
                               child: ClipPath(
                                 clipper: OctagonClipper(),
-                                child: Image.network(
-                                  'http://3.134.119.154/${widget.groupImage}', // Replace with your image URL
-                                  width: 45,
-                                  height: 45,
-                                  fit: BoxFit.fill,
-                                  errorBuilder: (context, error, stackTrace) => Container(
-                                    width: 45,
-                                    height: 45,
-                                    color: Colors.transparent,
-                                    child: Icon(
-                                      Icons.error,
-                                      color: Colors.red,
-                                      size: 24,
-                                    ),
-                                  ),
-                                ),
+                                child: widget.groupName.toString() == "Octagon"
+                                    ? Image.asset(
+                                        "assets/ic/Group 4.png",
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.contain,
+                                      )
+                                    : Image.network(
+                                        'http://3.134.119.154/${widget.groupImage}', // Replace with your image URL
+                                        width: 45,
+                                        height: 45,
+                                        fit: BoxFit.fill,
+                                        errorBuilder: (context, error, stackTrace) => Container(
+                                          width: 45,
+                                          height: 45,
+                                          color: Colors.transparent,
+                                          child: Icon(
+                                            Icons.error,
+                                            color: Colors.red,
+                                            size: 24,
+                                          ),
+                                        ),
+                                      ),
                               ),
                             ),
                           ],
@@ -1340,22 +1378,29 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                             // Centered network image
                             ClipPath(
                               clipper: OctagonClipper(),
-                              child: Image.network(
-                                'http://3.134.119.154/${widget.groupImage}', // Replace with your image URL
-                                width: 45,
-                                height: 45,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => Container(
-                                  width: 45,
-                                  height: 45,
-                                  color: Colors.transparent,
-                                  child: Icon(
-                                    Icons.error,
-                                    color: Colors.red,
-                                    size: 24,
-                                  ),
-                                ),
-                              ),
+                              child: widget.groupName.toString() == "Octagon"
+                                  ? Image.asset(
+                                      "assets/ic/Group 4.png",
+                                      width: 80,
+                                      height: 80,
+                                      fit: BoxFit.contain,
+                                    )
+                                  : Image.network(
+                                      'http://3.134.119.154/${widget.groupImage}', // Replace with your image URL
+                                      width: 45,
+                                      height: 45,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => Container(
+                                        width: 45,
+                                        height: 45,
+                                        color: Colors.transparent,
+                                        child: Icon(
+                                          Icons.error,
+                                          color: Colors.red,
+                                          size: 24,
+                                        ),
+                                      ),
+                                    ),
                             ),
                           ],
                         ),
@@ -1607,7 +1652,24 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: TextField(
+                                textCapitalization: TextCapitalization.sentences,
                                 controller: controller.messageController,
+                                inputFormatters: [
+                                  TextInputFormatter.withFunction((oldValue, newValue) {
+                                    final text = newValue.text;
+                                    if (text.isEmpty) return newValue;
+
+                                    final firstLetterIndex = text.indexOf(RegExp(r'[A-Za-z]'));
+                                    if (firstLetterIndex == -1) return newValue;
+
+                                    final currentChar = text[firstLetterIndex];
+                                    final upperChar = currentChar.toUpperCase();
+                                    if (currentChar == upperChar) return newValue;
+
+                                    final updatedText = text.replaceRange(firstLetterIndex, firstLetterIndex + 1, upperChar);
+                                    return newValue.copyWith(text: updatedText);
+                                  }),
+                                ],
                                 style: const TextStyle(color: Colors.black),
                                 decoration: const InputDecoration(
                                   hintText: "Write message...",
@@ -2022,7 +2084,10 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       return Text(text, style: baseStyle);
     }
     final spans = <TextSpan>[];
-    final mentionPattern = RegExp(r'@[\w\.\-]+');
+    // Highlight mentions that can include spaced display names, e.g. "@NWA Red".
+    // Extra words are included only when they start with uppercase to avoid
+    // swallowing normal sentence text after a single-word mention.
+    final mentionPattern = RegExp(r'@[\w\.\-]+(?:\s+[A-Z][\w\.\-]*)*');
     int startIndex = 0;
     for (final match in mentionPattern.allMatches(text)) {
       if (match.start > startIndex) {
@@ -2273,15 +2338,21 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
 
   Widget _buildVideoMessage(Map<String, dynamic> message) {
     final videoUrl = message['media_url'];
-    final thumbnailUrl = message['thumbnail_url'];
-    final bool pendingStorageThumbnail =
-        thumbnailUrl != null && thumbnailUrl.toString().contains('/storage/threads/') && !thumbnailUrl.toString().contains('thumb_ts=');
-    final bool canShowThumbnail = thumbnailUrl != null && thumbnailUrl.isNotEmpty && !pendingStorageThumbnail;
+    final thumbnailUrl = message['thumbnail_url']?.toString();
+    final localThumbnailPath = message['local_thumbnail_path']?.toString();
+    final effectiveThumbnail = (thumbnailUrl != null && thumbnailUrl.isNotEmpty) ? thumbnailUrl : localThumbnailPath;
+    final bool pendingStorageThumbnail = thumbnailUrl != null && thumbnailUrl.contains('/storage/threads/') && !thumbnailUrl.contains('thumb_ts=');
+    final bool isLocalThumbnail = effectiveThumbnail != null &&
+        effectiveThumbnail.isNotEmpty &&
+        !effectiveThumbnail.startsWith('http://') &&
+        !effectiveThumbnail.startsWith('https://');
+    final bool canShowThumbnail = effectiveThumbnail != null && effectiveThumbnail.isNotEmpty;
 
     // Debug logging
     print('=== VIDEO MESSAGE DEBUG ===');
     print('Video URL: $videoUrl');
     print('Thumbnail URL: $thumbnailUrl');
+    print('Local thumbnail path: $localThumbnailPath');
     print('Message type: ${message['type']}');
     print('=== END VIDEO MESSAGE DEBUG ===');
 
@@ -2314,44 +2385,61 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
               if (canShowThumbnail)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    imageUrl: thumbnailUrl!,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: 200,
-                    placeholder: (context, url) => Container(
-                      color: Colors.grey[700],
-                      child: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) {
-                      print('Thumbnail load error: $error');
-                      return Container(
-                        color: Colors.grey[700],
-                        child: const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
+                  child: isLocalThumbnail
+                      ? Image.file(
+                          File((effectiveThumbnail ?? '').replaceFirst('file://', '')),
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: 200,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: Colors.grey[700],
+                            child: const Center(
+                              child: Icon(
                                 Icons.video_file,
                                 color: Colors.white,
                                 size: 48,
                               ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Video',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
+                            ),
+                          ),
+                        )
+                      : CachedNetworkImage(
+                          imageUrl: effectiveThumbnail!,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: 200,
+                          placeholder: (context, url) => Container(
+                            color: Colors.grey[700],
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) {
+                            print('Thumbnail load error: $error');
+                            return Container(
+                              color: Colors.grey[700],
+                              child: const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.video_file,
+                                      color: Colors.white,
+                                      size: 48,
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Video',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
                 )
               else
                 Container(
