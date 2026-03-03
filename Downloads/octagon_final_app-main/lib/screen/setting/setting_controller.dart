@@ -19,8 +19,10 @@ import '../../widgets/webview_screen.dart';
 import '../../utils/constants.dart';
 import '../../utils/string.dart';
 import '../../utils/analiytics.dart';
+import '../../networking/network.dart';
 
 class SettingController extends GetxController {
+  final NetworkAPICall _networkApi = NetworkAPICall();
   List<Widget> accountMenu = [];
   List<Widget> groupMenu = [];
   List<Widget> teamMenu = [];
@@ -64,7 +66,7 @@ class SettingController extends GetxController {
         Get.to(() => EditProfileScreen(profileData: profileData?.success?.user, update: (data) {}));
       }),
       _menuTile(Icons.password_outlined, "Reset Password", () => Get.to(() => ResetPassScreen())),
-      _menuTile(Icons.delete, "Delete account", () => _showDeleteDialog(() {})),
+      _menuTile(Icons.delete, "Delete account", () => _showDeleteDialog(_deleteAccount)),
     ];
 
     groupMenu = [
@@ -150,6 +152,27 @@ class SettingController extends GetxController {
         onDelete();
       },
     );
+  }
+
+  Future<void> _deleteAccount() async {
+    try {
+      await _networkApi.multiPartPostRequest(
+        deleteAccountApiUrl,
+        <String, dynamic>{},
+        true,
+        "POST",
+      );
+
+      Get.snackbar("Octagon", "Your account has been deleted.");
+      final fcmToken = storage.read("fcmToken");
+      await storage.erase();
+      if (fcmToken != null) {
+        await storage.write("fcmToken", fcmToken);
+      }
+      Get.offAll(() => LoginScreen());
+    } catch (e) {
+      Get.snackbar("Octagon", "Unable to delete account. Please try again.");
+    }
   }
 
   void logout() {

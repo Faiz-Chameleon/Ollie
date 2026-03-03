@@ -12,8 +12,7 @@ class SettingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final SettingController controller =
-        Get.put(SettingController(context, profileData));
+    final SettingController controller = Get.put(SettingController(context, profileData));
 
     return Scaffold(
       backgroundColor: appBgColor,
@@ -43,15 +42,12 @@ class SettingScreen extends StatelessWidget {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurple,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                     ),
                     onPressed: controller.logout,
                     child: const Padding(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 12.0, vertical: 6),
-                      child:
-                          Text("Logout", style: TextStyle(color: Colors.white)),
+                      padding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 6),
+                      child: Text("Logout", style: TextStyle(color: Colors.white)),
                     ),
                   ),
                 ),
@@ -59,10 +55,7 @@ class SettingScreen extends StatelessWidget {
                 const Center(
                   child: Text(
                     "Octagon 0.0.1/Build 1.0.0",
-                    style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold),
+                    style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 )
               ],
@@ -80,8 +73,7 @@ class SettingScreen extends StatelessWidget {
         const Icon(Icons.close, size: 36, color: Colors.transparent),
         const Text(
           "Setting",
-          style: TextStyle(
-              color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
         ),
         GestureDetector(
           onTap: () => Get.back(),
@@ -95,9 +87,7 @@ class SettingScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title,
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold)),
+        Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         const SizedBox(height: 15),
         Container(
           decoration: BoxDecoration(

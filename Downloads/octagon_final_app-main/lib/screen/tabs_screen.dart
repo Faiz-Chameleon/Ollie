@@ -51,7 +51,7 @@ class _TabScreenState extends State<TabScreen> {
     pages = [HomeScreen(), TrendingScreen(), NotificationScreen(), ProfileScreen()];
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      currentPage.add(0);
+      currentPage.add(widget.selectedPage);
     });
 
     // initFirebaseNotifications();

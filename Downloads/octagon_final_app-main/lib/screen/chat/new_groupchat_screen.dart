@@ -7,6 +7,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:octagon/screen/group/group_settings_screen.dart';
 import 'package:octagon/screen/profile/other_user_profile.dart';
 import 'package:octagon/utils/theme/theme_constants.dart';
+import 'package:shape_maker/shape_maker.dart';
 import 'package:sizer/sizer.dart';
 import 'dart:async';
 import 'dart:developer';
@@ -18,6 +19,7 @@ import 'package:octagon/screen/common/create_post_controller.dart';
 import 'package:octagon/screen/group/pusher_implementation/pusher_service.dart';
 import 'package:octagon/screen/mainFeed/bloc/post_repo.dart';
 import 'package:octagon/utils/constants.dart';
+import 'package:octagon/utils/emoji_parser.dart';
 import 'package:octagon/services/group_thread_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:http/http.dart' as http;
@@ -362,6 +364,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
 
     // Text/body
     String text = data['body']?.toString() ?? data['message']?.toString() ?? data['text']?.toString() ?? '';
+    text = EmojiParser.decode(text);
 
     // Media URLs (image/audio/document/video)
     String mediaUrl = '';
@@ -669,7 +672,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
           type = 'audio';
         else if (tv.contains('document')) type = 'document';
 
-        final replyText = raw['body'] ?? raw['message'] ?? raw['text'] ?? '';
+        final replyText = EmojiParser.decode((raw['body'] ?? raw['message'] ?? raw['text'] ?? '').toString());
         String media = '';
         String thumbnail = '';
         final extra = _normalizeExtra(raw['extra']);
@@ -700,7 +703,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         return {
           'id': raw['id']?.toString() ?? '',
           'sender_name': raw['sender_name']?.toString() ?? raw['owner']?['name']?.toString() ?? raw['owner']?['base']?['name']?.toString() ?? '',
-          'text': replyText?.toString() ?? '',
+          'text': replyText,
           'type': type,
           'media_url': media,
           'thumbnail_url': thumbnail,
@@ -907,6 +910,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       controller.messages[index] = message;
       _prefetchThumbnailIfNeeded(controller.messages[index]);
       controller.messages.refresh();
+      _logLatestMessage();
     } else {
       if (!_isRenderableMessage(message)) {
         log('🚫 Skipping non-renderable payload (id=$id, temp=${message['temporary_id']}). Likely reaction-only update.');
@@ -915,7 +919,22 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       log('🆕 Inserting new message entry (id=$id, temp=${message['temporary_id']}). Text preview: "${message['text'] ?? ''}"');
       controller.messages.insert(0, message);
       _prefetchThumbnailIfNeeded(controller.messages[0]);
+      _logLatestMessage();
     }
+  }
+
+  void _logLatestMessage() {
+    if (controller.messages.isEmpty) {
+      log('📌 Latest message: <none>');
+      return;
+    }
+    final latest = controller.messages.first;
+    log(
+      '📌 Latest message -> id=${latest['id'] ?? latest['temporary_id']}, '
+      'sender=${latest['sender_name'] ?? latest['sender_id']}, '
+      'type=${latest['type']}, '
+      'text="${latest['text'] ?? ''}"',
+    );
   }
 
   void _removeMessageFromList(String? messageId) {
@@ -1140,7 +1159,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     final extra = _normalizeExtra(message['extra']);
     final extraCaption = extra?['caption']?.toString().trim();
     if (extraCaption != null && extraCaption.isNotEmpty) {
-      return extraCaption;
+      return EmojiParser.decode(extraCaption);
     }
     // final text = (message['text']?.toString() ?? '').trim();
     // if (text.isEmpty || _looksLikeUrl(text)) return null;
@@ -1161,13 +1180,13 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     if (caption != null) return caption;
     if (type == 'text') {
       final text = message['text']?.toString() ?? '';
-      return text.isEmpty ? 'Text message' : text;
+      return text.isEmpty ? 'Text message' : EmojiParser.decode(text);
     }
     if (type.contains('image')) return 'Photo';
     if (type.contains('video')) return 'Video';
     if (type.contains('audio')) return 'Audio';
     if (type.contains('document')) return 'Document';
-    return message['text']?.toString() ?? '';
+    return EmojiParser.decode(message['text']?.toString() ?? '');
   }
 
   Future<void> _loadHistory() async {
@@ -1197,8 +1216,16 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
 
   void _handleMessengerUploadResponse(Map<String, dynamic> payload) {
     try {
+      if (payload['error'] != null) {
+        log('Upload payload reported error; skipping UI insert. status=${payload['error']} body=${payload['body']}');
+        return;
+      }
       final data = Map<String, dynamic>.from(payload);
       final normalized = _mapIncomingToMessage(data);
+      if (!_isRenderableMessage(normalized)) {
+        log('Upload payload is not renderable message; skipping UI insert. keys=${data.keys}');
+        return;
+      }
       _replaceMessageInList(normalized);
     } catch (e) {
       log('Failed to handle messenger upload response: $e');
@@ -1212,12 +1239,14 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     }
     final text = controller.messageController.text.trim();
     if (text.isEmpty || widget.thread_id.isEmpty) return;
+    log('📝 Outgoing raw message: "$text"');
+    log('📝 Outgoing decoded preview: "${EmojiParser.decode(text)}"');
     final replyTarget = controller.replyingTo.value;
     final payloadReplyToId = _resolveReplyToIdForSend(replyTarget);
     final tempId = Uuid().v4();
     final optimistic = {
       'temporary_id': tempId,
-      'text': text,
+      'text': EmojiParser.decode(text),
       'sender_id': widget.userId,
       'sender_name': widget.userName,
       'sender_image': widget.userImage,
@@ -1227,6 +1256,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       'reply_to_id': replyTarget?['id']?.toString() ?? '',
     };
     controller.messages.insert(0, optimistic);
+    _logLatestMessage();
     controller.messageController.clear();
     _hideMentionPanel();
     try {
@@ -1253,6 +1283,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
             controller.messages.insert(0, mapped);
           }
           controller.messages.refresh();
+          _logLatestMessage();
         } else {
           log('⚠️ Send response did not contain renderable message payload, keeping optimistic entry. Response keys: ${normalizedRes.keys}');
         }
@@ -1300,148 +1331,177 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
           iconTheme: const IconThemeData(color: Colors.white),
           automaticallyImplyLeading: false,
           flexibleSpace: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 96),
-              child: Row(
-                mainAxisSize: MainAxisSize.max,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(width: 30),
-                  GestureDetector(
-                    onTap: () {
-                      Get.back();
-                    },
-                    child: Icon(
-                      Icons.arrow_back,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 20),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 96),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.max,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(width: 30),
+                      GestureDetector(
+                        onTap: () {
+                          Get.back();
+                        },
+                        child: Icon(
+                          Icons.arrow_back,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 20),
 
-                  widget.isPublic == true
-                      ? Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Image.asset(
-                              'assets/ic/Group 5.png',
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.contain,
-                            ),
+                      widget.isPublic == true
+                          ? Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Image.asset(
+                                  'assets/ic/Group 5.png',
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.contain,
+                                ),
 
-                            // Centered network image
-                            GestureDetector(
-                              onTap: () {
-                                Get.to(() => OtherUserProfileScreen(userId: widget.otheruserId));
-                              },
-                              child: ClipPath(
-                                clipper: OctagonClipper(),
-                                child: widget.groupName.toString() == "Octagon"
-                                    ? Image.asset(
-                                        "assets/ic/Group 4.png",
-                                        width: 80,
-                                        height: 80,
-                                        fit: BoxFit.contain,
-                                      )
-                                    : Image.network(
-                                        'http://3.134.119.154/${widget.groupImage}', // Replace with your image URL
-                                        width: 45,
-                                        height: 45,
-                                        fit: BoxFit.fill,
-                                        errorBuilder: (context, error, stackTrace) => Container(
+                                // Centered network image
+                                GestureDetector(
+                                  onTap: () {
+                                    Get.to(() => OtherUserProfileScreen(userId: widget.otheruserId));
+                                  },
+                                  child: ClipPath(
+                                    clipper: OctagonClipper(),
+                                    child: widget.groupName.toString() == "Octagon"
+                                        ? ShapeMaker(
+                                            height: 50,
+                                            width: 50,
+                                            bgColor: Colors.yellow,
+                                            widget: Container(
+                                              margin: const EdgeInsets.all(6),
+                                              child: ShapeMaker(
+                                                bgColor: Colors.black,
+                                                widget: Container(
+                                                  margin: const EdgeInsets.all(8),
+                                                  child: ShapeMaker(
+                                                    bgColor: appBgColor,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                        // ? Image.asset(
+                                        //     "assets/ic/Group 4.png",
+                                        //     width: 80,
+                                        //     height: 80,
+                                        //     fit: BoxFit.contain,
+                                        //   )
+                                        : Image.network(
+                                            'http://3.134.119.154/${widget.groupImage}', // Replace with your image URL
+                                            width: 45,
+                                            height: 45,
+                                            fit: BoxFit.fill,
+                                            errorBuilder: (context, error, stackTrace) => Container(
+                                              width: 45,
+                                              height: 45,
+                                              color: Colors.transparent,
+                                              child: Icon(
+                                                Icons.error,
+                                                color: Colors.red,
+                                                size: 24,
+                                              ),
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Stack(
+                              clipBehavior: Clip.none,
+                              alignment: Alignment.center,
+                              children: [
+                                // Octagon background image
+                                Image.asset(
+                                  'assets/ic/Group 4.png', // Your uploaded PNG asset
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                ),
+
+                                // Centered network image
+                                ClipPath(
+                                  clipper: OctagonClipper(),
+                                  child: widget.groupName.toString() == "Octagon"
+                                      ? Image.asset(
+                                          "assets/ic/Group 4.png",
+                                          width: 80,
+                                          height: 80,
+                                          fit: BoxFit.contain,
+                                        )
+                                      : Image.network(
+                                          'http://3.134.119.154/${widget.groupImage}', // Replace with your image URL
                                           width: 45,
                                           height: 45,
-                                          color: Colors.transparent,
-                                          child: Icon(
-                                            Icons.error,
-                                            color: Colors.red,
-                                            size: 24,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) => Container(
+                                            width: 45,
+                                            height: 45,
+                                            color: Colors.transparent,
+                                            child: Icon(
+                                              Icons.error,
+                                              color: Colors.red,
+                                              size: 24,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                              ),
+                                ),
+                              ],
                             ),
-                          ],
-                        )
-                      : Stack(
-                          clipBehavior: Clip.none,
-                          alignment: Alignment.center,
+
+                      // Image.network(
+                      //   "http://3.134.119.154/$groupImage",
+                      //   scale: 4,
+                      //   errorBuilder: (context, error, stackTrace) => const Icon(
+                      //     Icons.broken_image,
+                      //     color: Colors.white,
+                      //     size: 32,
+                      //   ),
+                      // ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Octagon background image
-                            Image.asset(
-                              'assets/ic/Group 4.png', // Your uploaded PNG asset
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
+                            Text(
+                              widget.groupName,
+                              style: whiteColor20BoldTextStyle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-
-                            // Centered network image
-                            ClipPath(
-                              clipper: OctagonClipper(),
-                              child: widget.groupName.toString() == "Octagon"
-                                  ? Image.asset(
-                                      "assets/ic/Group 4.png",
-                                      width: 80,
-                                      height: 80,
-                                      fit: BoxFit.contain,
-                                    )
-                                  : Image.network(
-                                      'http://3.134.119.154/${widget.groupImage}', // Replace with your image URL
-                                      width: 45,
-                                      height: 45,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) => Container(
-                                        width: 45,
-                                        height: 45,
-                                        color: Colors.transparent,
-                                        child: Icon(
-                                          Icons.error,
-                                          color: Colors.red,
-                                          size: 24,
-                                        ),
-                                      ),
-                                    ),
+                            Text(
+                              "Octagon Room",
+                              style: whiteColor16TextStyle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
-
-                  // Image.network(
-                  //   "http://3.134.119.154/$groupImage",
-                  //   scale: 4,
-                  //   errorBuilder: (context, error, stackTrace) => const Icon(
-                  //     Icons.broken_image,
-                  //     color: Colors.white,
-                  //     size: 32,
-                  //   ),
-                  // ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.isPublic == true ? "Public Group" : "Private Group",
-                          style: whiteColor14TextStyle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          widget.groupName,
-                          style: whiteColor20BoldTextStyle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          "Chat Room",
-                          style: whiteColor16TextStyle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                Positioned(
+                  top: -20,
+                  right: 15,
+                  child: Text(
+                    widget.isPublic == true ? "Public Group" : "Private Group",
+                    style: whiteColor14TextStyle.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           ),
           actions: [
@@ -1504,37 +1564,25 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     if (details['options'] != null)
-                      Text(
-                        "Update: ${details['options']}",
-                        style: TextStyle(
-                          color: Color(0xFF653FF6),
-                          fontWeight: FontWeight.w500,
-                          fontSize: 15,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                    if (details['dates'] != null)
-                      Text(
-                        "Date: ${details['dates']}",
-                        style: TextStyle(
-                          color: Color(0xFF653FF6),
-                          fontWeight: FontWeight.w500,
-                          fontSize: 15,
+                        child: Text(
+                          "Update: ${details['options']}",
+                          style: const TextStyle(
+                            color: Color(0xFF653FF6),
+                            fontWeight: FontWeight.w500,
+                            fontSize: 15,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                    if (details['description'] != null)
-                      Text(
-                        details['description'],
-                        style: TextStyle(
-                          color: Color(0xFF653FF6),
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                        ),
-                        textAlign: TextAlign.center,
                       ),
                   ],
                 ),
@@ -1587,119 +1635,132 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
               ),
             ),
 
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Obx(() {
-                  final reply = controller.replyingTo.value;
-                  if (reply == null) return const SizedBox.shrink();
-                  return _buildComposerReplyPreview(reply);
-                }),
-                _buildMentionSuggestions(),
-                _isBlockedByAdmin
-                    ? Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFCE8E6),
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                        ),
-                        child: Text(
-                          _blockNotice,
-                          style: const TextStyle(color: Colors.redAccent),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                    : Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                        ),
-                        child: Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () async {
-                                await controller.pickMedia(
-                                  context,
-                                  threadId: widget.thread_id,
-                                  onMessengerMessage: _handleMessengerUploadResponse,
-                                );
-                              },
-                              child: Container(
-                                height: 40,
-                                width: 40,
-                                decoration: BoxDecoration(
-                                  color: Colors.lightBlue,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Obx(() => controller.isUploading.value
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                        ),
-                                      )
-                                    : const Icon(
-                                        Icons.add,
-                                        color: Colors.white,
-                                        size: 20,
-                                      )),
-                              ),
+            SafeArea(
+              top: false,
+              bottom: !Platform.isIOS,
+              child: Padding(
+                padding: EdgeInsets.only(bottom: Platform.isIOS ? 6 : 0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Obx(() {
+                      final reply = controller.replyingTo.value;
+                      if (reply == null) return const SizedBox.shrink();
+                      return _buildComposerReplyPreview(reply);
+                    }),
+                    _buildMentionSuggestions(),
+                    _isBlockedByAdmin
+                        ? Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFCE8E6),
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextField(
-                                textCapitalization: TextCapitalization.sentences,
-                                controller: controller.messageController,
-                                inputFormatters: [
-                                  TextInputFormatter.withFunction((oldValue, newValue) {
-                                    final text = newValue.text;
-                                    if (text.isEmpty) return newValue;
-
-                                    final firstLetterIndex = text.indexOf(RegExp(r'[A-Za-z]'));
-                                    if (firstLetterIndex == -1) return newValue;
-
-                                    final currentChar = text[firstLetterIndex];
-                                    final upperChar = currentChar.toUpperCase();
-                                    if (currentChar == upperChar) return newValue;
-
-                                    final updatedText = text.replaceRange(firstLetterIndex, firstLetterIndex + 1, upperChar);
-                                    return newValue.copyWith(text: updatedText);
-                                  }),
-                                ],
-                                style: const TextStyle(color: Colors.black),
-                                decoration: const InputDecoration(
-                                  hintText: "Write message...",
-                                  hintStyle: TextStyle(color: Colors.grey),
-                                  border: InputBorder.none,
-                                ),
-                              ),
+                            child: Text(
+                              _blockNotice,
+                              style: const TextStyle(color: Colors.redAccent),
+                              textAlign: TextAlign.center,
                             ),
-                            GestureDetector(
-                              onTap: () {
-                                _sendMessage();
-                              },
-                              child: Container(
-                                height: 40,
-                                width: 40,
-                                decoration: BoxDecoration(
-                                  color: Colors.lightBlue,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: const Icon(
-                                  Icons.send,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
+                          )
+                        : Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                             ),
-                          ],
-                        ),
-                      ),
-              ],
+                            child: Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () async {
+                                    await controller.pickMedia(
+                                      context,
+                                      threadId: widget.thread_id,
+                                      onMessengerMessage: _handleMessengerUploadResponse,
+                                    );
+                                  },
+                                  child: Container(
+                                    height: 40,
+                                    width: 40,
+                                    decoration: BoxDecoration(
+                                      color: Colors.lightBlue,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Obx(() => controller.isUploading.value
+                                        ? const SizedBox(
+                                            height: 20,
+                                            width: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.add,
+                                            color: Colors.white,
+                                            size: 20,
+                                          )),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: TextField(
+                                    textCapitalization: TextCapitalization.sentences,
+                                    controller: controller.messageController,
+                                    textAlignVertical: TextAlignVertical.center,
+                                    inputFormatters: [
+                                      TextInputFormatter.withFunction((oldValue, newValue) {
+                                        final text = newValue.text;
+                                        if (text.isEmpty) return newValue;
+
+                                        final firstLetterIndex = text.indexOf(RegExp(r'[A-Za-z]'));
+                                        if (firstLetterIndex == -1) return newValue;
+
+                                        final currentChar = text[firstLetterIndex];
+                                        final upperChar = currentChar.toUpperCase();
+                                        if (currentChar == upperChar) return newValue;
+
+                                        final updatedText = text.replaceRange(firstLetterIndex, firstLetterIndex + 1, upperChar);
+                                        return newValue.copyWith(text: updatedText);
+                                      }),
+                                    ],
+                                    style: const TextStyle(color: Colors.black),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 0,
+                                        vertical: Platform.isIOS ? 10 : 8,
+                                      ),
+                                      hintText: "Write message...",
+                                      hintStyle: const TextStyle(color: Colors.grey),
+                                      border: InputBorder.none,
+                                    ),
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () {
+                                    _sendMessage();
+                                  },
+                                  child: Container(
+                                    height: 40,
+                                    width: 40,
+                                    decoration: BoxDecoration(
+                                      color: Colors.lightBlue,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Icon(
+                                      Icons.send,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                  ],
+                ),
+              ),
             )
             // else
             // Container(
@@ -2079,21 +2140,21 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   }
 
   Widget _buildStyledMessageText(String text) {
+    final decodedText = EmojiParser.decode(text);
     final baseStyle = TextStyle(color: Colors.white, fontSize: 16.sp, height: 1.4);
-    if (text.trim().isEmpty) {
-      return Text(text, style: baseStyle);
+    if (decodedText.trim().isEmpty) {
+      return Text(decodedText, style: baseStyle);
     }
     final spans = <TextSpan>[];
-    // Highlight mentions that can include spaced display names, e.g. "@NWA Red".
-    // Extra words are included only when they start with uppercase to avoid
-    // swallowing normal sentence text after a single-word mention.
-    final mentionPattern = RegExp(r'@[\w\.\-]+(?:\s+[A-Z][\w\.\-]*)*');
+    // Highlight mentions as a single @token to avoid swallowing normal words
+    // that follow the mention (e.g. "@tim Hello").
+    final mentionPattern = RegExp(r'@[\w\.\-]+');
     int startIndex = 0;
-    for (final match in mentionPattern.allMatches(text)) {
+    for (final match in mentionPattern.allMatches(decodedText)) {
       if (match.start > startIndex) {
-        spans.add(TextSpan(text: text.substring(startIndex, match.start)));
+        spans.add(TextSpan(text: decodedText.substring(startIndex, match.start)));
       }
-      final mentionText = text.substring(match.start, match.end);
+      final mentionText = decodedText.substring(match.start, match.end);
       spans.add(
         TextSpan(
           text: mentionText,
@@ -2105,8 +2166,8 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       );
       startIndex = match.end;
     }
-    if (startIndex < text.length) {
-      spans.add(TextSpan(text: text.substring(startIndex)));
+    if (startIndex < decodedText.length) {
+      spans.add(TextSpan(text: decodedText.substring(startIndex)));
     }
     return RichText(
       text: TextSpan(style: baseStyle, children: spans),
@@ -3475,13 +3536,30 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
 
   DateTime? _parseTimestampValue(dynamic value) {
     if (value == null) return null;
-    if (value is DateTime) return value;
-    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value.toLocal();
+    if (value is Timestamp) return value.toDate().toLocal();
     if (value is String) {
       final trimmed = value.trim();
       if (trimmed.isEmpty) return null;
       try {
-        return DateTime.parse(trimmed);
+        final parsed = DateTime.parse(trimmed);
+        final hasTimezoneInfo = RegExp(r'(Z|[+-]\d{2}:?\d{2})$').hasMatch(trimmed);
+        if (hasTimezoneInfo) {
+          return parsed.toLocal();
+        }
+
+        // Messenger API can return timezone-less server timestamps; treat them as UTC.
+        final assumedUtc = DateTime.utc(
+          parsed.year,
+          parsed.month,
+          parsed.day,
+          parsed.hour,
+          parsed.minute,
+          parsed.second,
+          parsed.millisecond,
+          parsed.microsecond,
+        );
+        return assumedUtc.toLocal();
       } catch (_) {
         final numeric = num.tryParse(trimmed);
         if (numeric != null) {
@@ -3490,12 +3568,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       }
     } else if (value is int) {
       if (value > 1000000000000) {
-        return DateTime.fromMillisecondsSinceEpoch(value);
+        return DateTime.fromMillisecondsSinceEpoch(value).toLocal();
       }
-      return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+      return DateTime.fromMillisecondsSinceEpoch(value * 1000).toLocal();
     } else if (value is double) {
       final millis = (value > 1000000000000) ? value.toInt() : (value * 1000).toInt();
-      return DateTime.fromMillisecondsSinceEpoch(millis);
+      return DateTime.fromMillisecondsSinceEpoch(millis).toLocal();
     }
     return null;
   }

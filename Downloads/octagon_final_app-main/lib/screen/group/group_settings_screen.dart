@@ -192,33 +192,34 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
                       minLeadingWidth: 0,
                     ),
                     const Divider(color: Colors.white12, height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.chat_bubble_outline, color: Colors.white),
-                      title: Text(
-                        group.threadId.isNotEmpty ? 'Chat Thread Enabled' : 'Enable Chat Thread',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      subtitle: Text(
-                        group.threadId.isNotEmpty ? 'Thread ID: ${group.threadId}' : 'Add chat for all current and future members',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                      trailing: controller.isCreatingThread.value
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : group.threadId.isNotEmpty
-                              ? const Icon(Icons.check_circle, color: Colors.greenAccent)
-                              : const Icon(Icons.arrow_forward_ios, color: Colors.white),
-                      onTap: group.threadId.isNotEmpty || controller.isCreatingThread.value ? null : controller.ensureChatThread,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                      minLeadingWidth: 0,
-                      enabled: group.threadId.isEmpty && !controller.isCreatingThread.value,
-                    ),
+                    // ListTile(
+                    //   leading: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                    //   title: Text(
+                    //     group.threadId.isNotEmpty ? 'Chat Thread Enabled' : 'Enable Chat Thread',
+                    //     style: const TextStyle(color: Colors.white),
+                    //   ),
+                    //   subtitle: Text(
+                    //     group.threadId.isNotEmpty ? 'Thread ID: ${group.threadId}' : 'Add chat for all current and future members',
+                    //     style: const TextStyle(color: Colors.white70),
+                    //   ),
+                    //   trailing: controller.isCreatingThread.value
+                    //       ? const SizedBox(
+                    //           width: 20,
+                    //           height: 20,
+                    //           child: CircularProgressIndicator(
+                    //             strokeWidth: 2,
+                    //             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    //           ),
+                    //         )
+                    //       : group.threadId.isNotEmpty
+                    //           ? const Icon(Icons.check_circle, color: Colors.greenAccent)
+                    //           : const Icon(Icons.arrow_forward_ios, color: Colors.white),
+                    //   onTap: group.threadId.isNotEmpty || controller.isCreatingThread.value ? null : controller.ensureChatThread,
+                    //   contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    //   minLeadingWidth: 0,
+                    //   enabled: group.threadId.isEmpty && !controller.isCreatingThread.value,
+                    // ),
+
                     // Show Invite Members only for private groups
                     // if (group.isPublic == "1" || group.isPublic == 1) ...[
                     //   const Divider(color: Colors.white12, height: 1),

@@ -70,15 +70,6 @@ xmlns:tools="http://schemas.android.com/tools"
             </intent-filter>
         </activity>
 
-        <!-- flutter_local_notifications receivers (if used) -->
-        <receiver android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver" android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
-            </intent-filter>
-        </receiver>
-        <receiver android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" android:exported="true"/>
-
     </application>
 
     <!-- <application -->
@@ -148,7 +139,6 @@ xmlns:tools="http://schemas.android.com/tools"
 
 
 </manifest>
-
 
 
 

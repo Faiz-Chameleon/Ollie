@@ -30,10 +30,30 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final HomeController controller = Get.find();
   final postController = Get.put(PostController());
   final newHomeController = Get.find<NewHomecontroller>();
+  static const Duration _autoRefreshThreshold = Duration(minutes: 3);
+  static const String _backgroundAtStorageKey = 'home_screen_background_at_ms';
+  DateTime? _backgroundedAt;
+  bool _isAutoRefreshing = false;
+
+  void _persistBackgroundTimestamp(DateTime timestamp) {
+    storage.write(_backgroundAtStorageKey, timestamp.millisecondsSinceEpoch);
+  }
+
+  DateTime? _readPersistedBackgroundTimestamp() {
+    final raw = storage.read(_backgroundAtStorageKey);
+    if (raw == null) return null;
+    final timestampMs = int.tryParse(raw.toString());
+    if (timestampMs == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(timestampMs);
+  }
+
+  void _clearPersistedBackgroundTimestamp() {
+    storage.remove(_backgroundAtStorageKey);
+  }
 
   void _showJoinRequestDialog(int groupId, String groupTitle) {
     Get.dialog(
@@ -71,6 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // controller.scrollController.jumpTo(0);
     // Integrate the API call here
     // newHomeController.pagingController = PagingController<int, PostResponseModelData>(firstPageKey: 1);
@@ -80,6 +101,61 @@ class _HomeScreenState extends State<HomeScreen> {
     // });
 
     controller.getAllGroups();
+  }
+
+  Future<void> _refreshHomeData() async {
+    debugPrint('[HomeScreen] _refreshHomeData start at ${DateTime.now().toIso8601String()}');
+    debugPrint('[HomeScreen] pagingController is null: ${newHomeController.pagingController == null}');
+    await Future.wait([
+      controller.refreshPage(),
+      newHomeController.refreshPosts(),
+    ]);
+    debugPrint('[HomeScreen] _refreshHomeData completed at ${DateTime.now().toIso8601String()}');
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    debugPrint('[HomeScreen] lifecycle: $state at ${DateTime.now().toIso8601String()}');
+    if (state == AppLifecycleState.hidden || state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      _backgroundedAt ??= DateTime.now();
+      _persistBackgroundTimestamp(_backgroundedAt!);
+      debugPrint('[HomeScreen] background timestamp set: ${_backgroundedAt!.toIso8601String()}');
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive) {
+      debugPrint('[HomeScreen] inactive ignored for background timing');
+      return;
+    }
+
+    if (state == AppLifecycleState.resumed) {
+      final backgroundedAt = _backgroundedAt ?? _readPersistedBackgroundTimestamp();
+      if (backgroundedAt == null) {
+        debugPrint('[HomeScreen] resumed with no background timestamp');
+        return;
+      }
+
+      final awayDuration = DateTime.now().difference(backgroundedAt);
+      debugPrint('[HomeScreen] resumed after ${awayDuration.inSeconds}s (threshold: ${_autoRefreshThreshold.inSeconds}s)');
+      if (awayDuration >= _autoRefreshThreshold && !_isAutoRefreshing) {
+        _isAutoRefreshing = true;
+        debugPrint('[HomeScreen] auto-refresh triggered');
+        _refreshHomeData().whenComplete(() {
+          _isAutoRefreshing = false;
+          debugPrint('[HomeScreen] auto-refresh finished');
+        });
+      } else {
+        debugPrint('[HomeScreen] auto-refresh skipped; isAutoRefreshing=$_isAutoRefreshing');
+      }
+      _backgroundedAt = null;
+      _clearPersistedBackgroundTimestamp();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override
@@ -142,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
           })();
           return RefreshIndicator(
             onRefresh: () async {
-              await controller.refreshPage();
+              await _refreshHomeData();
             },
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

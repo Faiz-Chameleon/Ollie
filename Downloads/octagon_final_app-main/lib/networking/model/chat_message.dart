@@ -53,7 +53,7 @@ class ChatMessageData {
       senderImage: json["senderImage"],
       senderTeam: json["senderTeam"],
       createdOn: json["createdOn"] != null
-          ? json["createdOn"].toDate()
+          ? json["createdOn"].toDate().toLocal()
           : DateTime.now(),
       content: json["content"],
       likeCount: json["likeCount"],

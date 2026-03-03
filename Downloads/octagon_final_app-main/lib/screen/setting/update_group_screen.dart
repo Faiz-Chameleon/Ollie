@@ -111,35 +111,35 @@ class _UpdateGroupScreenState extends State<UpdateGroupScreen> {
                       focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white54), borderRadius: BorderRadius.circular(12))),
                 ),
                 // _input(controller.optionsController, "Updates"),
-                const SizedBox(height: 10),
+                // const SizedBox(height: 10),
 
-                // Date picker
-                _input(controller.dateController, "Enter Date", readOnly: true, onTap: () async {
-                  final pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2100),
-                  );
-                  if (pickedDate != null) {
-                    controller.dateController.text = DateFormat("yyyy-MM-dd").format(pickedDate);
-                  }
-                }),
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: controller.descriptionController,
-                  maxLength: 80, // Flutter automatically displays this count below the TextFormField
-                  maxLines: 2,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: "Add Info",
-                      hintStyle: const TextStyle(color: Colors.white54),
-                      filled: true,
-                      fillColor: Colors.transparent,
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white12), borderRadius: BorderRadius.circular(12)),
-                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white54), borderRadius: BorderRadius.circular(12))),
-                ),
+                // // Date picker
+                // _input(controller.dateController, "Enter Date", readOnly: true, onTap: () async {
+                //   final pickedDate = await showDatePicker(
+                //     context: context,
+                //     initialDate: DateTime.now(),
+                //     firstDate: DateTime(2000),
+                //     lastDate: DateTime(2100),
+                //   );
+                //   if (pickedDate != null) {
+                //     controller.dateController.text = DateFormat("yyyy-MM-dd").format(pickedDate);
+                //   }
+                // }),
+                // const SizedBox(height: 10),
+                // TextFormField(
+                //   controller: controller.descriptionController,
+                //   maxLength: 80, // Flutter automatically displays this count below the TextFormField
+                //   maxLines: 2,
+                //   style: const TextStyle(color: Colors.white),
+                //   decoration: InputDecoration(
+                //       border: OutlineInputBorder(),
+                //       hintText: "Add Info",
+                //       hintStyle: const TextStyle(color: Colors.white54),
+                //       filled: true,
+                //       fillColor: Colors.transparent,
+                //       enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white12), borderRadius: BorderRadius.circular(12)),
+                //       focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white54), borderRadius: BorderRadius.circular(12))),
+                // ),
 
                 // Country
                 // _input(controller.descriptionController, "Add Info", maxLines: 5),

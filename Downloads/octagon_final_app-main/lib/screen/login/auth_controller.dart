@@ -205,6 +205,24 @@ class AuthController extends GetxController {
     }
   }
 
+  Future<Resource<dynamic>> resetPassword({required String password}) async {
+    isLoading.value = true;
+    try {
+      final result = await NetworkAPICall().multiPartPostRequest(
+        userResetPasswordApiUrl,
+        {"password": password},
+        true,
+        "POST",
+      );
+      apiResult.value = result;
+      return Resource(data: result);
+    } catch (e) {
+      return Resource(error: e.toString());
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   Future<void> registerUser({
     required String name,
     required String email,

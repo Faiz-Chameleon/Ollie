@@ -76,7 +76,7 @@ class ChatMessageWidget extends StatelessWidget {
                 ),
               const SizedBox(height: 4),
               Text(
-                timeago.format(message.createdOn ?? DateTime.now()),
+                timeago.format((message.createdOn ?? DateTime.now()).toLocal()),
                 style: const TextStyle(
                   color: Colors.white54,
                   fontSize: 10,

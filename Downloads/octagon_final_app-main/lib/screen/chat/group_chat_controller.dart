@@ -132,6 +132,8 @@ class GroupChatController extends GetxController {
   /// `temporary_id` so the server can echo it back for optimistic UI replacement.
   Future<Map<String, dynamic>?> uploadVideoToThread(String threadId, File file, {String? caption}) async {
     try {
+      final startedAt = DateTime.now();
+      final traceId = Uuid().v4();
       final token = storage.read("token");
       if (token == null) {
         print('No auth token available');
@@ -156,24 +158,48 @@ class GroupChatController extends GetxController {
 
       request.files.add(await http.MultipartFile.fromPath('video', file.path));
 
-      print('Sending video to $uri (temp id: $tempId) ...');
+      print('Sending video to $uri (temp id: $tempId, trace: $traceId) ...');
       final streamed = await request.send();
       final respBody = await streamed.stream.bytesToString();
-      print('Video upload response status: ${streamed.statusCode}');
+      final elapsedMs = DateTime.now().difference(startedAt).inMilliseconds;
+      print('Video upload response status: ${streamed.statusCode} (trace: $traceId, ${elapsedMs}ms)');
       print('Video upload response body: $respBody');
 
       if (streamed.statusCode == 200 || streamed.statusCode == 201) {
         try {
           final decoded = json.decode(respBody);
-          // return parsed response so caller can update UI/messages accordingly
-          return decoded is Map<String, dynamic> ? decoded : {'response': decoded};
+          final responseMap = decoded is Map<String, dynamic> ? decoded : {'response': decoded};
+          responseMap['_upload_meta'] = {
+            'ok': true,
+            'status': streamed.statusCode,
+            'trace_id': traceId,
+            'elapsed_ms': elapsedMs,
+          };
+          return responseMap;
         } catch (e) {
           // non-JSON response
-          return {'response_text': respBody};
+          return {
+            'response_text': respBody,
+            '_upload_meta': {
+              'ok': true,
+              'status': streamed.statusCode,
+              'trace_id': traceId,
+              'elapsed_ms': elapsedMs,
+            }
+          };
         }
       } else {
         print('Failed to upload video: ${streamed.statusCode} ${streamed.reasonPhrase}');
-        return {'error': streamed.statusCode, 'body': respBody};
+        return {
+          'error': streamed.statusCode,
+          'body': respBody,
+          '_upload_meta': {
+            'ok': false,
+            'status': streamed.statusCode,
+            'trace_id': traceId,
+            'elapsed_ms': elapsedMs,
+          }
+        };
       }
     } catch (e, st) {
       print('Exception uploading video to thread: $e\n$st');
@@ -460,11 +486,14 @@ class GroupChatController extends GetxController {
       final source = await showImagePicker(context);
       print('Selected source: $source');
 
-      // Check if user cancelled
-      if (source == null && source != null) {
-        print('Invalid source selection');
-        Get.snackbar("Error", "Invalid source selection");
-        return;
+      // In this picker, both "Video" and "Cancel" currently return null.
+      // Ask for explicit confirmation so cancel does not accidentally open video picker.
+      if (source == null) {
+        final shouldPickVideo = await _confirmVideoSelection(context);
+        if (!shouldPickVideo) {
+          print('Media picker cancelled by user');
+          return;
+        }
       }
 
       isUploading.value = true;
@@ -660,6 +689,12 @@ class GroupChatController extends GetxController {
               for (var i = 0; i < videoFiles.length; i++) {
                 final file = videoFiles[i];
                 try {
+                  final videoSize = await File(file.filePath).length();
+                  if (videoSize > CloudinaryConfig.maxVideoSize) {
+                    final maxMb = CloudinaryConfig.maxVideoSize ~/ (1024 * 1024);
+                    Get.snackbar('Error', 'Video is too large. Maximum size is ${maxMb}MB.');
+                    continue;
+                  }
                   final caption = await _promptMediaCaption(
                     context,
                     isVideo: true,
@@ -677,7 +712,7 @@ class GroupChatController extends GetxController {
                     caption: caption.isEmpty ? null : caption,
                   );
                   print('Direct video upload result: $uploadRes');
-                  if (uploadRes != null) {
+                  if (uploadRes != null && uploadRes['error'] == null) {
                     if ((uploadRes['thumbnail_url'] == null || '${uploadRes['thumbnail_url']}'.isEmpty) &&
                         (uploadRes['thumbnail'] == null || '${uploadRes['thumbnail']}'.isEmpty)) {
                       final localThumb = await generateLocalVideoThumbnailPath(file.filePath);
@@ -693,7 +728,11 @@ class GroupChatController extends GetxController {
                       onMessengerMessage?.call(uploadRes);
                     }
                   } else {
-                    Get.snackbar('Error', 'Failed to upload video to thread');
+                    final status = uploadRes?['error']?.toString() ?? uploadRes?['_upload_meta']?['status']?.toString() ?? 'unknown';
+                    final traceId = uploadRes?['_upload_meta']?['trace_id']?.toString() ?? '';
+                    final body = (uploadRes?['body']?.toString() ?? '').trim();
+                    print('Video upload failed. status=$status trace=$traceId body=$body');
+                    Get.snackbar('Upload failed', 'Video upload failed (status: $status).');
                   }
                 } catch (e) {
                   print('Error uploading video to thread: $e');
@@ -906,6 +945,29 @@ class GroupChatController extends GetxController {
       isUploading.value = false;
       print('Media picker finished');
     }
+  }
+
+  Future<bool> _confirmVideoSelection(BuildContext context) async {
+    final decision = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Select video?'),
+          content: const Text('Choose "Yes" to pick a video from your gallery.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('No'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Yes'),
+            ),
+          ],
+        );
+      },
+    );
+    return decision ?? false;
   }
 
   Future<String?> _promptMediaCaption(

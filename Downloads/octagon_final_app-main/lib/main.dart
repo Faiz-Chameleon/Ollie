@@ -19,6 +19,7 @@ import 'package:octagon/screen/tabs_screen.dart';
 
 import 'package:octagon/utils/theme/theme_constants.dart';
 import 'package:octagon/utils/theme/theme_notifier.dart';
+import 'package:octagon/utils/emoji_parser.dart';
 import 'package:provider/provider.dart';
 import 'package:resize/resize.dart';
 import 'package:sizer/sizer.dart';
@@ -35,6 +36,7 @@ void main() async {
   // await Firebase.initializeApp();
   await GetStorage.init();
   storage = GetStorage();
+  await EmojiParser.init();
   Get.put<PusherService>(PusherService(), permanent: true);
   final messaging = FirebaseMessaging.instance;
   await messaging.requestPermission();

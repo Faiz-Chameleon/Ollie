@@ -79,7 +79,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                         border: OutlineInputBorder(),
-                        hintText: "Updates",
+                        hintText: "Bio",
                         hintStyle: const TextStyle(color: Colors.white54),
                         filled: true,
                         fillColor: Colors.transparent,
@@ -87,35 +87,35 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                         focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white54), borderRadius: BorderRadius.circular(12))),
                   ),
                   // _input(controller.updateTextController, "Updates"),
+                  // const SizedBox(height: 10),
+                  // _input(controller.dateController, "Enter Date", readOnly: true, onTap: () async {
+                  //   final pickedDate = await showDatePicker(
+                  //     context: context,
+                  //     initialDate: DateTime.now(),
+                  //     firstDate: DateTime(2000),
+                  //     lastDate: DateTime(2100),
+                  //   );
+                  //   if (pickedDate != null) {
+                  //     controller.dateController.text = DateFormat("yyyy-MM-dd").format(pickedDate);
+                  //   }
+                  // }),
+                  // const SizedBox(height: 10),
+                  // _input(controller.countryController, "Country"),
                   const SizedBox(height: 10),
-                  _input(controller.dateController, "Enter Date", readOnly: true, onTap: () async {
-                    final pickedDate = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                    );
-                    if (pickedDate != null) {
-                      controller.dateController.text = DateFormat("yyyy-MM-dd").format(pickedDate);
-                    }
-                  }),
-                  const SizedBox(height: 10),
-                  _input(controller.countryController, "Country"),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: controller.infoController,
-                    maxLength: 80, // Flutter automatically displays this count below the TextFormField
-                    maxLines: 2,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                        border: OutlineInputBorder(),
-                        hintText: "Add Info",
-                        hintStyle: const TextStyle(color: Colors.white54),
-                        filled: true,
-                        fillColor: Colors.transparent,
-                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white12), borderRadius: BorderRadius.circular(12)),
-                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white54), borderRadius: BorderRadius.circular(12))),
-                  ),
+                  // TextFormField(
+                  //   controller: controller.infoController,
+                  //   maxLength: 80, // Flutter automatically displays this count below the TextFormField
+                  //   maxLines: 2,
+                  //   style: const TextStyle(color: Colors.white),
+                  //   decoration: InputDecoration(
+                  //       border: OutlineInputBorder(),
+                  //       hintText: "Add Info",
+                  //       hintStyle: const TextStyle(color: Colors.white54),
+                  //       filled: true,
+                  //       fillColor: Colors.transparent,
+                  //       enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white12), borderRadius: BorderRadius.circular(12)),
+                  //       focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white54), borderRadius: BorderRadius.circular(12))),
+                  // ),
                   const SizedBox(height: 20),
                   SwitchListTile(
                     value: controller.isPrivate.value,

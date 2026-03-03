@@ -23,6 +23,7 @@ const String forgetPasswordApiUrl = "forgot-password";
 const String otpVerifyApiUrl = "otp-verify";
 const String resendOtpApiUrl = "otp-create";
 const String resetPasswordApiUrl = "reset-password";
+const String userResetPasswordApiUrl = "reset-password";
 const String sportListApiUrl = "sport-list";
 const String teamListApiUrl = "team-list";
 const String saveUserSportsApiUrl = "save-user-sports";
@@ -35,6 +36,7 @@ const String saveUserPostApiUrl = "save-post";
 
 ///save to collection
 const String userRemoveApiUrl = "user-remove";
+const String deleteAccountApiUrl = "del-account";
 const String reportUserPostApiUrl = "save-post-report";
 
 const String createPostApiUrl = "save-user-post";

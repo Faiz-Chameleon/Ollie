@@ -314,13 +314,13 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                                       SizedBox(
                                         height: 5,
                                       ),
-                                      if (group["description"] != null)
+                                      if (group["options"] != null)
                                         Padding(
                                           padding: const EdgeInsets.only(left: 10, bottom: 7, right: 7),
                                           child: Container(
                                             height: 30.h,
                                             child: Text(
-                                              group["description"] != '""' ? group["description"] : "",
+                                              group["options"] ?? "",
                                               style: blueColor12BoldTextStyle,
                                               maxLines: 3,
                                               overflow: TextOverflow.ellipsis,
