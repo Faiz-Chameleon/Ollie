@@ -55,7 +55,12 @@ class MobileNumberScreen extends StatelessWidget {
                       () async {
                         final email = emailController.text.trim();
                         if (!emailValidReg.hasMatch(email)) {
-                          Get.snackbar(AppName, "Please enter valid E-mail");
+                          Get.snackbar(
+                            AppName,
+                            "Please enter valid E-mail",
+                            backgroundColor: Colors.white,
+                            colorText: Colors.black,
+                          );
                           return;
                         }
 
@@ -64,7 +69,12 @@ class MobileNumberScreen extends StatelessWidget {
                         if (result.data != null) {
                           Get.off(() => LoginScreen());
                         } else {
-                          Get.snackbar(AppName, "Something went wrong, Please try again later");
+                          Get.snackbar(
+                            AppName,
+                            "Something went wrong, Please try again later",
+                            backgroundColor: Colors.white,
+                            colorText: Colors.black,
+                          );
                         }
                       },
                       1,

@@ -735,7 +735,12 @@ class CommentScreen extends StatelessWidget {
           );
           controller.replyTextController.value.clear();
         } else {
-          Get.snackbar("Octagon", "Please write comment first!");
+          Get.snackbar(
+            "Octagon",
+            "Please write comment first!",
+            backgroundColor: Colors.white,
+            colorText: Colors.black,
+          );
         }
         Get.back();
       },

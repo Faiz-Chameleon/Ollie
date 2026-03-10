@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:octagon/networking/network.dart';
 
@@ -64,14 +65,29 @@ class GroupRequestsController extends GetxController {
       isLoading.value = true;
       final requestId = int.tryParse(request.requestId);
       if (requestId == null) {
-        Get.snackbar('Error', 'Invalid request id');
+        Get.snackbar(
+          'Error',
+          'Invalid request id',
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
         return;
       }
       await NetworkAPICall().acceptGroupJoinRequest(requestId: requestId);
       requests.removeWhere((r) => r.requestId == request.requestId);
-      Get.snackbar('Success', 'Request accepted');
+      Get.snackbar(
+        'Success',
+        'Request accepted',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } catch (e) {
-      Get.snackbar('Error', 'Failed to accept request: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to accept request: $e',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -82,14 +98,29 @@ class GroupRequestsController extends GetxController {
       isLoading.value = true;
       final requestId = int.tryParse(request.requestId);
       if (requestId == null) {
-        Get.snackbar('Error', 'Invalid request id');
+        Get.snackbar(
+          'Error',
+          'Invalid request id',
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
         return;
       }
       await NetworkAPICall().rejectGroupJoinRequest(requestId: requestId);
       requests.removeWhere((r) => r.requestId == request.requestId);
-      Get.snackbar('Success', 'Request rejected');
+      Get.snackbar(
+        'Success',
+        'Request rejected',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } catch (e) {
-      Get.snackbar('Error', 'Failed to reject request: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to reject request: $e',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } finally {
       isLoading.value = false;
     }

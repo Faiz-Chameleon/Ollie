@@ -135,7 +135,12 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                       if (controller.selectedImage.value != null) {
                         controller.createGroup(context, fromWhere: widget.fromWhere, teamName: _teamNameController.text.trim());
                       } else {
-                        Get.snackbar(backgroundColor: Colors.white, "Error", "Please Select a Photo For Group Icon");
+                        Get.snackbar(
+                          backgroundColor: Colors.white,
+                          "Error",
+                          "Please Select a Photo For Group Icon",
+                          colorText: Colors.black,
+                        );
                       }
                     },
                   ),

@@ -655,8 +655,8 @@ class CreatePostScreen extends StatelessWidget {
                         Get.snackbar(
                           "Error",
                           "Please upload media first",
-                          backgroundColor: Colors.red,
-                          colorText: Colors.white,
+                          backgroundColor: Colors.white,
+                          colorText: Colors.black,
                         );
                         return;
                       }

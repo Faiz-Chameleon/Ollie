@@ -74,6 +74,7 @@ dependencies:
   #  hexagon: ^0.1.1
   flutter_dash: ^1.0.0
   video_thumbnail: ^0.5.3
+  video_compress: ^3.1.4
   custom_pop_up_menu: ^1.2.4
   shape_maker: ^0.0.1-dev.1
   firebase_remote_config: ^5.4.4

@@ -307,7 +307,12 @@ class _TeamSelectionScreenState extends State<TeamSelectionScreen> {
           if (data.sports != null && data.sports!.isNotEmpty) {
             sportBloc.add(SaveTeamListEvent(term: data.sports));
           } else {
-            Get.snackbar("Octagon", "Please select at least 1 team!");
+            Get.snackbar(
+              "Octagon",
+              "Please select at least 1 team!",
+              backgroundColor: Colors.white,
+              colorText: Colors.black,
+            );
           }
         }, 1));
   }

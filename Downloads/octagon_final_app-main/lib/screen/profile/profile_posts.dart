@@ -22,13 +22,7 @@ class ProfilePosts extends StatefulWidget {
   bool isOtherUser = false;
   bool isLoading = false;
 
-  ProfilePosts(
-      {Key? key,
-      this.onButtonPress,
-      this.isLoading = false,
-      required this.postDataList,
-      this.isSavedPost = false,
-      this.isOtherUser = false})
+  ProfilePosts({Key? key, this.onButtonPress, this.isLoading = false, required this.postDataList, this.isSavedPost = false, this.isOtherUser = false})
       : super(key: key);
 
   @override
@@ -75,11 +69,7 @@ class _ProfilePostsState extends State<ProfilePosts> {
                   fit: StackFit.expand,
                   children: [
                     if (isPostImageAvailable(e) || isPostVideoAvailable(e))
-                      ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: isPostImageAvailable(e)
-                              ? buildImageView(e)
-                              : buildVideoView(e)),
+                      ClipRRect(borderRadius: BorderRadius.circular(10), child: isPostImageAvailable(e) ? buildImageView(e) : buildVideoView(e)),
 
                     ///delete button
                     if (!widget.isOtherUser)
@@ -100,25 +90,21 @@ class _ProfilePostsState extends State<ProfilePosts> {
                               builder: (BuildContext context) {
                                 return AlertDialog(
                                   title: const Text('Octagon'),
-                                  content: Text(
-                                      'Are you sure you want to ${!widget.isSavedPost ? 'delete' : 'Unsaved'} this post!.'),
+                                  content: Text('Are you sure you want to ${!widget.isSavedPost ? 'delete' : 'Unsaved'} this post!.'),
                                   actions: <Widget>[
                                     InkWell(
                                       onTap: () => Navigator.pop(context),
                                       // Closes the dialog
-                                      child: const Text('No',
-                                          style: TextStyle(fontSize: 16)),
+                                      child: const Text('No', style: TextStyle(fontSize: 16)),
                                     ),
                                     InkWell(
                                       onTap: () {
                                         if (widget.onButtonPress != null) {
                                           widget.onButtonPress!.call(e);
                                         }
-                                        Navigator.pop(
-                                            context); // Closes the dialog
+                                        Navigator.pop(context); // Closes the dialog
                                       },
-                                      child: const Text('Yes',
-                                          style: TextStyle(fontSize: 16)),
+                                      child: const Text('Yes', style: TextStyle(fontSize: 16)),
                                     ),
                                   ],
                                 );
@@ -145,18 +131,22 @@ class _ProfilePostsState extends State<ProfilePosts> {
           //   ),
           // ),
         ),
-        child: widget.isLoading
-            ? GestureDetector(
-                onTap: () {},
-                child: Container(),
-              )
-            : Center(
-                child: Text(
-                widget.isSavedPost
-                    ? "No saved post at this moment"
-                    : "No data available!",
-                style: TextStyle(color: Colors.white),
-              )));
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.45,
+              child: Center(
+                child: widget.isLoading
+                    ? const CircularProgressIndicator()
+                    : Text(
+                        widget.isSavedPost ? "No saved post at this moment" : "You haven't posted anything yet!",
+                        style: const TextStyle(color: Colors.white),
+                      ),
+              ),
+            ),
+          ],
+        ));
   }
 
   bool isPostImageAvailable(PostResponseModelData e) {
@@ -181,9 +171,7 @@ class _ProfilePostsState extends State<ProfilePosts> {
 
   buildImageView(PostResponseModelData e) {
     return CachedNetworkImage(
-      imageUrl: e.images != null &&
-              e.images?.first.filePath != null &&
-              e.images!.first.filePath!.isNotEmpty
+      imageUrl: e.images != null && e.images?.first.filePath != null && e.images!.first.filePath!.isNotEmpty
           ? e.images!.first.filePath!
           : "https://picsum.photos/250?image=1",
       fit: BoxFit.cover,

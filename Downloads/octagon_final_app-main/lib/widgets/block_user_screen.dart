@@ -301,20 +301,28 @@ class BlockUserListScreen extends StatefulWidget {
 }
 
 class _BlockUserListScreenState extends State<BlockUserListScreen> {
-  final PostController _postController = Get.find<PostController>();
+  late final PostController _postController;
   final RxList<BlockUserData> blockUserData = <BlockUserData>[].obs;
+  final RxBool isLoading = false.obs;
 
   @override
   void initState() {
     super.initState();
+    _postController = Get.isRegistered<PostController>() ? Get.find<PostController>() : Get.put(PostController());
     fetchBlockedUsers();
   }
 
   Future<void> fetchBlockedUsers() async {
-    await _postController.getBlockedUsers(1);
-    // TODO: Replace below with actual data assignment when you populate `blockList` in controller
-    // Example:
-    // blockUserData.assignAll(_postController.blockList.cast<BlockUserData>());
+    isLoading.value = true;
+    try {
+      await _postController.getBlockedUsers(1);
+      final users = _postController.blockList.whereType<BlockUserData>().toList();
+      blockUserData.assignAll(users);
+    } catch (_) {
+      blockUserData.clear();
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   @override
@@ -332,6 +340,9 @@ class _BlockUserListScreenState extends State<BlockUserListScreen> {
         ),
       ),
       body: Obx(() {
+        if (isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
         if (blockUserData.isEmpty) {
           return const Center(child: Text("No data found!", style: TextStyle(color: Colors.white)));
         }
@@ -348,24 +359,39 @@ class _BlockUserListScreenState extends State<BlockUserListScreen> {
                 width: 50,
                 height: 50,
                 child: CachedNetworkImage(
-                  imageUrl: user.photo ?? "https://randomuser.me/api/portraits/women/0.jpg",
+                  imageUrl: user.photo.isNotEmpty ? user.photo : "https://randomuser.me/api/portraits/women/0.jpg",
                   fit: BoxFit.cover,
                   placeholder: (context, url) => const SizedBox(height: 20, child: Center(child: CircularProgressIndicator())),
                   errorWidget: (context, url, error) => const Icon(Icons.error),
                 ),
               ),
-              title: Text(user.name ?? "", style: whiteColor16BoldTextStyle),
-              subtitle: Text(user.name ?? "", style: greyColor16TextStyle),
+              title: Text(user.name, style: whiteColor16BoldTextStyle),
+              subtitle: Text(user.name, style: greyColor16TextStyle),
               trailing: !widget.isOtherUser
-                  ? FollowButton(
-                      text: "UnBlock",
-                      backgroundColor: darkGreyColor,
-                      textStyle: greyColor14TextStyle,
-                      onClick: () async {
-                        await _postController.blockUnblockUser("${user.id}", false);
-                        blockUserData.removeAt(index);
-                        widget.refreshPage?.call();
-                      },
+                  ? SizedBox(
+                      width: 92,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: FollowButton(
+                          text: "UnBlock",
+                          backgroundColor: darkGreyColor,
+                          textStyle: greyColor14TextStyle,
+                          onClick: () async {
+                            try {
+                              await _postController.blockUnblockUser("${user.id}", false);
+                              blockUserData.removeAt(index);
+                              widget.refreshPage?.call();
+                            } catch (e) {
+                              Get.snackbar(
+                                "Error",
+                                "Failed to unblock user",
+                                backgroundColor: Colors.white,
+                                colorText: Colors.black,
+                              );
+                            }
+                          },
+                        ),
+                      ),
                     )
                   : null,
             );

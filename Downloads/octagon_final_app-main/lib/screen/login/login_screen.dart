@@ -40,11 +40,21 @@ class LoginScreen extends StatelessWidget {
 
   bool isValid(String email, String password) {
     if (!emailValidReg.hasMatch(email)) {
-      Get.snackbar(AppName, "Please enter valid E-mail");
+      Get.snackbar(
+        AppName,
+        "Please enter valid E-mail",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return false;
     }
     if (password.length < 6) {
-      Get.snackbar(AppName, "Please enter at least 6 character for password");
+      Get.snackbar(
+        AppName,
+        "Please enter at least 6 character for password",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return false;
     }
     return true;
@@ -99,7 +109,12 @@ class LoginScreen extends StatelessWidget {
 
                       final data = result.data;
                       if (data == null || data.success == null) {
-                        Get.snackbar(AppName, result.error ?? "Login failed");
+                        Get.snackbar(
+                          AppName,
+                          result.error ?? "Login failed",
+                          backgroundColor: Colors.white,
+                          colorText: Colors.black,
+                        );
                         return;
                       }
 
@@ -155,7 +170,12 @@ class LoginScreen extends StatelessWidget {
                         // storage.write('sportInfo',
                         //     sportInfo.map((e) => e.toJson()).toList());
 
-                        Get.snackbar("Octagon", "You logged in as ${success.name}");
+                        Get.snackbar(
+                          "Octagon",
+                          "You logged in as ${success.name}",
+                          backgroundColor: Colors.white,
+                          colorText: Colors.black,
+                        );
                         Get.offAll(() => TabScreen());
                       }
                     },

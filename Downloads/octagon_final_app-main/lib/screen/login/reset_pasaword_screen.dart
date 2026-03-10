@@ -58,11 +58,21 @@ class _ResetPassScreenState extends State<ResetPassScreen> {
     final confirmPassword = _confirmNewPassController.text.trim();
 
     if (newPassword.isEmpty || confirmPassword.isEmpty || confirmPassword.length < 5) {
-      Get.snackbar(AppName, "Please enter valid Password!");
+      Get.snackbar(
+        AppName,
+        "Please enter valid Password!",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
     if (confirmPassword != newPassword) {
-      Get.snackbar("new Password", "password not Matched");
+      Get.snackbar(
+        "new Password",
+        "password not Matched",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
 
@@ -72,14 +82,24 @@ class _ResetPassScreenState extends State<ResetPassScreen> {
     if (response != null) {
       final message =
           response is Map<String, dynamic> && response["success"] != null ? response["success"].toString() : "Your password is reset now!";
-      Get.snackbar(AppName, message);
+      Get.snackbar(
+        AppName,
+        message,
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       if (mounted) {
         Navigator.pop(context);
       }
       return;
     }
 
-    Get.snackbar(AppName, result.error ?? "Something went wrong, Please try again later");
+    Get.snackbar(
+      AppName,
+      result.error ?? "Something went wrong, Please try again later",
+      backgroundColor: Colors.white,
+      colorText: Colors.black,
+    );
   }
 
   @override

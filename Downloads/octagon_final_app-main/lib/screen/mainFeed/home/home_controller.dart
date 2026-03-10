@@ -140,15 +140,29 @@ class HomeController extends GetxController {
               ));
         } else {
           print(response.reasonPhrase);
-          Get.snackbar("Error", "Failed to fetch group members", backgroundColor: Colors.red, colorText: Colors.white);
+          Get.snackbar(
+            "Error",
+            "Failed to fetch group members",
+            backgroundColor: Colors.white,
+            colorText: Colors.black,
+          );
         }
       } catch (e) {
         print("Error fetching group members: $e");
-        Get.snackbar("Error", "Failed to fetch group members", backgroundColor: Colors.red, colorText: Colors.white);
+        Get.snackbar(
+          "Error",
+          "Failed to fetch group members",
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
       }
     } else {
-      Get.snackbar("Private Group", "This is a private group. You need to be a member to join the chat.",
-          backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar(
+        "Private Group",
+        "This is a private group. You need to be a member to join the chat.",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     }
   }
 

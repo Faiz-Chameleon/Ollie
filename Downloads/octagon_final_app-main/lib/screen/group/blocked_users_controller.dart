@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:octagon/networking/network.dart';
 
@@ -60,9 +61,19 @@ class BlockedUsersController extends GetxController {
       isLoading.value = true;
       await NetworkAPICall().unblockGroupUser(userId: int.parse(userId), threadId: threadId);
       users.removeWhere((u) => u.userId == userId);
-      Get.snackbar('Success', 'User unblocked successfully');
+      Get.snackbar(
+        'Success',
+        'User unblocked successfully',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } catch (e) {
-      Get.snackbar('Error', 'Failed to unblock user: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to unblock user: $e',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } finally {
       isLoading.value = false;
     }

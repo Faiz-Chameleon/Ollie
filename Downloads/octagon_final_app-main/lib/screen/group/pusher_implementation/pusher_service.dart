@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:http/http.dart' as http;
@@ -463,7 +464,13 @@ class PusherService extends GetxService {
       // Also log to console for debugging
       log("✅ Message added to stream: ${data.toString()}");
 
-      Get.snackbar('New Message', 'You have a new message', duration: Duration(seconds: 2));
+      Get.snackbar(
+        'New Message',
+        'You have a new message',
+        duration: Duration(seconds: 2),
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     });
   }
 
@@ -583,7 +590,13 @@ class PusherService extends GetxService {
     _processEvent(event, (data) {
       _currentFriendEvent.value = data;
       _friendController.add({'type': 'friend_request', 'data': data});
-      Get.snackbar('Friend Request', 'You have a new friend request', duration: Duration(seconds: 3));
+      Get.snackbar(
+        'Friend Request',
+        'You have a new friend request',
+        duration: Duration(seconds: 3),
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     });
   }
 
@@ -669,7 +682,13 @@ class PusherService extends GetxService {
       _messageController.add({'type': 'reaction_added', 'data': data});
 
       // Visual feedback
-      Get.snackbar('Reaction Added', 'Someone reacted to your message', duration: Duration(seconds: 2));
+      Get.snackbar(
+        'Reaction Added',
+        'Someone reacted to your message',
+        duration: Duration(seconds: 2),
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     });
   }
 
@@ -706,7 +725,13 @@ class PusherService extends GetxService {
     log("🚪 Knock knock");
     _processEvent(event, (data) {
       _notificationController.add({'type': 'knock_knock', 'data': data});
-      Get.snackbar('Knock Knock', 'Someone is at the door!', duration: Duration(seconds: 2));
+      Get.snackbar(
+        'Knock Knock',
+        'Someone is at the door!',
+        duration: Duration(seconds: 2),
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     });
   }
 

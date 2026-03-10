@@ -114,14 +114,6 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         ),
         // Text("", style: whiteColor20BoldTextStyle.copyWith(fontSize: 22, fontWeight: FontWeight.w800)),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: Colors.white),
-            onPressed: () {
-              controller.refreshAll(force: true);
-            },
-          ),
-        ],
       ),
       body: Obx(() {
         if (controller.isLoading.value && !controller.isDataLoaded.value) {
@@ -130,18 +122,27 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
         try {
           // Add error handling
           if (controller.profileData.value == null && !controller.isLoading.value) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+            return RefreshIndicator(
+              onRefresh: () => controller.refreshAll(force: true),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  Text(
-                    "Failed to load profile",
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                  SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => controller.refreshAll(force: true),
-                    child: Text("Retry"),
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.7,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Failed to load profile",
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                        SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => controller.refreshAll(force: true),
+                          child: Text("Retry"),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -150,6 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
           return RefreshIndicator(
             onRefresh: () => controller.refreshAll(force: true),
+            notificationPredicate: (_) => true,
             child: Column(
               children: [
                 // Profile Header
@@ -383,7 +385,19 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                 Obx(() {
                   try {
                     final user = controller.profileData.value?.success?.user;
-                    if (user?.userType == "2" && controller.groupMembers.isNotEmpty && controller.groupMembers.value != null) {
+                    final visibleMembers = controller.groupMembers.where((member) {
+                      if (member is! Map) return false;
+                      final isMemberRaw = member["is_member"] ?? member["ismember"];
+                      final isMember = isMemberRaw == 1 || isMemberRaw.toString() == "1";
+                      if (!isMember) return false;
+
+                      final isInvitedRaw = member["is_invited"];
+                      final isInvitedZero = isInvitedRaw == 0 || isInvitedRaw.toString() == "0";
+                      final isPending = (member["status"]?.toString().toLowerCase() ?? "") == "pending";
+                      return !(isInvitedZero && isPending);
+                    }).toList();
+
+                    if (user?.userType == "2" && visibleMembers.isNotEmpty) {
                       return Container(
                         height: 90.h,
                         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -402,10 +416,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                             Expanded(
                               child: ListView.builder(
                                 scrollDirection: Axis.horizontal,
-                                itemCount: controller.groupMembers.length,
+                                itemCount: visibleMembers.length,
                                 itemBuilder: (context, index) {
                                   try {
-                                    final member = controller.groupMembers[index];
+                                    final member = visibleMembers[index];
                                     return member["is_invited"] == 0 && member["status"] == "pending"
                                         ? SizedBox.shrink()
                                         : Padding(
@@ -424,8 +438,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                                                       children: [
                                                         GestureDetector(
                                                           onTap: () {
-                                                            print('Navigating to user profile with userId: ${controller.groupMembers[index]["id"]}');
-                                                            Get.to(() => OtherUserProfileScreen(userId: controller.groupMembers[index]["id"]));
+                                                            print('Navigating to user profile with userId: ${member["id"]}');
+                                                            Get.to(() => OtherUserProfileScreen(userId: member["id"]));
                                                           },
                                                           child: ShapeMaker(
                                                             height: 50,

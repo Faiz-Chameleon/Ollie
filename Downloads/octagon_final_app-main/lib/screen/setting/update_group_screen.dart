@@ -148,7 +148,16 @@ class _UpdateGroupScreenState extends State<UpdateGroupScreen> {
                 // Privacy toggle
                 SwitchListTile(
                   value: controller.isPrivate.value,
-                  onChanged: (val) => controller.isPrivate.value = val,
+                  onChanged: (controller.isUpdating.value || controller.isTogglingPrivacy.value)
+                      ? null
+                      : (val) async {
+                          final previous = controller.isPrivate.value;
+                          controller.isPrivate.value = val;
+                          final ok = await controller.updateGroupPrivacy(val);
+                          if (!ok) {
+                            controller.isPrivate.value = previous;
+                          }
+                        },
                   activeColor: Colors.deepPurple,
                   title: const Text("Make Group Private", style: TextStyle(color: Colors.white)),
                   secondary: const Icon(Icons.verified_user_rounded, color: Colors.deepPurple),
@@ -159,10 +168,14 @@ class _UpdateGroupScreenState extends State<UpdateGroupScreen> {
                 CustomButton(
                   width: double.infinity,
                   height: 5.vh,
-                  ButtonText: controller.isUpdating.value ? "Updating..." : "Update Group",
+                  ButtonText: controller.isUpdating.value
+                      ? "Updating..."
+                      : controller.isTogglingPrivacy.value
+                          ? "Updating..."
+                          : "Update Group",
                   colors: Colors.deepPurple,
                   textColor: Colors.white,
-                  tap: controller.isUpdating.value
+                  tap: (controller.isUpdating.value || controller.isTogglingPrivacy.value)
                       ? null
                       : () async {
                           await controller.updateGroup(context);

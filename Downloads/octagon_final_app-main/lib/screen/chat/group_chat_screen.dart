@@ -95,8 +95,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             Get.snackbar(
               "Error",
               "Failed to load messages: ${response.message ?? 'Unknown error'}",
-              backgroundColor: Colors.red,
-              colorText: Colors.white,
+              backgroundColor: Colors.white,
+              colorText: Colors.black,
             );
             break;
         }
@@ -106,8 +106,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         Get.snackbar(
           "Error",
           "An error occurred while processing messages",
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
         );
       }
     }, onError: (error) {
@@ -116,8 +116,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       Get.snackbar(
         "Error",
         "Failed to connect to chat",
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
       );
     });
 
@@ -127,8 +127,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       Get.snackbar(
         "Error",
         "User ID not found",
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
       );
       return;
     }
@@ -180,8 +180,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       Get.snackbar(
         "Error",
         "Failed to send message + ${e}",
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
       );
     }
   }
@@ -198,13 +198,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             CircleAvatar(
               radius: 20,
               backgroundColor: Colors.grey[700],
-              backgroundImage:
-                  (widget.groupPhoto != null && widget.groupPhoto!.isNotEmpty)
-                      ? NetworkImage(widget.groupPhoto!)
-                      : null,
-              child: (widget.groupPhoto == null || widget.groupPhoto!.isEmpty)
-                  ? const Icon(Icons.group, color: Colors.white)
-                  : null,
+              backgroundImage: (widget.groupPhoto != null && widget.groupPhoto!.isNotEmpty) ? NetworkImage(widget.groupPhoto!) : null,
+              child: (widget.groupPhoto == null || widget.groupPhoto!.isEmpty) ? const Icon(Icons.group, color: Colors.white) : null,
               onBackgroundImageError: (_, __) {},
             ),
             const SizedBox(width: 10),
@@ -225,8 +220,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                     padding: const EdgeInsets.all(16),
                     itemBuilder: (context, index) {
                       final message = messages[index];
-                      final isMe =
-                          message.senderUid == storage.read("current_uid");
+                      final isMe = message.senderUid == storage.read("current_uid");
 
                       return ChatMessageWidget(
                         message: message,
@@ -239,8 +233,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.grey[900],
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
               children: [

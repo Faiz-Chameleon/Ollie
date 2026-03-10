@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:octagon/screen/login/login_controller.dart';
 import 'package:octagon/screen/profile/ProfileController.dart';
 import 'package:octagon/utils/theme/theme_constants.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:octagon/widgets/block_user_screen.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../main.dart';
@@ -89,7 +90,9 @@ class SettingController extends GetxController {
 
     cacheMenu = [
       _menuTile(Icons.delete_rounded, "Clear Cache", () {
-        _showForgetMeDialog("This will clear local cache memory!", () {});
+        _showForgetMeDialog("This will clear local cache memory!", () async {
+          await _clearAppCache();
+        });
       }),
     ];
 
@@ -163,7 +166,12 @@ class SettingController extends GetxController {
         "POST",
       );
 
-      Get.snackbar("Octagon", "Your account has been deleted.");
+      Get.snackbar(
+        "Octagon",
+        "Your account has been deleted.",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       final fcmToken = storage.read("fcmToken");
       await storage.erase();
       if (fcmToken != null) {
@@ -171,7 +179,47 @@ class SettingController extends GetxController {
       }
       Get.offAll(() => LoginScreen());
     } catch (e) {
-      Get.snackbar("Octagon", "Unable to delete account. Please try again.");
+      Get.snackbar(
+        "Octagon",
+        "Unable to delete account. Please try again.",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
+    }
+  }
+
+  Future<void> _clearAppCache() async {
+    try {
+      // Clear in-memory Flutter image caches.
+      PaintingBinding.instance.imageCache.clear();
+      PaintingBinding.instance.imageCache.clearLiveImages();
+
+      // Clear files from the app's temporary/cache directory.
+      final tempDir = await getTemporaryDirectory();
+      if (await tempDir.exists()) {
+        final entities = tempDir.listSync(recursive: false);
+        for (final entity in entities) {
+          try {
+            await entity.delete(recursive: true);
+          } catch (_) {
+            // Ignore single file delete failures and continue.
+          }
+        }
+      }
+
+      Get.snackbar(
+        "Octagon",
+        "Cache cleared successfully.",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
+    } catch (_) {
+      Get.snackbar(
+        "Octagon",
+        "Unable to clear cache. Please try again.",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     }
   }
 

@@ -148,6 +148,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:octagon/main.dart';
@@ -241,17 +242,32 @@ class NewGroupController extends GetxController {
       final int? currentUserId = storedUserId != null ? int.tryParse(storedUserId.toString()) : null;
 
       if (currentUserId == null) {
-        Get.snackbar('Error', 'Unable to determine the current user');
+        Get.snackbar(
+          'Error',
+          'Unable to determine the current user',
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
         return;
       }
 
       final bool? alreadyMember = await _isUserAlreadyMember(currentUserId);
       if (alreadyMember == null) {
-        Get.snackbar('Error', 'Unable to verify group membership. Please try again.');
+        Get.snackbar(
+          'Error',
+          'Unable to verify group membership. Please try again.',
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
         return;
       }
       if (alreadyMember) {
-        Get.snackbar('Groups', 'You have already joined this group');
+        Get.snackbar(
+          'Groups',
+          'You have already joined this group',
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
         return;
       }
 
@@ -276,15 +292,88 @@ class NewGroupController extends GetxController {
         update();
       } else {
         print(response.reasonPhrase);
-        Get.snackbar('Error', 'Failed to join group');
+        Get.snackbar(
+          'Error',
+          'Failed to join group',
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
       }
     } catch (e) {
       print('Exception: $e');
-      Get.snackbar('Error', 'Failed to join group');
+      Get.snackbar(
+        'Error',
+        'Failed to join group',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } finally {
       isLoadingOnJoin.value = false;
 
       update();
+    }
+  }
+
+  Future<bool> sendJoinRequest(int groupId) async {
+    isLoadingOnJoin.value = true;
+    final token = storage.read("token");
+    if (token == null) {
+      isLoadingOnJoin.value = false;
+      Get.snackbar(
+        'Error',
+        'Authentication token missing. Please log in again.',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
+      return false;
+    }
+
+    final uri = Uri.parse(Uri.encodeFull('${baseUrl}send-request'));
+    final request = http.MultipartRequest('POST', uri);
+    request.headers.addAll({'Authorization': 'Bearer $token'});
+    request.fields['group_id'] = groupId.toString();
+
+    try {
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      if (response.statusCode == 201) {
+        return true;
+      }
+      if (response.statusCode == 409) {
+        String message = 'You have already sent a request to this group.';
+        try {
+          final decoded = jsonDecode(responseBody);
+          if (decoded is Map && decoded['error'] != null) {
+            message = decoded['error'].toString();
+          }
+        } catch (_) {}
+        Get.snackbar(
+          'Request already sent',
+          message,
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
+        return false;
+      }
+      print('sendJoinRequest failed ($groupId): ${response.statusCode} - ${response.reasonPhrase} - $responseBody');
+      Get.snackbar(
+        'Error',
+        'Failed to send request. Please try again.',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
+      return false;
+    } catch (e) {
+      print('sendJoinRequest error: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to send request. Please try again.',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
+      return false;
+    } finally {
+      isLoadingOnJoin.value = false;
     }
   }
 

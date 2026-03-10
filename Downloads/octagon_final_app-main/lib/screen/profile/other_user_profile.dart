@@ -665,7 +665,7 @@ class OtherUserProfileScreen extends StatelessWidget {
             icon: Icon(Icons.menu, color: Colors.white),
             onSelected: (value) {
               if (value == 'Block') {
-                controller.blockUnblockUser(controller.isBlocked.value);
+                controller.blockUnblockUser(!controller.isBlocked.value);
               } else if (value == 'Report') {
                 _showReportDialog(context, controller);
               }

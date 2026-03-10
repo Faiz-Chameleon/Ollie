@@ -48,6 +48,11 @@ class OTPScreen extends StatelessWidget {
   final TextEditingController otpController = TextEditingController();
   final AuthController authController = Get.find();
 
+  Future<bool> _handleBackNavigation() async {
+    Get.offAll(() => LoginScreen());
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     publishAmplitudeEvent(eventType: 'OTP $kScreenView');
@@ -58,123 +63,146 @@ class OTPScreen extends StatelessWidget {
       authController.resendOtp(email: email);
     }
 
-    return Material(
-      color: appBgColor,
-      child: SafeArea(
-        child: Obx(() {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 15.0),
-              child: Column(
-                children: [
-                  SizedBox(height: 4.vh),
-                  Text(
-                    "We have sent an OTP to\nyour Email address",
-                    textAlign: TextAlign.center,
-                    style: whiteColor24BoldTextStyle,
-                  ),
-                  Text(
-                    "Please check your Email to complete your signup!.",
-                    textAlign: TextAlign.center,
-                    style: greyColor12TextStyle,
-                  ),
-                  SizedBox(height: 4.vh),
-                  PinCodeTextField(
-                    pinBoxWidth: 55,
-                    pinBoxHeight: 55,
-                    autofocus: true,
-                    controller: otpController,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    onDone: (val) => debugPrint("OTP Entered: $val"),
-                  ),
-                  SizedBox(height: 4.vh),
-                  FilledButtonWidget(
-                    isLoading: authController.isLoading.value,
-                    "Next",
-                    () async {
-                      if (otpController.text.trim().length != 6) {
-                        Get.snackbar(AppName, "Please enter valid OTP");
-                        return;
-                      }
-
-                      final result = await authController.verifyOtp(
-                        email: email,
-                        otp: otpController.text.trim(),
-                      );
-
-                      final loginResponse = result.data;
-                      if (loginResponse == null || loginResponse.success == null) {
-                        showToast(message: loginResponse?.error ?? "OTP verification failed");
-                        return;
-                      }
-
-                      final success = loginResponse.success!;
-                      // Store basic session info
-                      storage.write("current_uid", success.userId);
-                      storage.write('token', success.token.toString());
-                      storage.write('country', success.country ?? '');
-                      storage.write('user_name', success.name ?? '');
-                      if (success.bio != null) storage.write('bio', success.bio);
-                      storage.write('image_url', success.photo ?? '');
-                      storage.write('email', success.email ?? '');
-                      storage.write(userData, success.toJson());
-
-                      setAmplitudeUserProperties();
-
-                      // Handle sport info navigation
-                      final sportInfo = success.sportInfo;
-                      if (sportInfo == null || sportInfo.isEmpty || sportInfo.first.team == null || sportInfo.first.team!.isEmpty) {
-                        if (authController.selectedProfile.value == 'personal') {
-                          Get.to(() => SportSelection());
-                        } else if (authController.selectedProfile.value == 'team') {
-                          // final sportList = sportInfo?.map((s) {
-                          //       return Sports(s.strSport!, s.id!, s.idSport!,
-                          //           s.strSportThumb!,
-                          //           selected: true);
-                          //     }).toList() ??
-                          //     [];
-                          Get.to(() => CreateGroupScreen(
-                                fromWhere: 'login',
-                                teamName: teamName,
-                              ));
+    return WillPopScope(
+      onWillPop: _handleBackNavigation,
+      child: Material(
+        color: appBgColor,
+        child: SafeArea(
+          child: Obx(() {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 15.0),
+                child: Column(
+                  children: [
+                    SizedBox(height: 4.vh),
+                    Text(
+                      "We have sent an OTP to\nyour Email address",
+                      textAlign: TextAlign.center,
+                      style: whiteColor24BoldTextStyle,
+                    ),
+                    Text(
+                      "Please check your Email to complete your signup!.",
+                      textAlign: TextAlign.center,
+                      style: greyColor12TextStyle,
+                    ),
+                    SizedBox(height: 4.vh),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        const horizontalGapPerBox = 4.0; // 2 left + 2 right
+                        final availableWidth = constraints.maxWidth - (horizontalGapPerBox * 6);
+                        final double boxWidth = (availableWidth / 6).clamp(34.0, 48.0);
+                        return PinCodeTextField(
+                          pinBoxWidth: boxWidth,
+                          pinBoxHeight: 52,
+                          pinBoxOuterPadding: const EdgeInsets.symmetric(horizontal: 2),
+                          wrapAlignment: WrapAlignment.spaceBetween,
+                          hasUnderline: false,
+                          autofocus: true,
+                          controller: otpController,
+                          keyboardType: TextInputType.number,
+                          maxLength: 6,
+                          onDone: (val) => debugPrint("OTP Entered: $val"),
+                        );
+                      },
+                    ),
+                    SizedBox(height: 4.vh),
+                    FilledButtonWidget(
+                      isLoading: authController.isLoading.value,
+                      "Next",
+                      () async {
+                        if (otpController.text.trim().length != 6) {
+                          Get.snackbar(
+                            AppName,
+                            "Please enter valid OTP",
+                            backgroundColor: Colors.white,
+                            colorText: Colors.black,
+                          );
+                          return;
                         }
-                      } else {
-                        storage.write('userDefaultTeam', sportInfo.first.team!.first.strTeamLogo.toString());
-                        storage.write('userDefaultTeamName', sportInfo.first.team!.first.toJson());
 
-                        final encoded = jsonEncode(sportInfo.map((e) => e.toJson()).toList());
-                        storage.write('sportInfo', encoded);
+                        final result = await authController.verifyOtp(
+                          email: email,
+                          otp: otpController.text.trim(),
+                        );
 
-                        Get.snackbar("Octagon", "You logged in as ${success.name}");
-                        Get.offAll(() => TabScreen());
-                      }
-                    },
-                    1,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        InkWell(
-                          onTap: () => authController.resendOtp(email: email),
-                          child: RichText(
-                            text: TextSpan(
-                              text: "Resend ",
-                              style: whiteColor14BoldTextStyle,
-                              children: [TextSpan(text: "OTP", style: whiteColor14TextStyle)],
+                        final loginResponse = result.data;
+                        if (loginResponse == null || loginResponse.success == null) {
+                          showToast(message: loginResponse?.error ?? "OTP verification failed");
+                          return;
+                        }
+
+                        final success = loginResponse.success!;
+                        // Store basic session info
+                        storage.write("current_uid", success.userId);
+                        storage.write('token', success.token.toString());
+                        storage.write('country', success.country ?? '');
+                        storage.write('user_name', success.name ?? '');
+                        if (success.bio != null) storage.write('bio', success.bio);
+                        storage.write('image_url', success.photo ?? '');
+                        storage.write('email', success.email ?? '');
+                        storage.write(userData, success.toJson());
+
+                        setAmplitudeUserProperties();
+
+                        // Handle sport info navigation
+                        final sportInfo = success.sportInfo;
+                        if (sportInfo == null || sportInfo.isEmpty || sportInfo.first.team == null || sportInfo.first.team!.isEmpty) {
+                          if (authController.selectedProfile.value == 'personal') {
+                            Get.to(() => SportSelection());
+                          } else if (authController.selectedProfile.value == 'team') {
+                            // final sportList = sportInfo?.map((s) {
+                            //       return Sports(s.strSport!, s.id!, s.idSport!,
+                            //           s.strSportThumb!,
+                            //           selected: true);
+                            //     }).toList() ??
+                            //     [];
+                            Get.to(() => CreateGroupScreen(
+                                  fromWhere: 'login',
+                                  teamName: teamName,
+                                ));
+                          }
+                        } else {
+                          storage.write('userDefaultTeam', sportInfo.first.team!.first.strTeamLogo.toString());
+                          storage.write('userDefaultTeamName', sportInfo.first.team!.first.toJson());
+
+                          final encoded = jsonEncode(sportInfo.map((e) => e.toJson()).toList());
+                          storage.write('sportInfo', encoded);
+
+                          Get.snackbar(
+                            "Octagon",
+                            "You logged in as ${success.name}",
+                            backgroundColor: Colors.white,
+                            colorText: Colors.black,
+                          );
+                          Get.offAll(() => TabScreen());
+                        }
+                      },
+                      1,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          InkWell(
+                            onTap: () => authController.resendOtp(email: email),
+                            child: RichText(
+                              text: TextSpan(
+                                text: "Resend ",
+                                style: whiteColor14BoldTextStyle,
+                                children: [TextSpan(text: "OTP", style: whiteColor14TextStyle)],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
+        ),
       ),
     );
   }

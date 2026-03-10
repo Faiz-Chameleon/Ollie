@@ -22,6 +22,7 @@ class _VideoEditorState extends State<VideoEditor> {
   final _exportingProgress = ValueNotifier<double>(0.0);
   final _isExporting = ValueNotifier<bool>(false);
   final double height = 60;
+  String? _initError;
 
   late final VideoEditorController _controller = VideoEditorController.file(
     widget.file,
@@ -34,11 +35,18 @@ class _VideoEditorState extends State<VideoEditor> {
     super.initState();
     _controller
         .initialize(/*aspectRatio: 9 / 16*/)
-        .then((_) => setState(() {}))
+        .then((_) {
+          if (!mounted) return;
+          setState(() {
+            _initError = null;
+          });
+        })
         .catchError((error) {
-      // handle minumum duration bigger than video duration error
-      Navigator.pop(context);
-    }, test: (e) => e is VideoMinDurationError);
+      if (!mounted) return;
+      setState(() {
+        _initError = error?.toString() ?? 'Unable to open this video on this device.';
+      });
+    });
 
     publishAmplitudeEvent(eventType: 'Video Editor $kScreenView');
   }
@@ -107,6 +115,36 @@ class _VideoEditorState extends State<VideoEditor> {
 
   @override
   Widget build(BuildContext context) {
+    if (_initError != null) {
+      return Scaffold(
+        backgroundColor: appBgColor,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white, size: 44),
+                  const SizedBox(height: 12),
+                  Text(
+                    _initError!,
+                    style: const TextStyle(color: Colors.white70),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context, widget.file.path),
+                    child: const Text('Use Original Video'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return WillPopScope(
       onWillPop: () async => false,
       child: Scaffold(
@@ -338,12 +376,15 @@ class _VideoEditorState extends State<VideoEditor> {
         ]),
         builder: (_, __) {
           final duration = _controller.videoDuration.inSeconds;
-          final pos = _controller.trimPosition * duration;
+          final trimPosition = _controller.trimPosition;
+          final safeDuration = duration > 0 ? duration : 0;
+          final rawPos = (trimPosition.isFinite ? trimPosition : 0.0) * safeDuration;
+          final safePos = rawPos.isFinite && rawPos >= 0 ? rawPos.floor() : 0;
 
           return Padding(
             padding: EdgeInsets.symmetric(horizontal: height / 4),
             child: Row(children: [
-              Text(formatter(Duration(seconds: pos.toInt()))),
+              Text(formatter(Duration(seconds: safePos))),
               const Expanded(child: SizedBox()),
               Row(mainAxisSize: MainAxisSize.min, children: [
                 Text(formatter(_controller.startTrim)),

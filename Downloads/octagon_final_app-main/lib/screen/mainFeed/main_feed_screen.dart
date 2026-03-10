@@ -184,8 +184,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           centerTitle: true,
           actions: <Widget>[
             GestureDetector(
-              onTap: () {
-                Share.share('My Favourite app for sports https://octagonapp.com/app-download');
+              onTap: () async {
+                final box = context.findRenderObject() as RenderBox?;
+                await SharePlus.instance.share(
+                  ShareParams(
+                    text:
+                        'It\'s a sports social network where you rep your team, chat with fellow fans, share photos & videos, and experience every game together. Join your team\'s community now 👇https://octagonapp.com/app-download',
+                    subject: 'Octagon App',
+                    title: 'Found my tribe on Octagon! 🔥',
+                    sharePositionOrigin: box != null ? (box.localToGlobal(Offset.zero) & box.size) : null,
+                  ),
+                );
               },
               child: Container(
                 color: Colors.transparent,
@@ -225,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               children: [
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 500),
-                  height: controller.groups.isNotEmpty ? 90.h : 90.h,
+                  height: displayGroups.isNotEmpty ? 124 : 0,
                   margin: EdgeInsets.only(bottom: 1.vh, top: 1.vh),
                   child: ListView.builder(
                     controller: controller.scrollController,
@@ -234,28 +243,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     shrinkWrap: true,
                     padding: EdgeInsets.symmetric(horizontal: 4.w),
                     itemBuilder: (_, index) {
+                      final group = displayGroups[index];
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8.0),
                         child: GestureDetector(
                           onTap: () async {
-                            final selectedGroup = controller.groups[index];
+                            final selectedGroup = group;
                             final currentUserId = storage.read("current_uid")?.toString();
                             final isAuthor = currentUserId != null && currentUserId.isNotEmpty && selectedGroup.userId.toString() == currentUserId;
+                            final isPrivateGroup = selectedGroup.isPublic == "1";
 
-                            if (selectedGroup.isPublic == "1" && !isAuthor) {
-                              final isMember = await controller.groupController.isUserAlreadyMember(selectedGroup.id);
-                              if (isMember == true) {
+                            if (isPrivateGroup && !isAuthor) {
+                              final canAccess = await controller.groupController.isPrivateGroupAccessAllowed(selectedGroup.id);
+                              if (canAccess == true) {
                                 // continue to chat flow below
-                              } else if (isMember == false) {
+                              } else if (canAccess == false) {
                                 _showJoinRequestDialog(selectedGroup.id, selectedGroup.title);
                                 return;
                               } else {
-                                Get.snackbar('Error', 'Unable to verify group membership. Please try again.');
+                                Get.snackbar(
+                                  'Error',
+                                  'Unable to verify private group access. Please try again.',
+                                  backgroundColor: Colors.white,
+                                  colorText: Colors.black,
+                                );
                                 return;
                               }
                             }
 
-                            if (!isAuthor) {
+                            if (!isAuthor && !isPrivateGroup) {
                               final joined = await controller.groupController.joinGroupIfNeeded(selectedGroup.id);
                               if (!joined) return;
                             }
@@ -263,7 +279,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             if (threadId.isEmpty) {
                               final resolvedThreadId = await controller.ensureThreadIdForGroup(selectedGroup);
                               if (resolvedThreadId == null || resolvedThreadId.isEmpty) {
-                                Get.snackbar('Error', 'Unable to open chat for this group. Please try again later.');
+                                Get.snackbar(
+                                  'Error',
+                                  'Unable to open chat for this group. Please try again later.',
+                                  backgroundColor: Colors.white,
+                                  colorText: Colors.black,
+                                );
                                 return;
                               }
                               threadId = resolvedThreadId;
@@ -283,9 +304,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           },
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              controller.groups[index].isPublic == "1"
+                              group.isPublic == "1"
                                   ? Stack(
                                       clipBehavior: Clip.none,
                                       alignment: Alignment.center,
@@ -293,8 +314,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         // Octagon background image
                                         Image.asset(
                                           'assets/ic/Group 4.png', // Your uploaded PNG asset
-                                          width: 80,
-                                          height: 80,
+                                          width: 74,
+                                          height: 74,
                                           fit: BoxFit.cover,
                                         ),
 
@@ -302,9 +323,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         ClipPath(
                                           clipper: OctagonClipper(),
                                           child: Image.network(
-                                            'http://3.134.119.154/${controller.groups[index].photo}', // Replace with your image URL
-                                            width: 45,
-                                            height: 45,
+                                            'http://3.134.119.154/${group.photo}', // Replace with your image URL
+                                            width: 44,
+                                            height: 44,
                                             fit: BoxFit.cover,
                                             errorBuilder: (context, error, stackTrace) => Container(
                                               width: 45,
@@ -319,7 +340,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                           ),
                                         ),
                                         Positioned(
-                                          left: 50,
+                                          left: 45,
                                           top: -1,
                                           child: Icon(
                                             Icons.lock,
@@ -334,15 +355,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       children: [
                                         Image.asset(
                                           'assets/ic/Group 5.png',
-                                          width: 80,
-                                          height: 80,
+                                          width: 74,
+                                          height: 74,
                                           fit: BoxFit.contain,
                                         ),
 
                                         // Centered network image
                                         ClipPath(
                                           clipper: OctagonClipper(),
-                                          child: controller.groups[index].title == "Octagon"
+                                          child: group.title == "Octagon"
                                               ? ShapeMaker(
                                                   height: 50,
                                                   width: 50,
@@ -361,9 +382,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                   ),
                                                 )
                                               : Image.network(
-                                                  'http://3.134.119.154/${controller.groups[index].photo}', // Replace with your image URL
-                                                  width: 45,
-                                                  height: 45,
+                                                  'http://3.134.119.154/${group.photo}', // Replace with your image URL
+                                                  width: 44,
+                                                  height: 44,
                                                   fit: BoxFit.fill,
                                                   errorBuilder: (context, error, stackTrace) => Container(
                                                     width: 45,
@@ -379,21 +400,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         ),
                                       ],
                                     ),
-                              // SizedBox(height: 1.2),
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(5),
-                                  constraints: BoxConstraints(maxWidth: 90),
-                                  child: Text(
-                                    controller.groups[index].title,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
+                              const SizedBox(height: 4),
+                              SizedBox(
+                                width: 90,
+                                child: Text(
+                                  group.title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    height: 1.2,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
                                 ),
                               ),
                             ],

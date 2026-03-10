@@ -119,7 +119,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           ))
                       : const Center(
                           child: Text(
-                            "No Data Found",
+                            "You have no new notifications!",
                             style: TextStyle(color: Colors.white),
                           ),
                         ),

@@ -36,8 +36,7 @@ class EditProfileController extends GetxController {
     errorMessage.value = '';
     successMessage.value = '';
     try {
-      final response = await repo.updateProfile(token, fields,
-          photoFile: photoFile, backgroundFile: backgroundFile);
+      final response = await repo.updateProfile(token, fields, photoFile: photoFile, backgroundFile: backgroundFile);
       editProfileResponse.value = response;
       user.value = response.user;
       successMessage.value = 'Profile updated successfully!';
@@ -47,8 +46,8 @@ class EditProfileController extends GetxController {
       Get.snackbar(
         'Success',
         successMessage.value,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 3),
       );
@@ -59,8 +58,8 @@ class EditProfileController extends GetxController {
       Get.snackbar(
         'Error',
         errorMessage.value,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
         snackPosition: SnackPosition.BOTTOM,
         duration: const Duration(seconds: 3),
       );

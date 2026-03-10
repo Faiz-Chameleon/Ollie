@@ -26,6 +26,7 @@ class TrendingScreen extends StatefulWidget {
 class _TrendingScreenState extends State<TrendingScreen> {
   List<PostResponseModelData> trendingDataList = [];
   List<PostResponseModelData> searchList = [];
+  final Map<String, Future<String?>> _videoThumbFutureCache = {};
 
   TrendingBloc trendingDataBloc = TrendingBloc();
   //PostBloc postBloc = PostBloc();
@@ -225,8 +226,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
               }
               if (state is GetTrendingState) {
                 print('✅ Trending Success State');
-                print(
-                    '✅ Trending Data Count: ${state.postResponseModel.success?.length ?? 0}');
+                print('✅ Trending Data Count: ${state.postResponseModel.success?.length ?? 0}');
                 // stopLoader(context);
                 isLoading = false;
                 if (isRefresh) {
@@ -243,8 +243,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
                     //   storiesDataList.add(element);
                     // }
                   }
-                  print(
-                      '✅ Trending Data Added - Total: ${trendingDataList.length}');
+                  print('✅ Trending Data Added - Total: ${trendingDataList.length}');
                 } else {
                   print('⚠️ Trending Success State but no data in response');
                 }
@@ -274,8 +273,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
                         title: TextField(
                           controller: controller,
                           textCapitalization: TextCapitalization.sentences,
-                          decoration: const InputDecoration(
-                              hintText: 'Search', border: InputBorder.none),
+                          decoration: const InputDecoration(hintText: 'Search', border: InputBorder.none),
                           onChanged: onSearchTextChanged,
                         ),
                         trailing: controller.text.trim().isNotEmpty
@@ -316,15 +314,9 @@ class _TrendingScreenState extends State<TrendingScreen> {
 
     if (text.trim().isNotEmpty) {
       for (var userDetail in trendingDataList) {
-        if (userDetail.title!
-                .toLowerCase()
-                .contains(text.trim().toLowerCase()) ||
-            userDetail.post!
-                .toLowerCase()
-                .contains(text.trim().toLowerCase()) ||
-            userDetail.userName!
-                .toLowerCase()
-                .contains(text.trim().toLowerCase())) {
+        if (userDetail.title!.toLowerCase().contains(text.trim().toLowerCase()) ||
+            userDetail.post!.toLowerCase().contains(text.trim().toLowerCase()) ||
+            userDetail.userName!.toLowerCase().contains(text.trim().toLowerCase())) {
           searchList.add(userDetail);
         }
       }
@@ -345,8 +337,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
   }
 
   void pagination() {
-    if ((scrollController.position.pixels ==
-        scrollController.position.maxScrollExtent)) {
+    if ((scrollController.position.pixels == scrollController.position.maxScrollExtent)) {
       isRefresh = false;
       currentPageNo = currentPageNo + 1;
       trendingDataBloc.add(GetTrendingEvent(type: "1"));
@@ -366,8 +357,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
   }
 
   _buildTrending() {
-    print(
-        '🎨 Building Trending UI - isLoading: $isLoading, searchList.length: ${searchList.length}');
+    print('🎨 Building Trending UI - isLoading: $isLoading, searchList.length: ${searchList.length}');
 
     if (isLoading) {
       print('🎨 Showing Loading State');
@@ -437,9 +427,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
           onTap: () {
             trendingDataBloc.add(GetTrendingEvent(type: "1"));
           },
-          child: const Center(
-              child: Text("No data found! Please try again later!!",
-                  style: TextStyle(color: Colors.white))));
+          child: const Center(child: Text("No data found! Please try again later!!", style: TextStyle(color: Colors.white))));
     }
   }
 
@@ -465,8 +453,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
           width: 90,
           height: 130,
           decoration: BoxDecoration(
-            color:
-                greyColor, /*
+            color: greyColor, /*
             borderRadius: BorderRadius.all(Radius.circular(20))*/
           ),
           child: getView(trendingDataList)),
@@ -495,9 +482,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
 
   _buildImageView(PostResponseModelData trendingDataList) {
     return CachedNetworkImage(
-      imageUrl: isPostImageAvailable(trendingDataList)
-          ? trendingDataList.images!.first.filePath!
-          : "",
+      imageUrl: isPostImageAvailable(trendingDataList) ? trendingDataList.images!.first.filePath! : "",
       fit: BoxFit.cover,
       placeholder: (context, url) => const SizedBox(height: 20),
       errorWidget: (context, url, error) => const Icon(Icons.error),
@@ -505,28 +490,64 @@ class _TrendingScreenState extends State<TrendingScreen> {
   }
 
   _buildVideoView(PostResponseModelData trendingDataList) {
-    return CachedNetworkImage(
-      imageUrl: trendingDataList.thumbUrl ?? "",
-      fit: BoxFit.cover,
-      placeholder: (context, url) => const SizedBox(height: 20),
-      errorWidget: (context, url, error) => const Icon(Icons.error),
+    final thumbUrl = (trendingDataList.thumbUrl ?? "").trim();
+    final videoPath = (trendingDataList.videos?.isNotEmpty ?? false) ? (trendingDataList.videos!.first.filePath ?? "").trim() : "";
+
+    Widget child;
+    if (thumbUrl.isNotEmpty) {
+      child = CachedNetworkImage(
+        imageUrl: thumbUrl,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => const SizedBox(height: 20),
+        errorWidget: (context, url, error) => _buildVideoFallback(videoPath),
+      );
+    } else {
+      child = _buildVideoFallback(videoPath);
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        child,
+        const Center(
+          child: Icon(Icons.play_circle_fill, color: Colors.white70, size: 28),
+        ),
+      ],
     );
-    // return FutureBuilder(
-    //     future: getImagePath(trendingDataList.videos?.first.filePath ?? ""),
-    //     builder: (context, snapshot) {
-    //       if (snapshot.hasData && snapshot.data != null) {
-    //         return Image.file(
-    //           File("${snapshot.data}"),
-    //           fit: BoxFit.cover,
-    //         );
-    //       } else {
-    //         return Container(
-    //             width: 96,
-    //             height: 96,
-    //             color: Colors.transparent,
-    //             child: Icon(Icons.error));
-    //       }
-    //     });
+  }
+
+  Widget _buildVideoFallback(String videoPath) {
+    if (videoPath.isEmpty) {
+      return Container(
+        color: Colors.black26,
+        alignment: Alignment.center,
+        child: const Icon(Icons.videocam, color: Colors.white70),
+      );
+    }
+
+    final thumbFuture = _videoThumbFutureCache.putIfAbsent(
+      videoPath,
+      () => getImagePath(videoPath),
+    );
+
+    return FutureBuilder<String?>(
+      future: thumbFuture,
+      builder: (context, snapshot) {
+        final generatedThumbPath = snapshot.data;
+        if (snapshot.connectionState == ConnectionState.done && generatedThumbPath != null && generatedThumbPath.isNotEmpty) {
+          return Image.file(
+            File(generatedThumbPath),
+            fit: BoxFit.cover,
+          );
+        }
+
+        return Container(
+          color: Colors.black26,
+          alignment: Alignment.center,
+          child: const Icon(Icons.videocam, color: Colors.white70),
+        );
+      },
+    );
   }
 
   getView(PostResponseModelData trendingDataList) {
@@ -538,11 +559,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
       return _buildVideoView(trendingDataList);
     } else {
       // print("..................nothing");
-      return Container(
-          width: 96,
-          height: 96,
-          color: Colors.transparent,
-          child: Icon(Icons.error));
+      return Container(width: 96, height: 96, color: Colors.transparent, child: Icon(Icons.error));
     }
   }
 }

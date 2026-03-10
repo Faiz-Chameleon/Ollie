@@ -103,7 +103,12 @@ class AuthController extends GetxController {
       storage.write('userDefaultTeamName', sports.first.team!.first.toJson());
       storage.write('sportInfo', sports.map((e) => e.toJson()).toList());
 
-      Get.snackbar("Octagon", "You logged in as ${success.name}");
+      Get.snackbar(
+        "Octagon",
+        "You logged in as ${success.name}",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       Get.offAll(() => TabScreen());
     }
   }

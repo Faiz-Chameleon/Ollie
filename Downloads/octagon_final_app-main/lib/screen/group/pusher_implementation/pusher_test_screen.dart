@@ -42,11 +42,21 @@ class _PusherTestScreenState extends State<PusherTestScreen> {
         setState(() => _threadId = tid);
         Get.snackbar('Thread', 'Thread id: $tid');
       } else {
-        Get.snackbar('Thread', 'Could not determine thread id from response');
+        Get.snackbar(
+          'Thread',
+          'Could not determine thread id from response',
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
       }
     } catch (e) {
       log('create thread error: $e');
-      Get.snackbar('Error', e.toString());
+      Get.snackbar(
+        'Error',
+        e.toString(),
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } finally {
       _setLoading(false);
     }
@@ -55,7 +65,12 @@ class _PusherTestScreenState extends State<PusherTestScreen> {
   Future<void> _createGroupViaMessenger() async {
     final name = _groupNameC.text.trim();
     if (name.isEmpty) {
-      Get.snackbar('Validation', 'Please enter a group name');
+      Get.snackbar(
+        'Validation',
+        'Please enter a group name',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
 
@@ -80,13 +95,28 @@ class _PusherTestScreenState extends State<PusherTestScreen> {
 
       if (id != null) {
         setState(() => _threadId = id);
-        Get.snackbar('Created', 'Thread id: $id');
+        Get.snackbar(
+          'Created',
+          'Thread id: $id',
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
       } else {
-        Get.snackbar('Error', 'Could not determine thread id from response');
+        Get.snackbar(
+          'Error',
+          'Could not determine thread id from response',
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
       }
     } catch (e) {
       log('create group error: $e');
-      Get.snackbar('Error', e.toString());
+      Get.snackbar(
+        'Error',
+        e.toString(),
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } finally {
       _setLoading(false);
     }
@@ -94,7 +124,12 @@ class _PusherTestScreenState extends State<PusherTestScreen> {
 
   Future<void> _fetchMessages() async {
     if (_threadId == null) {
-      Get.snackbar('Error', 'No thread id');
+      Get.snackbar(
+        'Error',
+        'No thread id',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
     _setLoading(true);
@@ -107,7 +142,12 @@ class _PusherTestScreenState extends State<PusherTestScreen> {
       setState(() => _messages = msgs);
     } catch (e) {
       log('fetch messages error: $e');
-      Get.snackbar('Error', e.toString());
+      Get.snackbar(
+        'Error',
+        e.toString(),
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } finally {
       _setLoading(false);
     }
@@ -115,7 +155,12 @@ class _PusherTestScreenState extends State<PusherTestScreen> {
 
   Future<void> _subscribeThread() async {
     if (_threadId == null) {
-      Get.snackbar('Error', 'No thread id');
+      Get.snackbar(
+        'Error',
+        'No thread id',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
     try {
@@ -136,16 +181,31 @@ class _PusherTestScreenState extends State<PusherTestScreen> {
         }
       });
 
-      Get.snackbar('Subscribed', 'Subscribed to thread $_threadId');
+      Get.snackbar(
+        'Subscribed',
+        'Subscribed to thread $_threadId',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } catch (e) {
       log('subscribe error: $e');
-      Get.snackbar('Error', e.toString());
+      Get.snackbar(
+        'Error',
+        e.toString(),
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     }
   }
 
   Future<void> _sendMessage() async {
     if (_threadId == null) {
-      Get.snackbar('Error', 'No thread id');
+      Get.snackbar(
+        'Error',
+        'No thread id',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
     final text = _messageC.text.trim();
@@ -162,7 +222,12 @@ class _PusherTestScreenState extends State<PusherTestScreen> {
       });
     } catch (e) {
       log('send message error: $e');
-      Get.snackbar('Error', e.toString());
+      Get.snackbar(
+        'Error',
+        e.toString(),
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } finally {
       _setLoading(false);
     }

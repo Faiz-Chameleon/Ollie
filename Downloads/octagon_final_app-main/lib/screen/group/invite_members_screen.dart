@@ -238,7 +238,7 @@ class InviteMembersScreen extends StatelessWidget {
             },
             child: Icon(Icons.arrow_back, color: Colors.white)),
         title: Text(
-          'Invite Members',
+          'Invite ',
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: Color(0xFF18162A),

@@ -4,7 +4,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:octagon/utils/image_picker_inapp.dart';
 import 'package:octagon/screen/common/create_post_controller.dart';
 import 'package:octagon/screen/mainFeed/home/postController.dart';
 import 'package:octagon/widgets/video_editor_screen.dart';
@@ -17,11 +16,15 @@ import 'dart:async';
 import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
 import 'package:video_thumbnail/video_thumbnail.dart';
+import 'package:video_player/video_player.dart';
+import 'package:video_compress/video_compress.dart';
 import 'package:octagon/services/cloudinary_service.dart';
 import 'package:octagon/config/cloudinary_config.dart';
 import 'package:octagon/utils/constants.dart';
 
 class GroupChatController extends GetxController {
+  static const Duration _maxChatVideoDuration = Duration(minutes: 1);
+  static const int _messengerVideoMaxBytes = 15360 * 1024; // 15MB backend limit
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final storage = GetStorage();
@@ -483,39 +486,55 @@ class GroupChatController extends GetxController {
   }) async {
     try {
       print('Starting media picker...');
-      final source = await showImagePicker(context);
-      print('Selected source: $source');
-
-      // In this picker, both "Video" and "Cancel" currently return null.
-      // Ask for explicit confirmation so cancel does not accidentally open video picker.
-      if (source == null) {
-        final shouldPickVideo = await _confirmVideoSelection(context);
-        if (!shouldPickVideo) {
-          print('Media picker cancelled by user');
-          return;
-        }
+      final selection = await _showChatMediaPicker(context);
+      print('Selected media option: $selection');
+      if (selection == null || selection == 'cancel') {
+        print('Media picker cancelled by user');
+        return;
       }
 
       isUploading.value = true;
       List<PostFile> selectedFiles = [];
       bool isVideo = false;
 
-      if (source == null) {
+      if (selection == 'video') {
         // Video selection (when user selects "Video" option)
         print('Video selection mode');
         final file = await _picker.pickVideo(
           source: ImageSource.gallery,
-          maxDuration: const Duration(seconds: 120),
+          maxDuration: _maxChatVideoDuration,
         );
         if (file != null) {
-          print('Video selected: ${file.path}');
-          selectedFiles.add(PostFile(filePath: file.path, isVideo: true));
+          var videoPathForUpload = file.path;
+          if (Platform.isAndroid) {
+            final editedPath = await _openVideoEditorForAndroid(context, file.path);
+            videoPathForUpload = editedPath ?? file.path;
+          }
+
+          final videoPath = await _compressVideoForUpload(videoPathForUpload);
+          final isWithinLimit = await _isVideoWithinAllowedDuration(videoPath);
+          if (!isWithinLimit) {
+            Get.snackbar(
+              'Video too long',
+              'Please select a video up to 1 minute.',
+              backgroundColor: Colors.white,
+              colorText: Colors.black,
+            );
+            return;
+          }
+          print('Video selected: $videoPath');
+          selectedFiles.add(PostFile(filePath: videoPath, isVideo: true));
           isVideo = true;
         } else {
           print('No video selected');
-          Get.snackbar("Error", "No video selected");
+          Get.snackbar(
+            "Error",
+            "No video selected",
+            backgroundColor: Colors.white,
+            colorText: Colors.black,
+          );
         }
-      } else if (source == ImageSource.camera) {
+      } else if (selection == 'camera') {
         // Camera image selection
         print('Camera image selection mode');
         final file = await _picker.pickImage(
@@ -528,7 +547,12 @@ class GroupChatController extends GetxController {
           isVideo = false;
         } else {
           print('No image selected from camera');
-          Get.snackbar("Error", "No image selected from camera");
+          Get.snackbar(
+            "Error",
+            "No image selected from camera",
+            backgroundColor: Colors.white,
+            colorText: Colors.black,
+          );
         }
       } else {
         // Gallery image selection (multi-image)
@@ -543,11 +567,21 @@ class GroupChatController extends GetxController {
             isVideo = false;
           } else {
             print('No images selected from gallery');
-            Get.snackbar("Error", "No images selected from gallery");
+            Get.snackbar(
+              "Error",
+              "No images selected from gallery",
+              backgroundColor: Colors.white,
+              colorText: Colors.black,
+            );
           }
         } catch (e) {
           print('Error picking multi images: $e');
-          Get.snackbar("Error", "Error picking multi images: $e");
+          Get.snackbar(
+            "Error",
+            "Error picking multi images: $e",
+            backgroundColor: Colors.white,
+            colorText: Colors.black,
+          );
           // Fallback to single image picker
           try {
             final file = await _picker.pickImage(
@@ -561,7 +595,12 @@ class GroupChatController extends GetxController {
             }
           } catch (e2) {
             print('Error picking single image: $e2');
-            Get.snackbar("Error", "Error picking single image: $e2");
+            Get.snackbar(
+              "Error",
+              "Error picking single image: $e2",
+              backgroundColor: Colors.white,
+              colorText: Colors.black,
+            );
           }
         }
       }
@@ -571,7 +610,12 @@ class GroupChatController extends GetxController {
 
       if (selectedFiles.isEmpty) {
         print('No files selected. Exiting.');
-        Get.snackbar("Error", "No files selected");
+        Get.snackbar(
+          "Error",
+          "No files selected",
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
         isUploading.value = false;
         return;
       }
@@ -636,7 +680,12 @@ class GroupChatController extends GetxController {
               videos: videoFiles,
             );
             if (!posted) {
-              Get.snackbar('Error', 'Failed to create post');
+              Get.snackbar(
+                'Error',
+                'Failed to create post',
+                backgroundColor: Colors.white,
+                colorText: Colors.black,
+              );
             }
             isUploading.value = false;
             return;
@@ -656,7 +705,12 @@ class GroupChatController extends GetxController {
                     total: imageFiles.length,
                   );
                   if (caption == null) {
-                    Get.snackbar('Upload cancelled', 'Image upload cancelled');
+                    Get.snackbar(
+                      'Upload cancelled',
+                      'Image upload cancelled',
+                      backgroundColor: Colors.white,
+                      colorText: Colors.black,
+                    );
                     isUploading.value = false;
                     return;
                   }
@@ -667,7 +721,12 @@ class GroupChatController extends GetxController {
                   );
                   print('Direct image upload result: $uploadRes');
                   if (uploadRes != null) {
-                    Get.snackbar('Success', 'Image uploaded to thread');
+                    Get.snackbar(
+                      'Success',
+                      'Image uploaded to thread',
+                      backgroundColor: Colors.white,
+                      colorText: Colors.black,
+                    );
                     if (uploadRes.isNotEmpty) {
                       if (caption.isNotEmpty) {
                         _injectCaptionIntoPayload(uploadRes, caption);
@@ -675,11 +734,21 @@ class GroupChatController extends GetxController {
                       onMessengerMessage?.call(uploadRes);
                     }
                   } else {
-                    Get.snackbar('Error', 'Failed to upload image to thread');
+                    Get.snackbar(
+                      'Error',
+                      'Failed to upload image to thread',
+                      backgroundColor: Colors.white,
+                      colorText: Colors.black,
+                    );
                   }
                 } catch (e) {
                   print('Error uploading image to thread: $e');
-                  Get.snackbar('Error', 'Failed to upload image to thread: $e');
+                  Get.snackbar(
+                    'Error',
+                    'Failed to upload image to thread: $e',
+                    backgroundColor: Colors.white,
+                    colorText: Colors.black,
+                  );
                 }
               }
             }
@@ -689,12 +758,24 @@ class GroupChatController extends GetxController {
               for (var i = 0; i < videoFiles.length; i++) {
                 final file = videoFiles[i];
                 try {
-                  final videoSize = await File(file.filePath).length();
-                  if (videoSize > CloudinaryConfig.maxVideoSize) {
-                    final maxMb = CloudinaryConfig.maxVideoSize ~/ (1024 * 1024);
-                    Get.snackbar('Error', 'Video is too large. Maximum size is ${maxMb}MB.');
+                  String uploadPath = file.filePath;
+                  var uploadFile = File(uploadPath);
+                  var uploadSize = await uploadFile.length();
+                  if (uploadSize > _messengerVideoMaxBytes) {
+                    uploadPath = await _compressVideoForUpload(uploadPath, forceForSizeLimit: true);
+                    uploadFile = File(uploadPath);
+                    uploadSize = await uploadFile.length();
+                  }
+                  if (uploadSize > _messengerVideoMaxBytes) {
+                    Get.snackbar(
+                      'Upload failed',
+                      'Video is too large for chat (max 15MB). Please trim/compress and try again.',
+                      backgroundColor: Colors.white,
+                      colorText: Colors.black,
+                    );
                     continue;
                   }
+
                   final caption = await _promptMediaCaption(
                     context,
                     isVideo: true,
@@ -702,25 +783,35 @@ class GroupChatController extends GetxController {
                     total: videoFiles.length,
                   );
                   if (caption == null) {
-                    Get.snackbar('Upload cancelled', 'Video upload cancelled');
+                    Get.snackbar(
+                      'Upload cancelled',
+                      'Video upload cancelled',
+                      backgroundColor: Colors.white,
+                      colorText: Colors.black,
+                    );
                     isUploading.value = false;
                     return;
                   }
                   final uploadRes = await uploadVideoToThread(
                     threadId,
-                    File(file.filePath),
+                    uploadFile,
                     caption: caption.isEmpty ? null : caption,
                   );
                   print('Direct video upload result: $uploadRes');
                   if (uploadRes != null && uploadRes['error'] == null) {
                     if ((uploadRes['thumbnail_url'] == null || '${uploadRes['thumbnail_url']}'.isEmpty) &&
                         (uploadRes['thumbnail'] == null || '${uploadRes['thumbnail']}'.isEmpty)) {
-                      final localThumb = await generateLocalVideoThumbnailPath(file.filePath);
+                      final localThumb = await generateLocalVideoThumbnailPath(uploadPath);
                       if (localThumb != null && localThumb.isNotEmpty) {
                         uploadRes['local_thumbnail_path'] = localThumb;
                       }
                     }
-                    Get.snackbar('Success', 'Video uploaded to thread');
+                    Get.snackbar(
+                      'Success',
+                      'Video uploaded to thread',
+                      backgroundColor: Colors.white,
+                      colorText: Colors.black,
+                    );
                     if (uploadRes.isNotEmpty) {
                       if (caption.isNotEmpty) {
                         _injectCaptionIntoPayload(uploadRes, caption);
@@ -732,11 +823,22 @@ class GroupChatController extends GetxController {
                     final traceId = uploadRes?['_upload_meta']?['trace_id']?.toString() ?? '';
                     final body = (uploadRes?['body']?.toString() ?? '').trim();
                     print('Video upload failed. status=$status trace=$traceId body=$body');
-                    Get.snackbar('Upload failed', 'Video upload failed (status: $status).');
+                    final message = _buildVideoUploadFailureMessage(uploadRes);
+                    Get.snackbar(
+                      'Upload failed',
+                      message,
+                      backgroundColor: Colors.white,
+                      colorText: Colors.black,
+                    );
                   }
                 } catch (e) {
                   print('Error uploading video to thread: $e');
-                  Get.snackbar('Error', 'Failed to upload video to thread: $e');
+                  Get.snackbar(
+                    'Error',
+                    'Failed to upload video to thread: $e',
+                    backgroundColor: Colors.white,
+                    colorText: Colors.black,
+                  );
                 }
               }
             }
@@ -766,8 +868,8 @@ class GroupChatController extends GetxController {
                 Get.snackbar(
                   "Warning",
                   "Failed to upload image ${i + 1}",
-                  backgroundColor: Colors.orange,
-                  colorText: Colors.white,
+                  backgroundColor: Colors.white,
+                  colorText: Colors.black,
                 );
               }
             }
@@ -787,23 +889,23 @@ class GroupChatController extends GetxController {
                 Get.snackbar(
                   "Partial Success",
                   "${imageUrls.length}/${imageFiles.length} images uploaded successfully",
-                  backgroundColor: Colors.orange,
-                  colorText: Colors.white,
+                  backgroundColor: Colors.white,
+                  colorText: Colors.black,
                 );
               } else {
                 Get.snackbar(
                   "Success",
                   "All ${imageUrls.length} images uploaded successfully",
-                  backgroundColor: Colors.green,
-                  colorText: Colors.white,
+                  backgroundColor: Colors.white,
+                  colorText: Colors.black,
                 );
               }
             } else {
               Get.snackbar(
                 "Error",
                 "Failed to upload any images",
-                backgroundColor: Colors.red,
-                colorText: Colors.white,
+                backgroundColor: Colors.white,
+                colorText: Colors.black,
               );
             }
           }
@@ -834,8 +936,8 @@ class GroupChatController extends GetxController {
                 Get.snackbar(
                   "Warning",
                   "Failed to upload video ${i + 1}",
-                  backgroundColor: Colors.orange,
-                  colorText: Colors.white,
+                  backgroundColor: Colors.white,
+                  colorText: Colors.black,
                 );
               }
             }
@@ -855,23 +957,23 @@ class GroupChatController extends GetxController {
                 Get.snackbar(
                   "Partial Success",
                   "${videoUrls.length}/${videoFiles.length} videos uploaded successfully",
-                  backgroundColor: Colors.orange,
-                  colorText: Colors.white,
+                  backgroundColor: Colors.white,
+                  colorText: Colors.black,
                 );
               } else {
                 Get.snackbar(
                   "Success",
                   "All ${videoUrls.length} videos uploaded successfully",
-                  backgroundColor: Colors.green,
-                  colorText: Colors.white,
+                  backgroundColor: Colors.white,
+                  colorText: Colors.black,
                 );
               }
             } else {
               Get.snackbar(
                 "Error",
                 "Failed to upload any videos",
-                backgroundColor: Colors.red,
-                colorText: Colors.white,
+                backgroundColor: Colors.white,
+                colorText: Colors.black,
               );
             }
           }
@@ -915,8 +1017,8 @@ class GroupChatController extends GetxController {
                 Get.snackbar(
                   "Error",
                   "Failed to upload media",
-                  backgroundColor: Colors.red,
-                  colorText: Colors.white,
+                  backgroundColor: Colors.white,
+                  colorText: Colors.black,
                 );
               }
             }
@@ -926,8 +1028,8 @@ class GroupChatController extends GetxController {
           Get.snackbar(
             "Error",
             "Failed to upload media: $e",
-            backgroundColor: Colors.red,
-            colorText: Colors.white,
+            backgroundColor: Colors.white,
+            colorText: Colors.black,
           );
         }
       } else {
@@ -938,8 +1040,8 @@ class GroupChatController extends GetxController {
       Get.snackbar(
         "Error",
         "Failed to upload media: $e",
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
       );
     } finally {
       isUploading.value = false;
@@ -947,27 +1049,135 @@ class GroupChatController extends GetxController {
     }
   }
 
-  Future<bool> _confirmVideoSelection(BuildContext context) async {
-    final decision = await showDialog<bool>(
+  Future<String?> _showChatMediaPicker(BuildContext context) async {
+    return showModalBottomSheet<String>(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Select video?'),
-          content: const Text('Choose "Yes" to pick a video from your gallery.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('No'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Yes'),
-            ),
-          ],
+      builder: (BuildContext bc) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text("Gallery"),
+                onTap: () => Navigator.of(context).pop('gallery'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text("Camera"),
+                onTap: () => Navigator.of(context).pop('camera'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.videocam),
+                title: const Text("Video"),
+                onTap: () => Navigator.of(context).pop('video'),
+              ),
+              ListTile(
+                title: const Text("Cancel", textAlign: TextAlign.center),
+                onTap: () => Navigator.of(context).pop('cancel'),
+              ),
+            ],
+          ),
         );
       },
     );
-    return decision ?? false;
+  }
+
+  Future<bool> _isVideoWithinAllowedDuration(String videoPath) async {
+    VideoPlayerController? videoController;
+    try {
+      videoController = VideoPlayerController.file(File(videoPath));
+      await videoController.initialize();
+      return videoController.value.duration <= _maxChatVideoDuration;
+    } catch (e) {
+      print('Could not validate video duration: $e');
+      return false;
+    } finally {
+      await videoController?.dispose();
+    }
+  }
+
+  Future<String> _compressVideoForUpload(String originalPath, {bool forceForSizeLimit = false}) async {
+    if (Platform.isAndroid && !forceForSizeLimit) {
+      // Avoid Android-side transcoding artifacts that can produce files
+      // which upload successfully but fail playback on some devices.
+      return originalPath;
+    }
+    try {
+      final originalFile = File(originalPath);
+      final originalSize = await originalFile.length();
+      final MediaInfo? mediaInfo = await VideoCompress.compressVideo(
+        originalPath,
+        quality: forceForSizeLimit ? VideoQuality.LowQuality : VideoQuality.MediumQuality,
+        includeAudio: true,
+        deleteOrigin: false,
+      );
+      final compressedPath = mediaInfo?.file?.path;
+      if (compressedPath != null && compressedPath.isNotEmpty) {
+        final compressedSize = await File(compressedPath).length();
+        print('Video compressed: $originalSize -> $compressedSize bytes');
+        return compressedPath;
+      }
+    } catch (e) {
+      print('Video compression failed, using original file: $e');
+    }
+    return originalPath;
+  }
+
+  String _buildVideoUploadFailureMessage(Map<String, dynamic>? uploadRes) {
+    final status = uploadRes?['error']?.toString() ?? uploadRes?['_upload_meta']?['status']?.toString() ?? 'unknown';
+    final body = (uploadRes?['body']?.toString() ?? '').trim();
+    final normalizedBody = body.toLowerCase();
+
+    if (status == '422') {
+      if (normalizedBody.contains('15360') ||
+          (normalizedBody.contains('video') && normalizedBody.contains('greater than') && normalizedBody.contains('kilobytes'))) {
+        return 'Video is too large for chat (max 15MB). Please trim/compress and try again.';
+      }
+
+      if (body.isNotEmpty) {
+        try {
+          final decoded = json.decode(body);
+          if (decoded is Map<String, dynamic>) {
+            final serverMessage = decoded['message']?.toString().trim();
+            if (serverMessage != null && serverMessage.isNotEmpty) {
+              return serverMessage;
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    return 'Video upload failed (status: $status).';
+  }
+
+  Future<String?> _openVideoEditorForAndroid(BuildContext context, String originalPath) async {
+    try {
+      final editedPath = await Navigator.of(context, rootNavigator: true).push<String?>(
+        MaterialPageRoute(
+          builder: (_) => VideoEditor(file: File(originalPath)),
+        ),
+      );
+      if (editedPath == null) {
+        return null;
+      }
+
+      final normalized = editedPath.trim();
+      if (normalized.isEmpty) {
+        return originalPath;
+      }
+
+      final editedFile = File(normalized);
+      if (await editedFile.exists()) {
+        return normalized;
+      }
+
+      print('Video editor returned non-existing path, using original file: $normalized');
+      return originalPath;
+    } catch (e) {
+      print('Failed to open Android video editor, using original file: $e');
+      return originalPath;
+    }
   }
 
   Future<String?> _promptMediaCaption(

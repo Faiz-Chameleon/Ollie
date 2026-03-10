@@ -105,18 +105,20 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
               ),
               const SizedBox(height: 24),
               // Description
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF232042),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  group.description.isNotEmpty && group.description != '""' ? group.description : 'No description',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
+              group.description.isNotEmpty && group.description != '""'
+                  ? Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF232042),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        group.description.isNotEmpty && group.description != '""' ? group.description : 'No description',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    )
+                  : SizedBox.shrink(),
               const SizedBox(height: 16),
               // Edit Group Info
               ListTile(

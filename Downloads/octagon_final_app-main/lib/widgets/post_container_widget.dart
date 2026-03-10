@@ -832,8 +832,16 @@ class _PostWidgetsState extends State<PostWidgets> {
                                 size: 23,
                               ),
                             ),
-                            onTap: () {
-                              Share.share('check out this post:- https://octagonapp.com/post/${widget.postData!.id}', subject: 'Octagon');
+                            onTap: () async {
+                              final box = context.findRenderObject() as RenderBox?;
+                              await SharePlus.instance.share(
+                                ShareParams(
+                                  text: 'Check out this post and join the conversation 👇 https://octagonapp.com/app-download',
+                                  subject: 'Octagon App',
+                                  title: '🔥 You need to see this on Octagon!',
+                                  sharePositionOrigin: box != null ? (box.localToGlobal(Offset.zero) & box.size) : null,
+                                ),
+                              );
                             },
                           ),
                           Text(

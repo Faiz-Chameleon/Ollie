@@ -475,8 +475,23 @@ class _SportSelectionState extends State<SportSelection> {
             child: GestureDetector(
               onTap: () async {
                 if (groupController.selectedGroupId.value != 0) {
-                  await groupController.joinGroup();
-                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => TabScreen()));
+                  final selectedGroup = _findGroupById(groupController.selectedGroupId.value);
+                  final isPrivateGroup = _isPrivateGroup(selectedGroup);
+                  if (isPrivateGroup) {
+                    final sent = await groupController.sendJoinRequest(groupController.selectedGroupId.value);
+                    if (sent) {
+                      Get.snackbar(
+                        "Request sent",
+                        "Your join request has been sent successfully.",
+                        backgroundColor: Colors.white,
+                        colorText: Colors.black,
+                      );
+                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => TabScreen()));
+                    }
+                  } else {
+                    await groupController.joinGroup();
+                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => TabScreen()));
+                  }
                 } else {
                   Get.snackbar("Groups", "Please select a group", backgroundColor: Colors.white, colorText: Colors.black);
                 }
@@ -659,6 +674,7 @@ class _SportSelectionState extends State<SportSelection> {
                                   return InkWell(
                                     onTap: () {
                                       groupController.updateSelectedGroupId(groupId);
+                                      _logSelectedGroupDetails(group);
 
                                       // Save to storage
                                       storage.write('userDefaultGroup', group['logo']);
@@ -762,6 +778,39 @@ class _SportSelectionState extends State<SportSelection> {
       list.add(getSports(i));
     }
     return list;
+  }
+
+  void _logSelectedGroupDetails(dynamic group) {
+    if (group is! Map) {
+      debugPrint('Selected group: $group');
+      return;
+    }
+    debugPrint(
+      'Selected group details => '
+      'id: ${group['id']}, '
+      'title: ${group['title']}, '
+      'logo: ${group['logo']}, '
+      'photo: ${group['photo']}, '
+      'is_public: ${group['is_public']}',
+    );
+  }
+
+  dynamic _findGroupById(int groupId) {
+    final source = groupController.groupData.cast<dynamic>();
+    for (final group in source) {
+      if (group is! Map) continue;
+      final id = int.tryParse('${group['id']}') ?? 0;
+      if (id == groupId) return group;
+    }
+    return null;
+  }
+
+  bool _isPrivateGroup(dynamic group) {
+    if (group is! Map) return false;
+    final value = group['is_public'];
+    if (value is num) return value == 1;
+    final normalized = value?.toString().trim();
+    return normalized == '1';
   }
 
   getSports(int index) {

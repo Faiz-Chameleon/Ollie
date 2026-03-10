@@ -70,7 +70,7 @@ class SignupScreen extends StatelessWidget {
                               ),
                               DropdownMenuItem(
                                 value: "team",
-                                child: Text("Team Profile", style: TextStyle(color: Colors.white)), // White text
+                                child: Text("Octagon Profile", style: TextStyle(color: Colors.white)), // White text
                               ),
                             ],
                             onChanged: (value) => authController.onChangedProfile(value ?? 'personal'),
@@ -95,7 +95,7 @@ class SignupScreen extends StatelessWidget {
                           const SizedBox(height: 10),
                           TextFormBox(
                             textEditingController: _nameController,
-                            hintText: "UserName",
+                            hintText: "Username",
                             isMaxLengthEnable: true,
                             maxCharcter: 40,
                             suffixIcon: const Icon(Icons.person_outline_rounded, color: Colors.white, size: 20),
@@ -127,6 +127,8 @@ class SignupScreen extends StatelessWidget {
                             textEditingController: _passwordController,
                             hintText: "Password",
                             passwordVisible: 1,
+                            isMaxLengthEnable: true,
+                            maxCharcter: 10,
                             suffixIcon: const Icon(Icons.lock_outline_rounded, color: Colors.white, size: 20),
                           ),
                           const SizedBox(height: 20),
@@ -134,6 +136,8 @@ class SignupScreen extends StatelessWidget {
                             textEditingController: _confirmPasswordController,
                             hintText: "Confirm password",
                             passwordVisible: 1,
+                            isMaxLengthEnable: true,
+                            maxCharcter: 10,
                             suffixIcon: const Icon(Icons.lock_outline_rounded, color: Colors.white, size: 20),
                           ),
                         ]),
@@ -150,12 +154,12 @@ class SignupScreen extends StatelessWidget {
                         Expanded(
                           child: RichText(
                             text: TextSpan(
-                              text: "Agree with",
+                              text: "Please confirm that you have read and agree to our",
                               style: whiteColor12TextStyle,
                               children: [
                                 TextSpan(
                                   text: " Terms Conditions",
-                                  style: blueColor12TextStyle,
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: purpleColor),
                                   recognizer: TapGestureRecognizer()
                                     ..onTap = () {
                                       // Navigate to Terms screen
@@ -164,7 +168,7 @@ class SignupScreen extends StatelessWidget {
                                 TextSpan(text: " and ", style: whiteColor12TextStyle),
                                 TextSpan(
                                   text: "Privacy Policy",
-                                  style: blueColor12TextStyle,
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: purpleColor),
                                   recognizer: TapGestureRecognizer()
                                     ..onTap = () {
                                       // Navigate to Privacy screen
@@ -181,22 +185,42 @@ class SignupScreen extends StatelessWidget {
                         "Sign Up",
                         () async {
                           if (!isAgree.value) {
-                            Get.snackbar(AppName, "Please agree with Terms Conditions and Privacy Policy!",
-                                backgroundColor: appBgColor, colorText: whiteColor);
+                            Get.snackbar(
+                              AppName,
+                              "Please agree with Terms Conditions and Privacy Policy!",
+                              backgroundColor: Colors.white,
+                              colorText: Colors.black,
+                            );
                             return;
                           }
                           if (_formKey.currentState?.validate() != true) return;
 
                           if (!emailValidReg.hasMatch(_emailController.text.trim())) {
-                            Get.snackbar(AppName, "Please enter valid E-mail", backgroundColor: appBgColor, colorText: whiteColor);
+                            Get.snackbar(
+                              AppName,
+                              "Please enter valid E-mail",
+                              backgroundColor: Colors.white,
+                              colorText: Colors.black,
+                            );
                             return;
                           }
-                          if (_passwordController.text.trim().length < 8) {
-                            Get.snackbar(AppName, "Password must be at least 8 characters", backgroundColor: appBgColor, colorText: whiteColor);
+                          final passwordLength = _passwordController.text.trim().length;
+                          if (passwordLength < 7 || passwordLength > 10) {
+                            Get.snackbar(
+                              AppName,
+                              "Password must be 7 to 10 characters",
+                              backgroundColor: Colors.white,
+                              colorText: Colors.black,
+                            );
                             return;
                           }
                           if (_passwordController.text.trim() != _confirmPasswordController.text.trim()) {
-                            Get.snackbar(AppName, "Password & Confirm password must be same!", backgroundColor: appBgColor, colorText: whiteColor);
+                            Get.snackbar(
+                              AppName,
+                              "Password & Confirm password must be same!",
+                              backgroundColor: Colors.white,
+                              colorText: Colors.black,
+                            );
                             return;
                           }
 

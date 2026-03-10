@@ -63,18 +63,33 @@ class GroupController extends GetxController {
     final int? currentUserId = storedUserId != null ? int.tryParse(storedUserId.toString()) : null;
 
     if (token == null) {
-      Get.snackbar('Error', 'Authentication token missing. Please log in again.');
+      Get.snackbar(
+        'Error',
+        'Authentication token missing. Please log in again.',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return false;
     }
     if (currentUserId == null) {
-      Get.snackbar('Error', 'Unable to determine the current user.');
+      Get.snackbar(
+        'Error',
+        'Unable to determine the current user.',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return false;
     }
 
     try {
       final bool? alreadyMember = await _isUserAlreadyMember(groupId, currentUserId);
       if (alreadyMember == null) {
-        Get.snackbar('Error', 'Unable to verify group membership. Please try again.');
+        Get.snackbar(
+          'Error',
+          'Unable to verify group membership. Please try again.',
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
         return false;
       }
       if (alreadyMember) {
@@ -92,12 +107,22 @@ class GroupController extends GetxController {
         return true;
       } else {
         print('Failed to join group ($groupId): ${response.statusCode} - ${response.reasonPhrase} - $responseBody');
-        Get.snackbar('Error', 'Failed to join group. Please try again.');
+        Get.snackbar(
+          'Error',
+          'Failed to join group. Please try again.',
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
         return false;
       }
     } catch (e) {
       print('joinGroupIfNeeded error: $e');
-      Get.snackbar('Error', 'Failed to join group. Please try again.');
+      Get.snackbar(
+        'Error',
+        'Failed to join group. Please try again.',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return false;
     }
   }
@@ -113,6 +138,36 @@ class GroupController extends GetxController {
       return await _isUserAlreadyMember(groupId, currentUserId);
     } catch (e) {
       print('isUserAlreadyMember error: $e');
+      return null;
+    }
+  }
+
+  Future<bool?> isPrivateGroupAccessAllowed(int groupId) async {
+    final storage = GetStorage();
+    final dynamic storedUserId = storage.read("current_uid") ?? storage.read("user_id") ?? storage.read("id");
+    final int? currentUserId = storedUserId != null ? int.tryParse(storedUserId.toString()) : null;
+    if (currentUserId == null) {
+      return null;
+    }
+
+    try {
+      final response = await _networkApi.getGroupMembers(groupId.toString());
+      final members = response['success'];
+      if (members is! List) return false;
+
+      for (final member in members) {
+        if (member is! Map<String, dynamic>) continue;
+        final memberUserId = _tryParseInt(member['user_id'] ?? member['member_id'] ?? member['id'] ?? member['user']?['id']);
+        if (memberUserId == null || memberUserId != currentUserId) continue;
+
+        final invited = _tryParseInt(member['is_invited'] ?? member['is_invite'] ?? member['invited']) == 1;
+        final status = (member['status']?.toString() ?? '').trim().toLowerCase();
+        final accepted = status == 'accepted' || status == 'accept' || status == 'approved';
+        return invited || accepted;
+      }
+      return false;
+    } catch (e) {
+      print('isPrivateGroupAccessAllowed error: $e');
       return null;
     }
   }
@@ -134,9 +189,13 @@ class GroupController extends GetxController {
       String responseBody = await response.stream.bytesToString();
       var data = json.decode(responseBody);
       List<PublicGroupModel> allGroups = [];
+      final seenGroupIds = <int>{};
       if (data['success'] != null && data['success'] is List) {
         for (var group in data['success']) {
-          allGroups.add(PublicGroupModel.fromJson(group));
+          final parsedGroup = PublicGroupModel.fromJson(group);
+          if (seenGroupIds.add(parsedGroup.id)) {
+            allGroups.add(parsedGroup);
+          }
         }
       }
       // if (allGroups.length <= 1) return allGroups;
@@ -160,7 +219,12 @@ class GroupController extends GetxController {
     final storage = GetStorage();
     final token = storage.read("token");
     if (token == null) {
-      Get.snackbar('Error', 'Authentication token missing. Please log in again.');
+      Get.snackbar(
+        'Error',
+        'Authentication token missing. Please log in again.',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return false;
     }
 
@@ -187,11 +251,21 @@ class GroupController extends GetxController {
         return false;
       }
       print('sendJoinRequest failed ($groupId): ${response.statusCode} - ${response.reasonPhrase} - $responseBody');
-      Get.snackbar('Error', 'Failed to send request. Please try again.');
+      Get.snackbar(
+        'Error',
+        'Failed to send request. Please try again.',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return false;
     } catch (e) {
       print('sendJoinRequest error: $e');
-      Get.snackbar('Error', 'Failed to send request. Please try again.');
+      Get.snackbar(
+        'Error',
+        'Failed to send request. Please try again.',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return false;
     }
   }
@@ -260,7 +334,12 @@ class GroupController extends GetxController {
 
   void onGroupTap(GroupModel group) {
     // Navigate to group detail
-    Get.snackbar("Tapped", "Group: ${group.title}");
+    Get.snackbar(
+      "Tapped",
+      "Group: ${group.title}",
+      backgroundColor: Colors.white,
+      colorText: Colors.black,
+    );
     Get.to(() => UpdateGroupScreen(groupId: group.id.toString()));
   }
 

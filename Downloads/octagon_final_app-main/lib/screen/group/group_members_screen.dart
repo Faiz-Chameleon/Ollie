@@ -17,6 +17,11 @@ class GroupMembersScreen extends StatefulWidget {
 class _GroupMembersScreenState extends State<GroupMembersScreen> {
   late final GroupMembersController controller;
 
+  Future<void> _openRequestList() async {
+    await Get.to(() => GroupRequestsScreen(groupId: widget.groupId));
+    await controller.fetchMembers();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -34,14 +39,19 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
             onSelected: (value) {
               if (value == 'blocked') {
                 if (widget.threadId.isEmpty) {
-                  Get.snackbar('Error', 'Chat thread is not enabled for this group');
+                  Get.snackbar(
+                    'Error',
+                    'Chat thread is not enabled for this group',
+                    backgroundColor: Colors.white,
+                    colorText: Colors.black,
+                  );
                   return;
                 }
                 Get.to(() => BlockedUsersScreen(threadId: widget.threadId));
                 return;
               }
               if (value == 'requests') {
-                Get.to(() => GroupRequestsScreen(groupId: widget.groupId));
+                _openRequestList();
               }
             },
             itemBuilder: (context) => const [
@@ -112,6 +122,29 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
         }
         return Column(
           children: [
+            if (controller.pendingRequestsCount.value > 0)
+              InkWell(
+                onTap: _openRequestList,
+                child: Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.orangeAccent),
+                  ),
+                  child: Text(
+                    controller.pendingRequestsCount.value == 1
+                        ? 'New member request'
+                        : 'New member requests (${controller.pendingRequestsCount.value})',
+                    style: const TextStyle(
+                      color: Colors.orangeAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
             Expanded(
               child: RefreshIndicator(
                 color: Colors.deepPurple,
@@ -145,7 +178,12 @@ class _GroupMembersScreenState extends State<GroupMembersScreen> {
                                 }
                                 if (value == 'block') {
                                   if (widget.threadId.isEmpty) {
-                                    Get.snackbar('Error', 'Chat thread is not enabled for this group');
+                                    Get.snackbar(
+                                      'Error',
+                                      'Chat thread is not enabled for this group',
+                                      backgroundColor: Colors.white,
+                                      colorText: Colors.black,
+                                    );
                                     return;
                                   }
                                   await controller.blockMember(userId: member.userId, threadId: widget.threadId);

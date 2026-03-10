@@ -112,13 +112,23 @@ class PostController extends GetxController {
 
   /// --- BLOCKING ---
   Future<void> blockUnblockUser(String userId, bool isBlock) async {
-    await _repo.blockUnblockUser(userId: userId, isBlock: isBlock);
+    final res = await _repo.blockUnblockUser(userId: userId, isBlock: isBlock);
+    if (res.error != null) {
+      throw Exception(res.error);
+    }
   }
 
   Future<void> getBlockedUsers(int pageNo) async {
+    isLoading.value = true;
     final res = await _repo.getBlockedUsers(pageNo);
+    isLoading.value = false;
+    if (res.error != null) {
+      errorMessage.value = res.error ?? 'Failed to load blocked users';
+      blockList.clear();
+      return;
+    }
     if (res.data != null) {
-      // blockList.assignAll(res.data!.data ?? []);
+      blockList.assignAll(res.data!.blockUserData);
     }
   }
 

@@ -249,7 +249,12 @@ class CreateGroupController extends GetxController {
     } catch (e) {
       // Handle error
       Navigator.pop(context);
-      Get.snackbar("Error", e.toString(), backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar(
+        "Error",
+        e.toString(),
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     }
   }
 }

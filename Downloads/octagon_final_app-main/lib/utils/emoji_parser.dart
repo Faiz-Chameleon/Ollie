@@ -121,6 +121,9 @@ class EmojiParser {
     'ok_hand': '👌',
     'wave': '👋',
     'vulcan': '🖖',
+    'metal': '🤘',
+    'the_horns': '🤘',
+    'sign_of_the_horns': '🤘',
     'fire': '🔥',
     'thunder_cloud_rain': '⛈️',
     'thunder_cloud_and_rain': '⛈️',
@@ -130,6 +133,17 @@ class EmojiParser {
     'check_mark': '✅',
     'white_check_mark': '✅',
     'cross_mark': '❌',
+    // Subdivision flags are often unsupported by emoji libraries.
+    // Normalize common UK subdivision aliases to GB for compatibility.
+    'england': '🇬🇧',
+    'flag_england': '🇬🇧',
+    'england_flag': '🇬🇧',
+    'scotland': '🇬🇧',
+    'flag_scotland': '🇬🇧',
+    'scotland_flag': '🇬🇧',
+    'wales': '🇬🇧',
+    'flag_wales': '🇬🇧',
+    'wales_flag': '🇬🇧',
   };
 
   static Future<void> init() async {
@@ -296,6 +310,10 @@ class EmojiParser {
         return lib;
       }
     }
+    final dynamic = _lookupDynamicAlias(alias);
+    if (dynamic != null && dynamic.isNotEmpty) {
+      return dynamic;
+    }
     return null;
   }
 
@@ -339,6 +357,42 @@ class EmojiParser {
     }
 
     return variants.toList(growable: false);
+  }
+
+  static String? _lookupDynamicAlias(String rawAlias) {
+    final alias = _normalizeAlias(rawAlias);
+    if (alias.isEmpty) return null;
+
+    // Support :us:, :pk:, :gb: and :flag_us:/:flag-us: style aliases.
+    final twoLetter = RegExp(r'^[a-z]{2}$');
+    final flagPattern = RegExp(r'^flag_([a-z]{2})$');
+
+    String? countryCode;
+    if (twoLetter.hasMatch(alias)) {
+      countryCode = alias;
+    } else {
+      final match = flagPattern.firstMatch(alias);
+      if (match != null) {
+        countryCode = match.group(1);
+      }
+    }
+
+    if (countryCode == null) return null;
+
+    final fromLibrary = _lookupFromLibrary('flag-$countryCode') ?? _lookupFromLibrary(countryCode);
+    if (fromLibrary != null && fromLibrary.isNotEmpty) {
+      return fromLibrary;
+    }
+
+    return _countryCodeToFlag(countryCode);
+  }
+
+  static String? _countryCodeToFlag(String countryCode) {
+    final code = countryCode.toUpperCase();
+    if (!RegExp(r'^[A-Z]{2}$').hasMatch(code)) return null;
+    final first = code.codeUnitAt(0) + 127397;
+    final second = code.codeUnitAt(1) + 127397;
+    return String.fromCharCodes(<int>[first, second]);
   }
 
   static String? _lookupFromLibrary(String alias) {

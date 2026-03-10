@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart';
 import 'package:octagon/services/group_thread_service.dart';
+import 'package:octagon/utils/constants.dart';
 
 class UpdateGroupController extends GetxController {
   var isLoading = false.obs;
@@ -28,6 +29,7 @@ class UpdateGroupController extends GetxController {
   var isCompressing = false.obs;
   var isPrivate = false.obs;
   var isCreatingThread = false.obs;
+  var isTogglingPrivacy = false.obs;
 
   // Group ID
   String? groupId;
@@ -90,11 +92,21 @@ class UpdateGroupController extends GetxController {
         print("Group details loaded successfully");
       } else {
         print("No group data found");
-        Get.snackbar("Error", "No group data found");
+        Get.snackbar(
+          "Error",
+          "No group data found",
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
       }
     } else {
       print(response.reasonPhrase);
-      Get.snackbar("Error", "Failed to load group details");
+      Get.snackbar(
+        "Error",
+        "Failed to load group details",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     }
 
     isLoading.value = false;
@@ -143,7 +155,12 @@ class UpdateGroupController extends GetxController {
       }
     } catch (e) {
       print("Image picker error: $e");
-      Get.snackbar("Error", "Failed to open gallery.");
+      Get.snackbar(
+        "Error",
+        "Failed to open gallery.",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     }
   }
 
@@ -165,7 +182,12 @@ class UpdateGroupController extends GetxController {
       }
     } catch (e) {
       print('Error compressing image: $e');
-      Get.snackbar('Error', 'Failed to compress image');
+      Get.snackbar(
+        'Error',
+        'Failed to compress image',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } finally {
       isCompressing.value = false;
     }
@@ -174,12 +196,22 @@ class UpdateGroupController extends GetxController {
   // Update group
   Future<void> updateGroup(BuildContext context) async {
     if (groupId == null) {
-      Get.snackbar("Error", "Group ID not found");
+      Get.snackbar(
+        "Error",
+        "Group ID not found",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
 
     if (titleController.text.trim().isEmpty) {
-      Get.snackbar("Error", "Please enter group title");
+      Get.snackbar(
+        "Error",
+        "Please enter group title",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
 
@@ -190,7 +222,12 @@ class UpdateGroupController extends GetxController {
       final token = storage.read("token");
 
       if (token == null) {
-        Get.snackbar("Error", "No token found");
+        Get.snackbar(
+          "Error",
+          "No token found",
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
         isUpdating.value = false;
         return;
       }
@@ -223,18 +260,97 @@ class UpdateGroupController extends GetxController {
         var data = json.decode(responseBody);
 
         Get.back();
-        Get.snackbar("Success", "Group updated successfully", backgroundColor: Colors.green, colorText: Colors.white);
+        Get.snackbar(
+          "Success",
+          "Group updated successfully",
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
 
         // Navigate back
       } else {
         print(response.reasonPhrase);
-        Get.snackbar("Error", "Failed to update group");
+        Get.snackbar(
+          "Error",
+          "Failed to update group",
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
       }
     } catch (e) {
       print("Error updating group: $e");
-      Get.snackbar("Error", "Failed to update group: $e");
+      Get.snackbar(
+        "Error",
+        "Failed to update group: $e",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } finally {
       isUpdating.value = false;
+    }
+  }
+
+  Future<bool> updateGroupPrivacy(bool newValue) async {
+    final currentGroup = groupData.value;
+    if (currentGroup == null) return false;
+    final threadId = currentGroup.threadId;
+    if (threadId.isEmpty) {
+      Get.snackbar(
+        "Error",
+        "Group thread ID not found",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
+      return false;
+    }
+    if (isTogglingPrivacy.value) return false;
+    isTogglingPrivacy.value = true;
+    try {
+      final storage = GetStorage();
+      final token = storage.read("token");
+      if (token == null) {
+        Get.snackbar(
+          "Error",
+          "No token found",
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
+        return false;
+      }
+      final payload = {
+        'thread_id': threadId,
+        'public_private': newValue ? '1' : '0',
+      };
+      final response = await http
+          .post(
+            Uri.parse('${baseUrl}group-private-public'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: json.encode(payload),
+          )
+          .timeout(const Duration(seconds: 30));
+      if (response.statusCode == 200) {
+        return true;
+      }
+      Get.snackbar(
+        "Error",
+        "Failed to update group privacy",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
+      return false;
+    } catch (e) {
+      Get.snackbar(
+        "Error",
+        "Failed to update group privacy",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
+      return false;
+    } finally {
+      isTogglingPrivacy.value = false;
     }
   }
 
@@ -243,7 +359,12 @@ class UpdateGroupController extends GetxController {
     final currentGroup = groupData.value;
     if (currentGroup == null) return;
     if (currentGroup.threadId.isNotEmpty) {
-      Get.snackbar("Chat Thread", "Chat is already enabled for this group");
+      Get.snackbar(
+        "Chat Thread",
+        "Chat is already enabled for this group",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
 
@@ -252,9 +373,19 @@ class UpdateGroupController extends GetxController {
       final threadId = await _threadService.createThreadForGroup(groupId!);
       groupData.value = currentGroup.copyWith(threadId: threadId);
       groupData.refresh();
-      Get.snackbar("Success", "Chat thread created for this group");
+      Get.snackbar(
+        "Success",
+        "Chat thread created for this group",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } catch (e) {
-      Get.snackbar("Error", "Failed to create chat thread");
+      Get.snackbar(
+        "Error",
+        "Failed to create chat thread",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } finally {
       isCreatingThread.value = false;
     }

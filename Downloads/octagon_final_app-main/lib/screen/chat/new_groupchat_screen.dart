@@ -30,6 +30,18 @@ import 'package:intl/intl.dart';
 
 import 'group_chat_controller.dart';
 
+class _MessagePage {
+  final List<Map<String, dynamic>> messages;
+  final String? nextPageRoute;
+  final bool finalPage;
+
+  const _MessagePage({
+    required this.messages,
+    required this.nextPageRoute,
+    required this.finalPage,
+  });
+}
+
 class NewGroupChatScreen extends StatefulWidget {
   final String groupId;
   final bool isPublic;
@@ -90,6 +102,10 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   bool _isBlockedByAdmin = false;
   bool? _canSharePostFromGroup;
   String _blockNotice = 'You have been blocked from this group by an admin.';
+  String? _nextPageRoute;
+  bool _hasMoreHistory = false;
+  bool _isLoadingMore = false;
+  int _lastRenderedItemCount = 0;
 
   @override
   void initState() {
@@ -127,7 +143,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         final res = await _createThreadForGroup();
         String? tid = GroupThreadService.extractThreadId(res);
         if (tid == null) {
-          Get.snackbar('Error', 'Could not open chat thread for group');
+          Get.snackbar(
+            'Error',
+            'Could not open chat thread for group',
+            backgroundColor: Colors.white,
+            colorText: Colors.black,
+          );
           return;
         }
         widget.thread_id = tid;
@@ -195,7 +216,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       log('✅ Pusher initialization completed successfully');
     } catch (e) {
       log('❌ _initThreadFlow error: $e');
-      Get.snackbar('Error', 'Failed to initialize real-time messaging: ${e.toString()}');
+      Get.snackbar(
+        'Error',
+        'Failed to initialize real-time messaging: ${e.toString()}',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } finally {
       _initializing = false;
     }
@@ -218,7 +244,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
           _isBlockedByAdmin = true;
         }
         controller.messageController.clear();
-        Get.snackbar('Blocked', _blockNotice);
+        Get.snackbar(
+          'Blocked',
+          _blockNotice,
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
       }
       return blocked;
     } catch (e) {
@@ -354,6 +385,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     final tv = (data['type_verbose']?.toString() ?? '').toLowerCase();
     final tn = data['type'];
     final tnText = (tn?.toString() ?? '').toLowerCase();
+    final bool hasImagePayload = data['image'] != null || data['photo'] != null || data['image_url'] != null || data['imageUrl'] != null;
     if (tv.contains('image') || tn == 1 || tnText.contains('image'))
       type = 'image';
     else if (tv.contains('video') || tn == 4 || tnText.contains('video'))
@@ -361,6 +393,9 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     else if (tv.contains('audio') || tn == 3 || tnText.contains('audio'))
       type = 'audio';
     else if (tv.contains('document') || tn == 2 || tnText.contains('document') || tnText.contains('file')) type = 'document';
+    if (type == 'text' && hasImagePayload) {
+      type = 'image';
+    }
 
     // Text/body
     String text = data['body']?.toString() ?? data['message']?.toString() ?? data['text']?.toString() ?? '';
@@ -374,9 +409,18 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       if (type == 'image') {
         if (data['image'] is Map) {
           final img = data['image'];
-          mediaUrl = _absUrl(img['lg'] ?? img['md'] ?? img['sm'] ?? '');
+          mediaUrl = _absUrl(img['lg'] ?? img['md'] ?? img['sm'] ?? img['url'] ?? img['path'] ?? img['photo'] ?? '');
         } else if (data['image'] is String) {
           mediaUrl = _absUrl(data['image']);
+        } else if (data['photo'] is Map) {
+          final photo = data['photo'];
+          mediaUrl = _absUrl(photo['lg'] ?? photo['md'] ?? photo['sm'] ?? photo['url'] ?? photo['path'] ?? photo['photo'] ?? '');
+        } else if (data['photo'] is String) {
+          mediaUrl = _absUrl(data['photo']);
+        } else if (data['image_url'] != null) {
+          mediaUrl = _absUrl(data['image_url']?.toString());
+        } else if (data['imageUrl'] != null) {
+          mediaUrl = _absUrl(data['imageUrl']?.toString());
         } else if (data['media_url'] != null) {
           mediaUrl = _absUrl(data['media_url']?.toString());
         }
@@ -545,7 +589,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       _isBlockedByAdmin = true;
     }
     controller.messageController.clear();
-    Get.snackbar('Blocked', _blockNotice);
+    Get.snackbar(
+      'Blocked',
+      _blockNotice,
+      backgroundColor: Colors.white,
+      colorText: Colors.black,
+    );
   }
 
   String? _extractBlockedUserId(Map<String, dynamic> payload) {
@@ -1192,25 +1241,129 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   Future<void> _loadHistory() async {
     if (widget.thread_id.isEmpty) return;
     try {
-      final res = await _api.getApiCall('messenger/threads/${widget.thread_id}/messages?per_page=50');
-      List<dynamic> msgs = [];
-      if (res is Map && res['data'] is List)
-        msgs = res['data'];
-      else if (res is List) msgs = res;
-      final normalized = msgs.map((m) {
-        if (m is Map<String, dynamic>) return _mapIncomingToMessage(m);
-        try {
-          return _mapIncomingToMessage(Map<String, dynamic>.from(m));
-        } catch (_) {
-          return {'text': m.toString(), 'sender_name': '', 'sender_id': '', 'sender_image': '', 'timestamp': DateTime.now(), 'type': 'text'};
-        }
-      }).toList();
-      controller.messages.value = List<Map<String, dynamic>>.from(normalized);
+      final page = await _fetchMessagePage('messenger/threads/${widget.thread_id}/messages?per_page=50');
+      controller.messages.value = List<Map<String, dynamic>>.from(page.messages);
+      _nextPageRoute = page.nextPageRoute;
+      _hasMoreHistory = !page.finalPage && _nextPageRoute != null && _nextPageRoute!.isNotEmpty;
       for (final msg in controller.messages) {
         _prefetchThumbnailIfNeeded(msg);
       }
     } catch (e) {
       log('loadHistory error: $e');
+    }
+  }
+
+  Future<void> _loadMoreHistory() async {
+    if (_isLoadingMore || !_hasMoreHistory) return;
+    final route = _nextPageRoute;
+    if (route == null || route.isEmpty) {
+      _hasMoreHistory = false;
+      return;
+    }
+    if (mounted) {
+      setState(() => _isLoadingMore = true);
+    } else {
+      _isLoadingMore = true;
+    }
+    try {
+      final page = await _fetchMessagePage(route);
+      final existingIds = <String>{};
+      for (final msg in controller.messages) {
+        final id = msg['id']?.toString() ?? '';
+        if (id.isNotEmpty) existingIds.add(id);
+      }
+      final List<Map<String, dynamic>> newMessages = [];
+      for (final msg in page.messages) {
+        final id = msg['id']?.toString() ?? '';
+        if (id.isEmpty || !existingIds.contains(id)) {
+          newMessages.add(msg);
+        }
+      }
+      if (newMessages.isNotEmpty) {
+        controller.messages.addAll(newMessages);
+        for (final msg in newMessages) {
+          _prefetchThumbnailIfNeeded(msg);
+        }
+      }
+      _nextPageRoute = page.nextPageRoute;
+      _hasMoreHistory = !page.finalPage && _nextPageRoute != null && _nextPageRoute!.isNotEmpty;
+    } catch (e) {
+      log('loadMoreHistory error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+      } else {
+        _isLoadingMore = false;
+      }
+    }
+  }
+
+  Future<_MessagePage> _fetchMessagePage(String apiPath) async {
+    final res = await _api.getApiCall(apiPath);
+    return _unwrapMessagePage(res);
+  }
+
+  _MessagePage _unwrapMessagePage(dynamic res) {
+    dynamic data = res;
+    Map<String, dynamic>? meta;
+    if (res is Map) {
+      if (res['data'] is List) {
+        data = res['data'];
+      } else if (res['success'] is Map && res['success']['data'] is List) {
+        data = res['success']['data'];
+        if (res['success']['meta'] is Map) {
+          meta = Map<String, dynamic>.from(res['success']['meta']);
+        }
+      }
+      if (meta == null && res['meta'] is Map) {
+        meta = Map<String, dynamic>.from(res['meta']);
+      }
+    }
+    final List<Map<String, dynamic>> normalized = [];
+    if (data is List) {
+      for (final m in data) {
+        if (m is Map<String, dynamic>) {
+          normalized.add(_mapIncomingToMessage(m));
+        } else {
+          try {
+            normalized.add(_mapIncomingToMessage(Map<String, dynamic>.from(m)));
+          } catch (_) {
+            normalized.add({
+              'text': m.toString(),
+              'sender_name': '',
+              'sender_id': '',
+              'sender_image': '',
+              'timestamp': DateTime.now(),
+              'type': 'text',
+            });
+          }
+        }
+      }
+    }
+    final bool finalPage = meta?['final_page'] == true;
+    final String? nextRoute = _normalizeApiRoute(meta?['next_page_route']?.toString());
+    return _MessagePage(messages: normalized, nextPageRoute: nextRoute, finalPage: finalPage);
+  }
+
+  String? _normalizeApiRoute(String? route) {
+    if (route == null) return null;
+    final trimmed = route.trim();
+    if (trimmed.isEmpty) return null;
+    try {
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        final uri = Uri.parse(trimmed);
+        String path = uri.path;
+        if (path.startsWith('/api/'))
+          path = path.substring('/api/'.length);
+        else if (path.startsWith('/')) path = path.substring(1);
+        return uri.query.isNotEmpty ? '$path?${uri.query}' : path;
+      }
+      if (trimmed.startsWith('/api/')) return trimmed.substring('/api/'.length);
+      if (trimmed.startsWith('api/')) return trimmed.substring('api/'.length);
+      if (trimmed.startsWith('/')) return trimmed.substring(1);
+      return trimmed;
+    } catch (_) {
+      return trimmed;
     }
   }
 
@@ -1234,7 +1387,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
 
   Future<void> _sendMessage() async {
     if (_isBlockedByAdmin) {
-      Get.snackbar('Blocked', _blockNotice);
+      Get.snackbar(
+        'Blocked',
+        _blockNotice,
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
     final text = controller.messageController.text.trim();
@@ -1290,7 +1448,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       }
       controller.replyingTo.value = null;
     } catch (e) {
-      Get.snackbar('Error', 'Failed to send message');
+      Get.snackbar(
+        'Error',
+        'Failed to send message',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     }
   }
 
@@ -1547,6 +1710,9 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       body: Obx(() {
         final threadedMessages = _buildThreadedMessages(controller.messages);
         final groupedMessages = groupMessagesByDate(threadedMessages);
+        _lastRenderedItemCount = groupedMessages.length;
+        final bool showLoader = _isLoadingMore;
+        final int totalCount = groupedMessages.length + (showLoader ? 1 : 0);
         _messageIndexLookup.clear();
         for (var i = 0; i < groupedMessages.length; i++) {
           final item = groupedMessages[i];
@@ -1595,9 +1761,21 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                     reverse: true,
                     itemScrollController: _messageScrollController,
                     itemPositionsListener: _messagePositionsListener,
-                    itemCount: groupedMessages.length,
+                    itemCount: totalCount,
                     padding: const EdgeInsets.all(16),
                     itemBuilder: (_, index) {
+                      if (showLoader && index == groupedMessages.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        );
+                      }
                       final item = groupedMessages[index];
                       if (item['type'] == 'date') {
                         return Center(
@@ -1823,7 +2001,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   void _openMediaGallery() {
     final media = _gatherMediaCollections();
     if (media.images.isEmpty && media.videos.isEmpty) {
-      Get.snackbar('No media yet', 'No images or videos shared in this chat.');
+      Get.snackbar(
+        'No media yet',
+        'No images or videos shared in this chat.',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
     Get.to(() => MediaGalleryScreen(images: media.images, videos: media.videos));
@@ -2040,7 +2223,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     final bool isMediaMessage = _isMediaMessageType(messageType);
     final String? captionText = isMediaMessage ? _extractMediaCaption(message) : null;
     final backgroundColor = isThreadReply ? const Color(0xff1F1A37) : const Color(0xff262042);
-    final senderName = message['sender_name']?.toString().trim();
+    final senderDisplayName = _resolveSenderDisplayName(message);
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onDoubleTap: () => _handleMessageDoubleTap(message),
@@ -2075,7 +2258,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          (senderName == null || senderName.isEmpty) ? 'Unknown' : senderName,
+                          senderDisplayName,
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -2139,6 +2322,23 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     );
   }
 
+  String _resolveSenderDisplayName(Map<String, dynamic> message) {
+    final senderName = message['sender_name']?.toString().trim();
+    final senderId = _extractMessageSenderId(message);
+    final groupAdminId = widget.otheruserId.toString();
+    final groupName = widget.groupName.trim();
+
+    if (senderId != null && senderId == groupAdminId && groupName.isNotEmpty) {
+      return groupName;
+    }
+
+    if (senderName != null && senderName.isNotEmpty) {
+      return senderName;
+    }
+
+    return 'Unknown';
+  }
+
   Widget _buildStyledMessageText(String text) {
     final decodedText = EmojiParser.decode(text);
     final baseStyle = TextStyle(color: Colors.white, fontSize: 16.sp, height: 1.4);
@@ -2146,9 +2346,9 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       return Text(decodedText, style: baseStyle);
     }
     final spans = <TextSpan>[];
-    // Highlight mentions as a single @token to avoid swallowing normal words
-    // that follow the mention (e.g. "@tim Hello").
-    final mentionPattern = RegExp(r'@[\w\.\-]+');
+    // Highlight mentions as one token and allow a second capitalized word
+    // so display names like "@John Doe" are fully highlighted.
+    final mentionPattern = RegExp(r'@[\w\.\-]+(?:\s+[A-Z][\w\.\-]*)?');
     int startIndex = 0;
     for (final match in mentionPattern.allMatches(decodedText)) {
       if (match.start > startIndex) {
@@ -2208,6 +2408,19 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     }
     if (mounted && shouldShow != _showJumpToLatest) {
       setState(() => _showJumpToLatest = shouldShow);
+    }
+    _maybeLoadMoreHistory(positions);
+  }
+
+  void _maybeLoadMoreHistory(Iterable<ItemPosition> positions) {
+    if (!_hasMoreHistory || _isLoadingMore || _lastRenderedItemCount == 0) return;
+    int maxIndex = -1;
+    for (final position in positions) {
+      if (position.index > maxIndex) maxIndex = position.index;
+    }
+    final int threshold = (_lastRenderedItemCount - 2) < 0 ? 0 : (_lastRenderedItemCount - 2);
+    if (maxIndex >= threshold) {
+      _loadMoreHistory();
     }
   }
 
@@ -3080,7 +3293,15 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
 
     if (parseFlag(isMemberValue)) return true;
     if (parseFlag(invitedValue)) return true;
-    if (statusValue == 'accepted' || statusValue == 'member' || statusValue == 'joined') return true;
+    if (statusValue == 'accepted' ||
+        statusValue == 'approved' ||
+        statusValue == 'member' ||
+        statusValue == 'joined' ||
+        statusValue == 'admin' ||
+        statusValue == 'creator' ||
+        statusValue == 'owner') {
+      return true;
+    }
 
     // Fallback: this endpoint returns members; if user is present and no explicit deny flag exists, allow share.
     return invitedValue == null && isMemberValue == null && (statusValue == null || statusValue.isEmpty);
@@ -3093,6 +3314,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     if (groupId == null || currentUserId == null) {
       _canSharePostFromGroup = false;
       log('🔐 Share permission denied: missing groupId/currentUserId');
+      return;
+    }
+    // Group owner/admin should always be allowed to share from the group.
+    if (controller.isGroupCreator.value || currentUserId == widget.otheruserId) {
+      _canSharePostFromGroup = true;
+      log('🔐 Share permission granted: current user is group creator/admin');
       return;
     }
     try {
@@ -3109,9 +3336,11 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         final memberUserId = _toInt(
           member['user_id'] ?? member['member_id'] ?? member['id'] ?? member['user']?['id'] ?? member['owner']?['id'],
         );
-        log('🔐 Share permission member row[$i]: memberUserId=$memberUserId is_invited=${member["is_invited"]}');
+        log(
+          '🔐 Share permission member row[$i]: memberUserId=$memberUserId is_invited=${member["is_invited"]} status=${member["status"]} is_deleted=${member["is_deleted"]}',
+        );
         if (memberUserId != currentUserId) continue;
-        _canSharePostFromGroup = _toInt(member["is_invited"]) == 1;
+        _canSharePostFromGroup = _isInvitedMember(member);
         log('🔐 Share permission matched row[$i] for current user: allowed=$_canSharePostFromGroup');
         return;
       }
@@ -3145,7 +3374,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   Future<void> _confirmDeleteMessage(Map<String, dynamic> message) async {
     final messageId = _extractMessageId(message);
     if (messageId == null || widget.thread_id.isEmpty) {
-      Get.snackbar('Error', 'Message cannot be deleted yet.');
+      Get.snackbar(
+        'Error',
+        'Message cannot be deleted yet.',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
     final confirmed = await showDialog<bool>(
@@ -3178,9 +3412,19 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       await _api.deleteThreadMessage(threadId: widget.thread_id, messageId: messageId);
       _removeMessageFromList(messageId);
       controller.messages.refresh();
-      Get.snackbar('Deleted', 'Message removed');
+      Get.snackbar(
+        'Deleted',
+        'Message removed',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } catch (e) {
-      Get.snackbar('Error', 'Failed to delete message: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to delete message: $e',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     }
   }
 
@@ -3241,12 +3485,22 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   Future<void> _shareMessageMediaAsPost(Map<String, dynamic> message) async {
     final type = (message['type'] ?? '').toString().toLowerCase();
     if (!_isMediaMessageType(type)) {
-      Get.snackbar('Error', 'Only image/video messages can be shared as posts.');
+      Get.snackbar(
+        'Error',
+        'Only image/video messages can be shared as posts.',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
     final urls = _extractMediaUrlsForPost(message);
     if (urls.isEmpty) {
-      Get.snackbar('Error', 'No media found for this message.');
+      Get.snackbar(
+        'Error',
+        'No media found for this message.',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
     final isVideo = type == 'video' || type == 'videos';
@@ -3267,7 +3521,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         }
       }
       if (imageFiles.isEmpty && videoFiles.isEmpty) {
-        Get.snackbar('Error', 'Failed to download media for posting.');
+        Get.snackbar(
+          'Error',
+          'Failed to download media for posting.',
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
         return;
       }
 
@@ -3322,12 +3581,16 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                   onTap: () {
                     Navigator.of(sheetContext).pop();
                     final parentReplyId = message['reply_to_id']?.toString() ?? message['reply_to']?['id']?.toString() ?? '';
-                    final shouldAutoMention = parentReplyId.isNotEmpty;
+                    final replySenderId = _extractMessageSenderId(message);
+                    final shouldAutoMention = parentReplyId.isNotEmpty && replySenderId != null && replySenderId != currentUserId;
                     if (shouldAutoMention) {
                       final senderName = message['sender_name']?.toString() ?? 'Unknown';
                       final mentionText = '@$senderName ';
                       final currentText = controller.messageController.text;
-                      controller.messageController.text = mentionText + currentText;
+                      controller.messageController.value = TextEditingValue(
+                        text: mentionText + currentText,
+                        selection: TextSelection.collapsed(offset: (mentionText + currentText).length),
+                      );
                     }
                     controller.startReply(message);
                   },
@@ -3395,9 +3658,19 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       isLoading.value = true;
       await NetworkAPICall().blockGroupUser(userId: userId, threadId: threadId);
 
-      Get.snackbar('Success', 'Member blocked successfully');
+      Get.snackbar(
+        'Success',
+        'Member blocked successfully',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } catch (e) {
-      Get.snackbar('Error', 'Failed to block member: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to block member: $e',
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -3431,7 +3704,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     } catch (e) {
       reverted = true;
       _replaceMessageInList(_mapIncomingToMessage(message['raw'] ?? message));
-      Get.snackbar('Reaction failed', e.toString());
+      Get.snackbar(
+        'Reaction failed',
+        e.toString(),
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
     } finally {
       if (reverted) {
         controller.messages.refresh();
@@ -3632,8 +3910,17 @@ class MediaGalleryScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: const Color(0xff1F1A37),
         appBar: AppBar(
+          leading: GestureDetector(
+              onTap: () {
+                Get.back();
+              },
+              child: Icon(Icons.arrow_back_ios, color: Colors.white)),
+          automaticallyImplyLeading: false,
           backgroundColor: const Color(0xff1F1A37),
-          title: const Text('Shared Media'),
+          title: const Text(
+            'Shared Media',
+            style: TextStyle(color: Colors.white),
+          ),
           centerTitle: true,
           bottom: const TabBar(
             tabs: [
@@ -3866,7 +4153,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       controller.play();
     } on PlatformException catch (e) {
       controller.dispose();
-      if (!_fallbackTried && _isRangeError(e)) {
+      if (!_fallbackTried) {
         _fallbackTried = true;
         await _downloadAndPlay();
       } else {
@@ -3876,15 +4163,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       }
     } catch (e) {
       controller.dispose();
-      if (mounted) {
-        setState(() => _errorMessage = e.toString());
+      if (!_fallbackTried) {
+        _fallbackTried = true;
+        await _downloadAndPlay();
+      } else {
+        if (mounted) {
+          setState(() => _errorMessage = e.toString());
+        }
       }
     }
-  }
-
-  bool _isRangeError(PlatformException e) {
-    final text = '${e.message} ${e.details}'.toLowerCase();
-    return text.contains('coremediaerrordomain') || text.contains('byte range') || text.contains('-12939');
   }
 
   Future<void> _downloadAndPlay() async {

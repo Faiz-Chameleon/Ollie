@@ -43,7 +43,12 @@ class LoginController extends GetxController {
 
   void loginUser() async {
     if (phoneController.text.isEmpty || passwordController.text.isEmpty) {
-      Get.snackbar("Error", "Please fill all fields");
+      Get.snackbar(
+        "Error",
+        "Please fill all fields",
+        backgroundColor: Colors.white,
+        colorText: Colors.black,
+      );
       return;
     }
     isLoading.value = true;
