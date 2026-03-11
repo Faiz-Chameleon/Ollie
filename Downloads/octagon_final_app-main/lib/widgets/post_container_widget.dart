@@ -493,7 +493,8 @@ class _PostWidgetsState extends State<PostWidgets> {
                                               Get.to(() => OtherUserProfileScreen(userId: widget.postData?.originalUser?.id ?? 0));
                                             },
                                             child: Text(
-                                              "${widget.postData?.userName ?? ""} Reposted From ${widget.postData?.originalUser?.name ?? ""}",
+                                              smartCapitalize(
+                                                  "${widget.postData?.userName ?? ""} Reposted From ${widget.postData?.originalUser?.name ?? ""}"),
                                               style: whiteColor16BoldTextStyle,
                                               softWrap: true,
                                             ),
@@ -513,7 +514,7 @@ class _PostWidgetsState extends State<PostWidgets> {
                                       crossAxisAlignment: CrossAxisAlignment.center,
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text(widget.name?.capitalize ?? "", style: whiteColor16BoldTextStyle),
+                                        Text(smartCapitalize(widget.name ?? ""), style: whiteColor16BoldTextStyle),
                                         if (widget.postData?.userId != storage.read("current_uid"))
                                           FollowButton(
                                             text: widget.postData!.isUserFollowedByMe ? "Following" : "Follow",
@@ -528,14 +529,14 @@ class _PostWidgetsState extends State<PostWidgets> {
                                 maxLines: 3,
                                 textAlign: TextAlign.start,
                                 text: TextSpan(
-                                    text:
-                                        "${(widget.postData?.post ?? "").length > 120 ? (widget.postData?.post ?? "").substring(0, 120) : (widget.postData?.post ?? "")}",
+                                    text: _sanitizePostText(
+                                        "${(widget.postData?.post ?? "").length > 120 ? (widget.postData?.post ?? "").substring(0, 120) : (widget.postData?.post ?? "")}"),
                                     style: greyColor14TextStyle.copyWith(
                                       color: Colors.white,
                                       // fontSize: 13,
                                     ),
                                     children: [
-                                      if ((widget.postData?.post ?? "").length > 100)
+                                      if ((_sanitizePostText(widget.postData?.post ?? "")).length > 100)
                                         TextSpan(
                                           recognizer: TapGestureRecognizer()
                                             ..onTap = () {
@@ -1469,4 +1470,38 @@ class _PostWidgetsState extends State<PostWidgets> {
                   )));
     }
   }
+}
+
+String smartCapitalize(String text) {
+  if (text.isEmpty) return text;
+
+  List<String> words = text.split(' ');
+  List<String> result = [];
+
+  for (String word in words) {
+    if (word.isEmpty) continue;
+
+    // Check if the whole word is uppercase (acronym)
+    if (word.toUpperCase() == word) {
+      result.add(word); // keep as is
+    } else {
+      // Capitalize first letter, lower the rest
+      String capitalized = word[0].toUpperCase() + word.substring(1).toLowerCase();
+      result.add(capitalized);
+    }
+  }
+
+  return result.join(' ');
+}
+
+String _sanitizePostText(String text) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return trimmed;
+  final filenamePattern = RegExp(r'^[^\\\/\s]+\.(jpg|jpeg|png|gif|webp|heic|heif|mp4|mov|m4v)$', caseSensitive: false);
+  final imagePickerPattern = RegExp(r'^image_picker_.*$', caseSensitive: false);
+  final octagonTempPattern = RegExp(r'^octagon_\\d+_.*$', caseSensitive: false);
+  if (filenamePattern.hasMatch(trimmed)) return '';
+  if (imagePickerPattern.hasMatch(trimmed)) return '';
+  if (octagonTempPattern.hasMatch(trimmed)) return '';
+  return text;
 }

@@ -463,14 +463,6 @@ class PusherService extends GetxService {
 
       // Also log to console for debugging
       log("✅ Message added to stream: ${data.toString()}");
-
-      Get.snackbar(
-        'New Message',
-        'You have a new message',
-        duration: Duration(seconds: 2),
-        backgroundColor: Colors.white,
-        colorText: Colors.black,
-      );
     });
   }
 

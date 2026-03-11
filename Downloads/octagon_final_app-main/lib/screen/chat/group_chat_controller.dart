@@ -4,6 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:octagon/screen/common/create_post_controller.dart';
 import 'package:octagon/screen/mainFeed/home/postController.dart';
 import 'package:octagon/widgets/video_editor_screen.dart';
@@ -15,6 +16,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:video_player/video_player.dart';
 import 'package:video_compress/video_compress.dart';
@@ -159,7 +161,20 @@ class GroupChatController extends GetxController {
         request.fields['extra'] = json.encode({'caption': caption.trim()});
       }
 
-      request.files.add(await http.MultipartFile.fromPath('video', file.path));
+      final lowerPath = file.path.toLowerCase();
+      MediaType? contentType;
+      if (lowerPath.endsWith('.mp4')) {
+        contentType = MediaType('video', 'mp4');
+      } else if (lowerPath.endsWith('.mov')) {
+        contentType = MediaType('video', 'quicktime');
+      } else if (lowerPath.endsWith('.m4v')) {
+        contentType = MediaType('video', 'mp4');
+      }
+      request.files.add(await http.MultipartFile.fromPath(
+        'video',
+        file.path,
+        contentType: contentType,
+      ));
 
       print('Sending video to $uri (temp id: $tempId, trace: $traceId) ...');
       final streamed = await request.send();
@@ -213,7 +228,12 @@ class GroupChatController extends GetxController {
   /// Upload a local image file directly to the messenger API for a given thread.
   /// This mirrors [uploadVideoToThread] but targets the `/images` endpoint and
   /// sends the picked file under the `image` field.
-  Future<Map<String, dynamic>?> uploadImageToThread(String threadId, File file, {String? caption}) async {
+  Future<Map<String, dynamic>?> uploadImageToThread(
+    String threadId,
+    File file, {
+    String? caption,
+    String? temporaryId,
+  }) async {
     try {
       final token = storage.read("token");
       if (token == null) {
@@ -223,7 +243,7 @@ class GroupChatController extends GetxController {
 
       final uri = Uri.parse('${baseUrl}messenger/threads/$threadId/images');
       final request = http.MultipartRequest('POST', uri);
-      final tempId = Uuid().v4();
+      final tempId = (temporaryId != null && temporaryId.isNotEmpty) ? temporaryId : Uuid().v4();
 
       request.headers.addAll({
         'Authorization': 'Bearer $token',
@@ -537,6 +557,17 @@ class GroupChatController extends GetxController {
       } else if (selection == 'camera') {
         // Camera image selection
         print('Camera image selection mode');
+        // final granted = await _ensureCameraPermissions();
+        // if (!granted) {
+        //   Get.snackbar(
+        //     "Permission required",
+        //     "Please allow camera access in Settings to take a photo.",
+        //     backgroundColor: Colors.white,
+        //     colorText: Colors.black,
+        //   );
+        //   isUploading.value = false;
+        //   return;
+        // }
         final file = await _picker.pickImage(
           source: ImageSource.camera,
           imageQuality: 50,
@@ -698,6 +729,7 @@ class GroupChatController extends GetxController {
               for (var i = 0; i < imageFiles.length; i++) {
                 final file = imageFiles[i];
                 try {
+                  final tempId = const Uuid().v4();
                   final caption = await _promptMediaCaption(
                     context,
                     isVideo: false,
@@ -714,10 +746,19 @@ class GroupChatController extends GetxController {
                     isUploading.value = false;
                     return;
                   }
+                  onMessengerMessage?.call(_buildLocalImagePlaceholder(
+                    tempId: tempId,
+                    filePath: file.filePath,
+                    userId: userId,
+                    userName: userName,
+                    threadId: threadId,
+                    caption: caption,
+                  ));
                   final uploadRes = await uploadImageToThread(
                     threadId,
                     File(file.filePath),
                     caption: caption.isEmpty ? null : caption,
+                    temporaryId: tempId,
                   );
                   print('Direct image upload result: $uploadRes');
                   if (uploadRes != null) {
@@ -759,6 +800,13 @@ class GroupChatController extends GetxController {
                 final file = videoFiles[i];
                 try {
                   String uploadPath = file.filePath;
+                  if (Platform.isIOS) {
+                    final lower = uploadPath.toLowerCase();
+                    final needsMp4 = !(lower.endsWith('.mp4'));
+                    if (needsMp4) {
+                      uploadPath = await _compressVideoForUpload(uploadPath, forceForSizeLimit: true);
+                    }
+                  }
                   var uploadFile = File(uploadPath);
                   var uploadSize = await uploadFile.length();
                   if (uploadSize > _messengerVideoMaxBytes) {
@@ -1049,6 +1097,14 @@ class GroupChatController extends GetxController {
     }
   }
 
+  Future<bool> _ensureCameraPermissions() async {
+    final camera = await Permission.camera.request();
+    if (camera.isGranted) {
+      return true;
+    }
+    return false;
+  }
+
   Future<String?> _showChatMediaPicker(BuildContext context) async {
     return showModalBottomSheet<String>(
       context: context,
@@ -1273,6 +1329,36 @@ class GroupChatController extends GetxController {
       } catch (_) {}
     }
     payload['extra'] = {'caption': caption};
+  }
+
+  Map<String, dynamic> _buildLocalImagePlaceholder({
+    required String tempId,
+    required String filePath,
+    required String userId,
+    required String userName,
+    required String threadId,
+    String? caption,
+  }) {
+    final now = DateTime.now();
+    final imageUrl = filePath.startsWith('file://') ? filePath : 'file://$filePath';
+    final senderImage = storage.read("image_url")?.toString() ?? '';
+    final payload = <String, dynamic>{
+      'temporary_id': tempId,
+      'thread_id': threadId,
+      'sender_id': userId,
+      'sender_name': userName,
+      'sender_image': senderImage,
+      'timestamp': now,
+      'created_at': now,
+      'type': 'image',
+      'text': '',
+      'media_url': imageUrl,
+      'local_image_path': filePath,
+    };
+    if (caption != null && caption.trim().isNotEmpty) {
+      payload['extra'] = {'caption': caption.trim()};
+    }
+    return payload;
   }
 
   Future<String> saveImage(Uint8List data) async {

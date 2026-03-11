@@ -302,120 +302,132 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   otheruserId: selectedGroup.userId,
                                 ));
                           },
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              group.isPublic == "1"
-                                  ? Stack(
-                                      clipBehavior: Clip.none,
-                                      alignment: Alignment.center,
-                                      children: [
-                                        // Octagon background image
-                                        Image.asset(
-                                          'assets/ic/Group 4.png', // Your uploaded PNG asset
-                                          width: 74,
-                                          height: 74,
-                                          fit: BoxFit.cover,
-                                        ),
+                          child: SizedBox(
+                            height: 100,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  height: 74,
+                                  width: 74,
+                                  child: group.isPublic == "1"
+                                      ? Stack(
+                                          clipBehavior: Clip.hardEdge,
+                                          alignment: Alignment.center,
+                                          children: [
+                                            // Octagon background image
+                                            Image.asset(
+                                              'assets/ic/Group 4.png', // Your uploaded PNG asset
+                                              width: 74,
+                                              height: 74,
+                                              fit: BoxFit.cover,
+                                            ),
 
-                                        // Centered network image
-                                        ClipPath(
-                                          clipper: OctagonClipper(),
-                                          child: Image.network(
-                                            'http://3.134.119.154/${group.photo}', // Replace with your image URL
-                                            width: 44,
-                                            height: 44,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) => Container(
-                                              width: 45,
-                                              height: 45,
-                                              color: Colors.transparent,
-                                              child: Icon(
-                                                Icons.error,
-                                                color: Colors.red,
-                                                size: 24,
+                                            // Centered network image
+                                            ClipPath(
+                                              clipper: OctagonClipper(),
+                                              child: Image.network(
+                                                'http://3.134.119.154/${group.photo}', // Replace with your image URL
+                                                width: 44,
+                                                height: 44,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) => Container(
+                                                  width: 45,
+                                                  height: 45,
+                                                  color: Colors.transparent,
+                                                  child: Icon(
+                                                    Icons.error,
+                                                    color: Colors.red,
+                                                    size: 24,
+                                                  ),
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        ),
-                                        Positioned(
-                                          left: 45,
-                                          top: -1,
-                                          child: Icon(
-                                            Icons.lock,
-                                            color: Colors.amber,
-                                            size: 20,
-                                          ),
+                                            Positioned(
+                                              left: 45,
+                                              top: 2,
+                                              child: Icon(
+                                                Icons.lock,
+                                                color: Colors.amber,
+                                                size: 18,
+                                              ),
+                                            )
+                                          ],
                                         )
-                                      ],
-                                    )
-                                  : Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        Image.asset(
-                                          'assets/ic/Group 5.png',
-                                          width: 74,
-                                          height: 74,
-                                          fit: BoxFit.contain,
-                                        ),
+                                      : Stack(
+                                          clipBehavior: Clip.hardEdge,
+                                          alignment: Alignment.center,
+                                          children: [
+                                            Image.asset(
+                                              'assets/ic/Group 5.png',
+                                              width: 74,
+                                              height: 74,
+                                              fit: BoxFit.contain,
+                                            ),
 
-                                        // Centered network image
-                                        ClipPath(
-                                          clipper: OctagonClipper(),
-                                          child: group.title == "Octagon"
-                                              ? ShapeMaker(
-                                                  height: 50,
-                                                  width: 50,
-                                                  bgColor: Colors.yellow,
-                                                  widget: Container(
-                                                    margin: const EdgeInsets.all(6),
-                                                    child: ShapeMaker(
-                                                      bgColor: Colors.black,
+                                            // Centered network image
+                                            ClipPath(
+                                              clipper: OctagonClipper(),
+                                              child: group.title == "Octagon"
+                                                  ? ShapeMaker(
+                                                      height: 50,
+                                                      width: 50,
+                                                      bgColor: Colors.yellow,
                                                       widget: Container(
-                                                        margin: const EdgeInsets.all(8),
+                                                        margin: const EdgeInsets.all(6),
                                                         child: ShapeMaker(
-                                                          bgColor: appBgColor,
+                                                          bgColor: Colors.black,
+                                                          widget: Container(
+                                                            margin: const EdgeInsets.all(8),
+                                                            child: ShapeMaker(
+                                                              bgColor: appBgColor,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    )
+                                                  : Image.network(
+                                                      'http://3.134.119.154/${group.photo}', // Replace with your image URL
+                                                      width: 44,
+                                                      height: 44,
+                                                      fit: BoxFit.fill,
+                                                      errorBuilder: (context, error, stackTrace) => Container(
+                                                        width: 45,
+                                                        height: 45,
+                                                        color: Colors.transparent,
+                                                        child: Icon(
+                                                          Icons.error,
+                                                          color: Colors.red,
+                                                          size: 24,
                                                         ),
                                                       ),
                                                     ),
-                                                  ),
-                                                )
-                                              : Image.network(
-                                                  'http://3.134.119.154/${group.photo}', // Replace with your image URL
-                                                  width: 44,
-                                                  height: 44,
-                                                  fit: BoxFit.fill,
-                                                  errorBuilder: (context, error, stackTrace) => Container(
-                                                    width: 45,
-                                                    height: 45,
-                                                    color: Colors.transparent,
-                                                    child: Icon(
-                                                      Icons.error,
-                                                      color: Colors.red,
-                                                      size: 24,
-                                                    ),
-                                                  ),
-                                                ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
-                              const SizedBox(height: 4),
-                              SizedBox(
-                                width: 90,
-                                child: Text(
-                                  group.title,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    height: 1.2,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 4),
+                                SizedBox(
+                                  width: 90,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      group.title,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        height: 1.2,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       );

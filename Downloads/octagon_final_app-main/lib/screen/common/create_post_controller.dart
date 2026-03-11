@@ -17,6 +17,7 @@ import 'package:image_editor_plus/image_editor_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:uuid/uuid.dart';
 
 class PostFile {
   String filePath;
@@ -128,6 +129,7 @@ class CreatePostController extends GetxController {
     isLoading.value = true;
 
     try {
+      final traceId = const Uuid().v4();
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('http://3.134.119.154/api/save-user-post'),
@@ -135,6 +137,8 @@ class CreatePostController extends GetxController {
 
       request.headers.addAll({
         'Authorization': 'Bearer ${getUserToken()}',
+        'Accept': 'application/json',
+        'X-Trace-Id': traceId,
       });
 
       final typeIndex = postTypes.indexOf(dropdownValue.value);
@@ -159,7 +163,42 @@ class CreatePostController extends GetxController {
         request.fields['original_user_id'] = originalUserId;
       }
       if (originalResource != null && originalResource.isNotEmpty) {
-        request.fields['original_source'] = originalResource.join(',');
+        final joined = originalResource.join(',');
+        const maxLen = 255;
+        if (joined.length <= maxLen) {
+          request.fields['original_source'] = joined;
+        } else {
+          final first = originalResource.first;
+          if (first.length <= maxLen) {
+            request.fields['original_source'] = first;
+          } else {
+            final trimmed = first.substring(0, maxLen);
+            request.fields['original_source'] = trimmed;
+            print('[CreatePost][$traceId] original_source trimmed to $maxLen chars');
+          }
+        }
+      }
+
+      print('[CreatePost][$traceId] fields=${request.fields}');
+      if (images.isNotEmpty) {
+        for (final img in images) {
+          try {
+            final size = await File(img.filePath).length();
+            print('[CreatePost][$traceId] image=${img.filePath} bytes=$size');
+          } catch (e) {
+            print('[CreatePost][$traceId] image=${img.filePath} size_error=$e');
+          }
+        }
+      }
+      if (videos.isNotEmpty) {
+        for (final vid in videos) {
+          try {
+            final size = await File(vid.filePath).length();
+            print('[CreatePost][$traceId] video=${vid.filePath} bytes=$size');
+          } catch (e) {
+            print('[CreatePost][$traceId] video=${vid.filePath} size_error=$e');
+          }
+        }
       }
 
       final imageFiles = await convertFiles(images, 'photo[]');
@@ -172,11 +211,12 @@ class CreatePostController extends GetxController {
 
       if (response.statusCode == 200) {
         final responseBody = await response.stream.bytesToString();
-        print("Success: $responseBody");
+        print("[CreatePost][$traceId] Success: $responseBody");
         showToast(message: "Post created successfully!");
         return true;
       } else {
-        print("Error: ${response.statusCode}");
+        final responseBody = await response.stream.bytesToString();
+        print("[CreatePost][$traceId] Error: ${response.statusCode} body=$responseBody");
         showToast(message: "Failed to create post! Code: ${response.statusCode}");
         return false;
       }

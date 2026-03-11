@@ -102,8 +102,10 @@
 	<key>FlutterDeepLinkingEnabled</key>
     <false/>
 
-	 <key>NSPhotoLibraryUsageDescription</key>
+	<key>NSPhotoLibraryUsageDescription</key>
     <string>Allow access to your photos to upload group images.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Allow access to save photos taken with the camera.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>camera use for take picture for post creation.</string>
 	<key>NSMicrophoneUsageDescription</key>

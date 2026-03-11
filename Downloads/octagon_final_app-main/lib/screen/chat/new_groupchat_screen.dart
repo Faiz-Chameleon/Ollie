@@ -106,6 +106,11 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   bool _hasMoreHistory = false;
   bool _isLoadingMore = false;
   int _lastRenderedItemCount = 0;
+  bool _isInitialLoading = true;
+  Timer? _pollTimer;
+  bool _isPollingLatest = false;
+  DateTime _lastRealtimeEventAt = DateTime.fromMillisecondsSinceEpoch(0);
+  static const Duration _pollInterval = Duration(seconds: 10);
 
   @override
   void initState() {
@@ -121,6 +126,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   @override
   void dispose() {
     _pusherSub?.cancel();
+    _pollTimer?.cancel();
     _mentionSearchDebounce?.cancel();
     controller.messageController.removeListener(_handleComposerTextChanged);
     _messagePositionsListener.itemPositions.removeListener(_handleMessageListPositionsChanged);
@@ -132,6 +138,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     if (_initializing) return;
     _initializing = true;
     try {
+      _setInitialLoading(true);
       // Get user ID with fallback
       final currentUserId = storage.read("current_uid") ?? storage.read("user_id") ?? storage.read("id");
       if (currentUserId == null) {
@@ -160,60 +167,11 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       }
 
       await _refreshSharePostPermission();
-      await _loadHistory();
-
-      // Initialize Pusher first
-      await _pusher.initializePusher();
-
-      // Wait for connection with better error handling
-      final connected = await _pusher.waitUntilConnected(timeout: Duration(seconds: 15));
-      if (!connected) {
-        log('Pusher connection failed - retrying initialization');
-        await _pusher.initializePusher();
-        await _pusher.waitUntilConnected(timeout: Duration(seconds: 10));
-      }
-
-      log('👤 Subscribing with user ID: $currentUserId, thread ID: ${widget.thread_id}');
-
-      // Subscribe to channels
-      await _pusher.subscribeToMessengerUser(currentUserId.toString());
-      await _pusher.subscribeToMessengerThread(widget.thread_id);
-
-      // Cancel existing subscription
-      await _pusherSub?.cancel();
-
-      // Listen to message stream with better debugging
-      _pusherSub = _pusher.messageStream.listen((payload) {
-        log('📨 Received Pusher message: ${payload.toString()}');
-
-        try {
-          final Map<String, dynamic> data = Map<String, dynamic>.from(payload);
-
-          // Debug the incoming data structure
-          log('🔍 Incoming data structure: $data');
-
-          final dynamic eventPayload = data['data'];
-          final dynamic eventType = data['type'];
-
-          if (eventPayload is Map<String, dynamic> && eventType is String && eventType.isNotEmpty) {
-            if (eventType.contains('reaction')) {
-              _handleReactionEvent(eventType, eventPayload);
-              return;
-            }
-            _handleMessageStreamEvent(eventType, eventPayload);
-            return;
-          }
-
-          _handleIncomingMessagePayload(data);
-        } catch (e) {
-          log('❌ Pusher message parse error: $e');
-          log('📦 Problematic payload: $payload');
-        }
-      }, onError: (error) {
-        log('❌ Pusher stream error: $error');
-      });
-
-      log('✅ Pusher initialization completed successfully');
+      await Future.wait([
+        _loadHistory(),
+        _initPusherConnection(currentUserId.toString()),
+      ]);
+      _startMessagePolling();
     } catch (e) {
       log('❌ _initThreadFlow error: $e');
       Get.snackbar(
@@ -223,8 +181,163 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         colorText: Colors.black,
       );
     } finally {
+      _setInitialLoading(false);
       _initializing = false;
     }
+  }
+
+  void _setInitialLoading(bool value) {
+    if (_isInitialLoading == value) return;
+    if (mounted) {
+      setState(() => _isInitialLoading = value);
+    } else {
+      _isInitialLoading = value;
+    }
+  }
+
+  Future<void> _initPusherConnection(String currentUserId) async {
+    // Initialize Pusher first
+    await _pusher.initializePusher();
+
+    // Wait for connection with better error handling
+    final connected = await _pusher.waitUntilConnected(timeout: Duration(seconds: 15));
+    if (!connected) {
+      log('Pusher connection failed - retrying initialization');
+      await _pusher.initializePusher();
+      await _pusher.waitUntilConnected(timeout: Duration(seconds: 10));
+    }
+
+    log('👤 Subscribing with user ID: $currentUserId, thread ID: ${widget.thread_id}');
+
+    // Subscribe to channels
+    await _pusher.subscribeToMessengerUser(currentUserId.toString());
+    await _pusher.subscribeToMessengerThread(widget.thread_id);
+
+    // Cancel existing subscription
+    await _pusherSub?.cancel();
+
+    // Listen to message stream with better debugging
+    _pusherSub = _pusher.messageStream.listen((payload) {
+      log('📨 Received Pusher message: ${payload.toString()}');
+
+      try {
+        final Map<String, dynamic> data = Map<String, dynamic>.from(payload);
+
+        // Debug the incoming data structure
+        log('🔍 Incoming data structure: $data');
+
+        final dynamic eventPayload = data['data'];
+        final dynamic eventType = data['type'];
+
+        if (eventPayload is Map<String, dynamic> && eventType is String && eventType.isNotEmpty) {
+          if (eventType.contains('reaction')) {
+            _handleReactionEvent(eventType, eventPayload);
+            return;
+          }
+          _handleMessageStreamEvent(eventType, eventPayload);
+          return;
+        }
+
+        _handleIncomingMessagePayload(data);
+      } catch (e) {
+        log('❌ Pusher message parse error: $e');
+        log('📦 Problematic payload: $payload');
+      }
+    }, onError: (error) {
+      log('❌ Pusher stream error: $error');
+    });
+
+    log('✅ Pusher initialization completed successfully');
+  }
+
+  void _startMessagePolling() {
+    if (_pollTimer != null) return;
+    _pollTimer = Timer.periodic(_pollInterval, (_) {
+      _pollLatestMessages();
+    });
+  }
+
+  Future<void> _pollLatestMessages() async {
+    if (_isPollingLatest || _isBlockedByAdmin) return;
+    if (widget.thread_id.isEmpty) return;
+    if (_isLoadingMore) return;
+
+    // If realtime is active and recent, keep polling light by skipping.
+    if (_pusher.isConnected && DateTime.now().difference(_lastRealtimeEventAt) < _pollInterval) {
+      return;
+    }
+
+    _isPollingLatest = true;
+    try {
+      final page = await _fetchMessagePage('messenger/threads/${widget.thread_id}/messages?per_page=20');
+      if (page.messages.isNotEmpty) {
+        _mergeLatestMessages(page.messages);
+      }
+    } catch (e) {
+      log('pollLatestMessages error: $e');
+    } finally {
+      _isPollingLatest = false;
+    }
+  }
+
+  void _mergeLatestMessages(List<Map<String, dynamic>> incoming) {
+    if (incoming.isEmpty) return;
+    final existingIndex = <String, int>{};
+    for (int i = 0; i < controller.messages.length; i++) {
+      final id = controller.messages[i]['id']?.toString() ?? '';
+      if (id.isNotEmpty) {
+        existingIndex[id] = i;
+      }
+    }
+
+    bool changed = false;
+    for (final msg in incoming.reversed) {
+      final id = msg['id']?.toString() ?? '';
+      if (id.isEmpty) continue;
+      final idx = existingIndex[id];
+      if (idx == null) {
+        controller.messages.insert(0, msg);
+        _prefetchThumbnailIfNeeded(msg);
+        changed = true;
+      } else {
+        final merged = _mergeMessagePreservingLocal(controller.messages[idx], msg);
+        controller.messages[idx] = merged;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      controller.messages.refresh();
+      _logLatestMessage();
+    }
+  }
+
+  Map<String, dynamic> _mergeMessagePreservingLocal(Map<String, dynamic> existing, Map<String, dynamic> incoming) {
+    final merged = Map<String, dynamic>.from(incoming);
+    if (existing['timestamp'] != null) {
+      merged['timestamp'] = existing['timestamp'];
+    } else if (merged['timestamp'] == null) {
+      merged['timestamp'] = merged['created_at'] ?? DateTime.now();
+    }
+    if (existing['created_at'] != null && merged['created_at'] == null) {
+      merged['created_at'] = existing['created_at'];
+    }
+    if (existing['updated_at'] != null && merged['updated_at'] == null) {
+      merged['updated_at'] = existing['updated_at'];
+    }
+    if (existing['reaction_updated_at'] != null && merged['reaction_updated_at'] == null) {
+      merged['reaction_updated_at'] = existing['reaction_updated_at'];
+    }
+    if (merged['raw'] == null && existing['raw'] != null) {
+      merged['raw'] = existing['raw'];
+    }
+    if ((merged['thumbnail_url']?.toString().isEmpty ?? true) && (existing['thumbnail_url']?.toString().isNotEmpty ?? false)) {
+      merged['thumbnail_url'] = existing['thumbnail_url'];
+    }
+    if ((merged['local_thumbnail_path']?.toString().isEmpty ?? true) && (existing['local_thumbnail_path']?.toString().isNotEmpty ?? false)) {
+      merged['local_thumbnail_path'] = existing['local_thumbnail_path'];
+    }
+    return merged;
   }
 
   Future<bool> _checkBlockedStatus(String threadId, String userId) async {
@@ -424,6 +537,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         } else if (data['media_url'] != null) {
           mediaUrl = _absUrl(data['media_url']?.toString());
         }
+        if (mediaUrl.isEmpty) {
+          final localPath = data['local_image_path']?.toString() ?? data['localImagePath']?.toString();
+          if (localPath != null && localPath.isNotEmpty) {
+            mediaUrl = localPath.startsWith('file://') ? localPath : 'file://$localPath';
+          }
+        }
       } else if (type == 'audio') {
         mediaUrl = _absUrl(data['audio']?.toString() ?? data['media_url']?.toString() ?? data['url']?.toString());
       } else if (type == 'document') {
@@ -477,6 +596,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     }
 
     final replyData = _normalizeReplyData(data['reply_to'] ?? data['reply_to_message'] ?? data['parent_message']);
+    final replyToId = _extractReplyToId(data, replyData);
     final reactionUsers = _extractReactionUsers(data);
     final reactionCounts = _extractReactionCounts(data, reactionUsers);
     final reactions = reactionCounts.entries
@@ -499,9 +619,10 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       'media_url': mediaUrl,
       'thumbnail_url': thumbnailUrl,
       'local_thumbnail_path': localThumbnailPath,
+      'local_image_path': data['local_image_path'] ?? data['localImagePath'],
       'extra': extraData ?? data['extra'],
       'reply_to': replyData,
-      'reply_to_id': data['reply_to_id']?.toString() ?? replyData?['id']?.toString() ?? '',
+      'reply_to_id': replyToId,
       'reactions': reactions,
       'reaction_users': reactionUsers.map((key, value) => MapEntry(key, value.toList())),
       'raw': data,
@@ -662,6 +783,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     }
 
     log('✅ Updating UI with message payload for thread: ${incomingThread ?? 'unknown'}');
+    _lastRealtimeEventAt = DateTime.now();
     final newMessage = _mapIncomingToMessage(normalizedPayload);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -711,8 +833,9 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   Map<String, dynamic>? _normalizeReplyData(dynamic raw) {
     if (raw is Map) {
       try {
+        final Map replyMap = (raw['message'] is Map) ? raw['message'] as Map : raw;
         String type = 'text';
-        final tv = (raw['type_verbose']?.toString() ?? raw['type']?.toString() ?? '').toLowerCase();
+        final tv = (replyMap['type_verbose']?.toString() ?? replyMap['type']?.toString() ?? '').toLowerCase();
         if (tv.contains('image'))
           type = 'image';
         else if (tv.contains('video'))
@@ -721,37 +844,38 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
           type = 'audio';
         else if (tv.contains('document')) type = 'document';
 
-        final replyText = EmojiParser.decode((raw['body'] ?? raw['message'] ?? raw['text'] ?? '').toString());
+        final replyText = EmojiParser.decode((replyMap['body'] ?? replyMap['message'] ?? replyMap['text'] ?? '').toString());
         String media = '';
         String thumbnail = '';
-        final extra = _normalizeExtra(raw['extra']);
-        if (type == 'image' && raw['image'] != null) {
-          if (raw['image'] is Map) {
-            media = _absUrl(raw['image']['md'] ?? raw['image']['lg'] ?? raw['image']['sm'] ?? '');
+        final extra = _normalizeExtra(replyMap['extra']);
+        if (type == 'image' && replyMap['image'] != null) {
+          if (replyMap['image'] is Map) {
+            media = _absUrl(replyMap['image']['md'] ?? replyMap['image']['lg'] ?? replyMap['image']['sm'] ?? '');
           } else {
-            media = _absUrl(raw['image']?.toString());
+            media = _absUrl(replyMap['image']?.toString());
           }
           thumbnail = media;
         } else if (type == 'video') {
-          media = _absUrl(raw['media_url']?.toString() ?? raw['video']?.toString());
-          thumbnail = _absUrl(raw['thumbnail']?.toString() ?? raw['thumbnail_url']?.toString() ?? '');
+          media = _absUrl(replyMap['media_url']?.toString() ?? replyMap['video']?.toString());
+          thumbnail = _absUrl(replyMap['thumbnail']?.toString() ?? replyMap['thumbnail_url']?.toString() ?? '');
           if (thumbnail.isEmpty && extra != null) {
             final thumb = extra['thumbnail']?.toString();
             if (thumb != null && thumb.isNotEmpty) {
               thumbnail = _absUrl(thumb);
             }
           }
-          if (thumbnail.isEmpty && raw['image'] is Map) {
-            thumbnail = _absUrl(raw['image']['md'] ?? raw['image']['lg'] ?? raw['image']['sm'] ?? '');
+          if (thumbnail.isEmpty && replyMap['image'] is Map) {
+            thumbnail = _absUrl(replyMap['image']['md'] ?? replyMap['image']['lg'] ?? replyMap['image']['sm'] ?? '');
           }
-        } else if (raw['media_url'] != null) {
-          media = _absUrl(raw['media_url']?.toString());
-          thumbnail = _absUrl(raw['thumbnail_url']?.toString() ?? raw['thumbnail']?.toString() ?? '');
+        } else if (replyMap['media_url'] != null) {
+          media = _absUrl(replyMap['media_url']?.toString());
+          thumbnail = _absUrl(replyMap['thumbnail_url']?.toString() ?? replyMap['thumbnail']?.toString() ?? '');
         }
 
         return {
-          'id': raw['id']?.toString() ?? '',
-          'sender_name': raw['sender_name']?.toString() ?? raw['owner']?['name']?.toString() ?? raw['owner']?['base']?['name']?.toString() ?? '',
+          'id': replyMap['id']?.toString() ?? replyMap['message_id']?.toString() ?? '',
+          'sender_name':
+              replyMap['sender_name']?.toString() ?? replyMap['owner']?['name']?.toString() ?? replyMap['owner']?['base']?['name']?.toString() ?? '',
           'text': replyText,
           'type': type,
           'media_url': media,
@@ -760,6 +884,25 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       } catch (_) {}
     }
     return null;
+  }
+
+  String _extractReplyToId(Map<String, dynamic> data, Map<String, dynamic>? replyData) {
+    final direct = data['reply_to_id'] ?? data['replyToId'] ?? data['parent_id'] ?? data['parentId'];
+    if (direct != null && direct.toString().trim().isNotEmpty) {
+      return direct.toString();
+    }
+    final replyRaw = data['reply_to'] ?? data['reply_to_message'] ?? data['parent_message'];
+    if (replyRaw is Map) {
+      final nested = replyRaw['message'] is Map ? replyRaw['message'] as Map : replyRaw;
+      final nestedId = nested['id'] ?? nested['message_id'];
+      if (nestedId != null && nestedId.toString().trim().isNotEmpty) {
+        return nestedId.toString();
+      }
+    } else if (replyRaw != null && replyRaw.toString().trim().isNotEmpty) {
+      return replyRaw.toString();
+    }
+    final replyId = replyData?['id']?.toString().trim() ?? '';
+    return replyId;
   }
 
   Map<String, dynamic>? _normalizeExtra(dynamic rawExtra) {
@@ -1377,6 +1520,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       final normalized = _mapIncomingToMessage(data);
       if (!_isRenderableMessage(normalized)) {
         log('Upload payload is not renderable message; skipping UI insert. keys=${data.keys}');
+        _pollLatestMessages();
         return;
       }
       _replaceMessageInList(normalized);
@@ -1757,47 +1901,50 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
             Expanded(
               child: Stack(
                 children: [
-                  ScrollablePositionedList.builder(
-                    reverse: true,
-                    itemScrollController: _messageScrollController,
-                    itemPositionsListener: _messagePositionsListener,
-                    itemCount: totalCount,
-                    padding: const EdgeInsets.all(16),
-                    itemBuilder: (_, index) {
-                      if (showLoader && index == groupedMessages.length) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Center(
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                  if (_isInitialLoading && controller.messages.isEmpty)
+                    _buildInitialLoadingSkeleton()
+                  else
+                    ScrollablePositionedList.builder(
+                      reverse: true,
+                      itemScrollController: _messageScrollController,
+                      itemPositionsListener: _messagePositionsListener,
+                      itemCount: totalCount,
+                      padding: const EdgeInsets.all(16),
+                      itemBuilder: (_, index) {
+                        if (showLoader && index == groupedMessages.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
                             ),
-                          ),
-                        );
-                      }
-                      final item = groupedMessages[index];
-                      if (item['type'] == 'date') {
-                        return Center(
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 0),
-                            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
-                            decoration: BoxDecoration(
-                              color: const Color(0xff211D39),
-                              borderRadius: BorderRadius.circular(12),
+                          );
+                        }
+                        final item = groupedMessages[index];
+                        if (item['type'] == 'date') {
+                          return Center(
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(vertical: 0),
+                              padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+                              decoration: BoxDecoration(
+                                color: const Color(0xff211D39),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                item['label'],
+                                style: const TextStyle(color: Colors.white, fontSize: 13),
+                              ),
                             ),
-                            child: Text(
-                              item['label'],
-                              style: const TextStyle(color: Colors.white, fontSize: 13),
-                            ),
-                          ),
-                        );
-                      } else {
-                        final msg = item['data'];
-                        return _buildMessageWidget(msg);
-                      }
-                    },
-                  ),
+                          );
+                        } else {
+                          final msg = item['data'];
+                          return _buildMessageWidget(msg);
+                        }
+                      },
+                    ),
                   if (_showJumpToLatest)
                     Positioned(
                       right: 16,
@@ -1995,6 +2142,32 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildInitialLoadingSkeleton() {
+    Widget bubble(double width, double height) {
+      return Container(
+        width: width,
+        height: height,
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white10,
+          borderRadius: BorderRadius.circular(12),
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        bubble(Get.width * 0.55, 18),
+        bubble(Get.width * 0.7, 56),
+        bubble(Get.width * 0.45, 18),
+        bubble(Get.width * 0.65, 72),
+        bubble(Get.width * 0.5, 18),
+        bubble(Get.width * 0.6, 64),
+      ],
     );
   }
 
@@ -2495,20 +2668,43 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   }
 
   Widget _buildImageMessage(Map<String, dynamic> message) {
-    final imageUrl = message['media_url'];
-    if (imageUrl == null || imageUrl.isEmpty) {
+    final imageUrl = message['media_url']?.toString() ?? '';
+    final localPath = message['local_image_path']?.toString() ?? '';
+    final effectiveUrl = imageUrl.isNotEmpty ? imageUrl : localPath;
+    if (effectiveUrl.isEmpty) {
       return const Text(
         'Image not available',
         style: TextStyle(color: Colors.grey),
       );
     }
 
+    final isLocal = effectiveUrl.startsWith('file://') || (!effectiveUrl.startsWith('http://') && !effectiveUrl.startsWith('https://'));
+    if (isLocal) {
+      final filePath = effectiveUrl.startsWith('file://') ? effectiveUrl.replaceFirst('file://', '') : effectiveUrl;
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.file(
+          File(filePath),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Container(
+            height: 200,
+            color: Colors.grey[700],
+            child: const Icon(
+              Icons.error,
+              color: Colors.red,
+              size: 48,
+            ),
+          ),
+        ),
+      );
+    }
+
     return GestureDetector(
-      onTap: () => _openImageViewer(imageUrl),
+      onTap: () => _openImageViewer(effectiveUrl),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: CachedNetworkImage(
-          imageUrl: imageUrl,
+          imageUrl: effectiveUrl,
           fit: BoxFit.cover,
           placeholder: (context, url) => Container(
             height: 200,
@@ -3227,7 +3423,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                             child: ClipPath(
                               clipper: OctagonClipper(),
                               child: Image.network(
-                                groupImage,
+                                groupImage.toString() == "" ? "http://3.134.119.154/OctagonGroup.png" : groupImage,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) => Container(
                                   color: Colors.grey,
@@ -3483,6 +3679,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   }
 
   Future<void> _shareMessageMediaAsPost(Map<String, dynamic> message) async {
+    log('🧾 Share media as post: messageId=${message['id'] ?? message['temporary_id']} type=${message['type']}');
     final type = (message['type'] ?? '').toString().toLowerCase();
     if (!_isMediaMessageType(type)) {
       Get.snackbar(
@@ -3494,6 +3691,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       return;
     }
     final urls = _extractMediaUrlsForPost(message);
+    log('🧾 Share media urls: count=${urls.length} urls=$urls');
     if (urls.isEmpty) {
       Get.snackbar(
         'Error',
@@ -3510,14 +3708,19 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
 
     try {
       for (int i = 0; i < urls.length; i++) {
+        log('🧾 Downloading media for post: index=$i isVideo=$isVideo url=${urls[i]}');
         final file = await _downloadMediaToTemp(urls[i], isVideo: isVideo, index: i);
         if (file != null) {
+          final size = await file.length();
+          log('🧾 Downloaded media: index=$i path=${file.path} bytes=$size');
           tempFiles.add(file);
           if (isVideo) {
             videoFiles.add(PostFile(filePath: file.path, isVideo: true));
           } else {
             imageFiles.add(PostFile(filePath: file.path, isVideo: false));
           }
+        } else {
+          log('🧾 Download failed: index=$i url=${urls[i]}');
         }
       }
       if (imageFiles.isEmpty && videoFiles.isEmpty) {
@@ -3531,6 +3734,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       }
 
       final caption = _extractMediaCaption(message) ?? message['text']?.toString() ?? '';
+      log('🧾 Submitting post from files: images=${imageFiles.length} videos=${videoFiles.length} captionLen=${caption.length}');
       await _postController.submitPostFromFiles(
         images: imageFiles,
         videos: videoFiles,
@@ -3539,6 +3743,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         originalUserId: message['sender_id'],
         originalResource: urls,
       );
+      log('🧾 Post submission completed for messageId=${message['id'] ?? message['temporary_id']}');
     } finally {
       for (final file in tempFiles) {
         try {
@@ -3751,6 +3956,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   List<Map<String, dynamic>> _buildThreadedMessages(List<Map<String, dynamic>> messages) {
     final Map<String, Map<String, dynamic>> lookup = {};
     final List<Map<String, dynamic>> ordered = [];
+    final Map<String, Map<String, dynamic>> placeholders = {};
 
     for (final msg in messages) {
       final clone = Map<String, dynamic>.from(msg);
@@ -3770,6 +3976,18 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
         final children = (parent['thread_children'] as List<Map<String, dynamic>>?) ?? <Map<String, dynamic>>[];
         children.add(clone);
         parent['thread_children'] = children;
+      } else if (parentId != null && parentId.isNotEmpty) {
+        final placeholder = placeholders.putIfAbsent(
+          parentId,
+          () => _createMissingParentPlaceholder(parentId, clone),
+        );
+        if (!lookup.containsKey(parentId)) {
+          lookup[parentId] = placeholder;
+          roots.add(placeholder);
+        }
+        final children = (placeholder['thread_children'] as List<Map<String, dynamic>>?) ?? <Map<String, dynamic>>[];
+        children.add(clone);
+        placeholder['thread_children'] = children;
       } else {
         roots.add(clone);
       }
@@ -3787,6 +4005,34 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     }
 
     return roots;
+  }
+
+  Map<String, dynamic> _createMissingParentPlaceholder(String parentId, Map<String, dynamic> child) {
+    final Map<String, dynamic> reply = (child['reply_to'] is Map) ? Map<String, dynamic>.from(child['reply_to'] as Map) : <String, dynamic>{};
+    final type = (reply['type'] ?? 'text').toString();
+    final mediaUrl = reply['media_url']?.toString() ?? '';
+    final thumbnailUrl = reply['thumbnail_url']?.toString() ?? '';
+    String text = reply['text']?.toString() ?? '';
+    if (text.trim().isEmpty && mediaUrl.isEmpty && thumbnailUrl.isEmpty) {
+      text = 'Original message';
+    }
+    final timestamp = child['timestamp'] ?? child['created_at'] ?? DateTime.now();
+    return {
+      'id': parentId,
+      'sender_id': reply['sender_id']?.toString() ?? '',
+      'sender_name': reply['sender_name']?.toString() ?? 'Unknown',
+      'sender_image': reply['sender_image']?.toString() ?? '',
+      'timestamp': timestamp,
+      'created_at': timestamp,
+      'type': type,
+      'text': text,
+      'media_url': mediaUrl,
+      'thumbnail_url': thumbnailUrl,
+      'reply_to': null,
+      'reply_to_id': '',
+      'is_placeholder': true,
+      'thread_children': <Map<String, dynamic>>[],
+    };
   }
 
   // Helper to group messages by date
