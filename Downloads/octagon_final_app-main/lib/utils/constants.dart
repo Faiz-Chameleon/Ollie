@@ -77,9 +77,9 @@ const String sportInfo = "sportInfo";
 const String userData = "user_data";
 
 ///webview URLs
-const String privacyPolicyURL = "https://termify.io/privacy-policy/WfTM1ohKVF";
+const String privacyPolicyURL = "https://octagonapp.com/privacypolicy";
 const String contactUsUrl = "https://form.jotform.com/230652878720461";
-const String termsAndConditionURL = "https://termify.io/terms-and-conditions/FNwDnP0vr3";
+const String termsAndConditionURL = "https://octagonapp.com/termsandconditions";
 
 /// validation
 RegExp emailValidReg = RegExp(r'^.+@[a-zA-Z]+\.{1}[a-zA-Z]+(\.{0,1}[a-zA-Z]+)$');

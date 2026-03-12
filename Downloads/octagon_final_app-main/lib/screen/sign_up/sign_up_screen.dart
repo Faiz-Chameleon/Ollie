@@ -15,6 +15,7 @@ import 'package:octagon/utils/theme/theme_constants.dart';
 
 import 'package:octagon/widgets/filled_button_widget.dart';
 import 'package:octagon/widgets/text_formbox_widget.dart';
+import 'package:octagon/widgets/webview_screen.dart';
 
 import '../login/otp_screen.dart';
 
@@ -162,7 +163,10 @@ class SignupScreen extends StatelessWidget {
                                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: purpleColor),
                                   recognizer: TapGestureRecognizer()
                                     ..onTap = () {
-                                      // Navigate to Terms screen
+                                      Get.to(() => WebViewScreen(
+                                            screenName: "Terms Conditions",
+                                            url: termsAndConditionURL,
+                                          ));
                                     },
                                 ),
                                 TextSpan(text: " and ", style: whiteColor12TextStyle),
@@ -171,7 +175,10 @@ class SignupScreen extends StatelessWidget {
                                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: purpleColor),
                                   recognizer: TapGestureRecognizer()
                                     ..onTap = () {
-                                      // Navigate to Privacy screen
+                                      Get.to(() => WebViewScreen(
+                                            screenName: "Privacy Policy",
+                                            url: privacyPolicyURL,
+                                          ));
                                     },
                                 )
                               ],
