@@ -1035,11 +1035,13 @@ class _PostWidgetsState extends State<PostWidgets> {
     final images = widget.postData?.images ?? [];
 
     if (images.isEmpty) {
-      return AnimatedContainer(
-        duration: const Duration(seconds: 2),
-        color: appBgColor,
-        height: 400, // Fixed height like Instagram
-        width: double.infinity,
+      return AspectRatio(
+        aspectRatio: 4 / 5,
+        child: AnimatedContainer(
+          duration: const Duration(seconds: 2),
+          color: appBgColor,
+          width: double.infinity,
+        ),
       );
     }
 
@@ -1047,10 +1049,8 @@ class _PostWidgetsState extends State<PostWidgets> {
       clipBehavior: Clip.none,
       alignment: Alignment.bottomCenter,
       children: [
-        Container(
-          color: Colors.transparent,
-          height: 400, // Fixed height like Instagram
-          width: double.infinity,
+        AspectRatio(
+          aspectRatio: 4 / 5,
           child: GestureDetector(
             onDoubleTap: () => widget.onLike(),
             onTap: () => goToFullScreenPost(),
@@ -1064,14 +1064,18 @@ class _PostWidgetsState extends State<PostWidgets> {
               itemBuilder: (context, index) {
                 return CachedNetworkImage(
                   imageUrl: images[index].filePath ?? "",
-                  fit: BoxFit.contain,
+                  fit: BoxFit.cover,
                   width: double.infinity,
-                  height: 400,
+                  height: double.infinity,
                   placeholder: (context, url) => Container(
-                      height: 400, width: double.infinity, color: Colors.grey[700], child: const Center(child: CircularProgressIndicator())),
-                  errorWidget: (context, url, error) => Container(
-                    height: 400,
                     width: double.infinity,
+                    height: double.infinity,
+                    color: Colors.grey[700],
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    width: double.infinity,
+                    height: double.infinity,
                     color: Colors.grey[700],
                     child: const Icon(
                       Icons.error,
@@ -1132,11 +1136,13 @@ class _PostWidgetsState extends State<PostWidgets> {
     }
 
     if (allMedia.isEmpty) {
-      return AnimatedContainer(
-        duration: const Duration(seconds: 2),
-        color: appBgColor,
-        height: 400, // Fixed height like Instagram
-        width: double.infinity,
+      return AspectRatio(
+        aspectRatio: 4 / 5,
+        child: AnimatedContainer(
+          duration: const Duration(seconds: 2),
+          color: appBgColor,
+          width: double.infinity,
+        ),
       );
     }
 
@@ -1144,10 +1150,8 @@ class _PostWidgetsState extends State<PostWidgets> {
       clipBehavior: Clip.none,
       alignment: Alignment.bottomCenter,
       children: [
-        Container(
-          color: Colors.transparent,
-          height: 400, // Fixed height like Instagram
-          width: double.infinity,
+        AspectRatio(
+          aspectRatio: 4 / 5,
           child: GestureDetector(
             onDoubleTap: () => widget.onLike(),
             onTap: () => goToFullScreenPost(),
@@ -1186,24 +1190,24 @@ class _PostWidgetsState extends State<PostWidgets> {
                               _videoPlayerController?.dataSource == mediaData['filePath'])
                           ? SizedBox(
                               width: double.infinity,
-                              height: 400,
+                              height: double.infinity,
                               child: Chewie(
                                 controller: _playerController!,
                               ),
                             )
                           : Container(
                               width: double.infinity,
-                              height: 400,
+                              height: double.infinity,
                               child: mediaData['thumbUrl'] != null && mediaData['thumbUrl'].toString().isNotEmpty
                                   ? CachedNetworkImage(
                                       imageUrl: mediaData['thumbUrl'],
                                       fit: BoxFit.cover,
                                       width: double.infinity,
-                                      height: 400,
+                                      height: double.infinity,
                                       placeholder: (context, url) => Container(
                                         color: Colors.black,
                                         width: double.infinity,
-                                        height: 400,
+                                        height: double.infinity,
                                         child: const Center(
                                           child: CircularProgressIndicator(),
                                         ),
@@ -1211,7 +1215,7 @@ class _PostWidgetsState extends State<PostWidgets> {
                                       errorWidget: (context, url, error) => Container(
                                         color: Colors.black,
                                         width: double.infinity,
-                                        height: 400,
+                                        height: double.infinity,
                                         child: const Center(
                                           child: Column(
                                             mainAxisAlignment: MainAxisAlignment.center,
@@ -1237,7 +1241,7 @@ class _PostWidgetsState extends State<PostWidgets> {
                                   : Container(
                                       color: Colors.black,
                                       width: double.infinity,
-                                      height: 400,
+                                      height: double.infinity,
                                       child: const Center(
                                         child: Column(
                                           mainAxisAlignment: MainAxisAlignment.center,
@@ -1264,7 +1268,7 @@ class _PostWidgetsState extends State<PostWidgets> {
                       if (_playerController == null || !_playerController!.videoPlayerController.value.isInitialized || _currentPage != index)
                         Container(
                           width: double.infinity,
-                          height: 400,
+                          height: double.infinity,
                           color: Colors.black.withOpacity(0.3),
                           child: const Center(
                             child: Icon(
@@ -1282,12 +1286,16 @@ class _PostWidgetsState extends State<PostWidgets> {
                     imageUrl: mediaData['filePath'],
                     fit: BoxFit.cover,
                     width: double.infinity,
-                    height: 400,
+                    height: double.infinity,
                     placeholder: (context, url) => Container(
-                        height: 400, width: double.infinity, color: Colors.grey[700], child: const Center(child: CircularProgressIndicator())),
-                    errorWidget: (context, url, error) => Container(
-                      height: 400,
                       width: double.infinity,
+                      height: double.infinity,
+                      color: Colors.grey[700],
+                      child: const Center(child: CircularProgressIndicator()),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      width: double.infinity,
+                      height: double.infinity,
                       color: Colors.grey[700],
                       child: const Icon(
                         Icons.error,
@@ -1328,10 +1336,8 @@ class _PostWidgetsState extends State<PostWidgets> {
     return GestureDetector(
       onDoubleTap: () => widget.onLike(),
       onTap: () => goToFullScreenPost(),
-      child: Container(
-        color: Colors.transparent,
-        height: 55.vh,
-        width: 100.vw,
+      child: AspectRatio(
+        aspectRatio: 4 / 5,
         child: Stack(
           clipBehavior: Clip.none,
           alignment: Alignment.center,
