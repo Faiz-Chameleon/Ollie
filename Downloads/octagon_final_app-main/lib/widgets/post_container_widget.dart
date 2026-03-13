@@ -484,20 +484,72 @@ class _PostWidgetsState extends State<PostWidgets> {
                                       mainAxisAlignment: MainAxisAlignment.start,
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        const Icon(Icons.reply_outlined, color: Colors.white, size: 18),
-                                        const SizedBox(width: 6),
+                                        // const Icon(Icons.reply_outlined, color: Colors.white, size: 18),
+                                        // const SizedBox(width: 6),
                                         Expanded(
                                           child: GestureDetector(
-                                            onTap: () {
-                                              print('Navigating to user profile with userId: ${widget.postData!.userId}');
-                                              Get.to(() => OtherUserProfileScreen(userId: widget.postData?.originalUser?.id ?? 0));
-                                            },
-                                            child: Text(
-                                              smartCapitalize(
-                                                  "${widget.postData?.userName ?? ""} Reposted From ${widget.postData?.originalUser?.name ?? ""}"),
-                                              style: whiteColor16BoldTextStyle,
-                                              softWrap: true,
+                                            // onTap: () {
+                                            //   print('Navigating to user profile with userId: ${widget.postData!.userId}');
+                                            //   Get.to(() => OtherUserProfileScreen(userId: widget.postData?.originalUser?.id ?? 0));
+                                            // },
+                                            child: Wrap(
+                                              crossAxisAlignment: WrapCrossAlignment.center,
+                                              spacing: 6,
+                                              runSpacing: 2,
+                                              children: [
+                                                Icon(Icons.repeat, size: 18, color: Colors.white.withOpacity(0.65)),
+                                                Text(
+                                                  "Reposted from",
+                                                  style: whiteColor16BoldTextStyle.copyWith(
+                                                    fontSize: 15.sp,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white.withOpacity(0.65),
+                                                    letterSpacing: 0.2,
+                                                  ),
+                                                ),
+                                                GestureDetector(
+                                                  onTap: () {
+                                                    print('Navigating to user profile with userId: ${widget.postData!.userId}');
+                                                    Get.to(() => OtherUserProfileScreen(userId: widget.postData?.originalUser?.id ?? 0));
+                                                  },
+                                                  child: Text(
+                                                    smartCapitalize(widget.postData?.originalUser?.name ?? ""),
+                                                    style: whiteColor16BoldTextStyle.copyWith(
+                                                      fontSize: 14.sp,
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  "by",
+                                                  style: whiteColor16BoldTextStyle.copyWith(
+                                                    fontSize: 14.sp,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Colors.white.withOpacity(0.65),
+                                                  ),
+                                                ),
+                                                GestureDetector(
+                                                  onTap: () {
+                                                    print('Navigating to user profile with userId: ${widget.postData!.userId}');
+                                                    Get.to(() => OtherUserProfileScreen(userId: widget.postData?.userId ?? 0));
+                                                  },
+                                                  child: Text(
+                                                    smartCapitalize(widget.postData?.userName ?? ""),
+                                                    style: whiteColor16BoldTextStyle.copyWith(
+                                                      fontSize: 14.sp,
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
+                                            // child: Text(
+                                            //   "${smartCapitalize(widget.postData?.userName ?? "")} reposted from ${smartCapitalize(widget.postData?.originalUser?.name ?? "")}",
+                                            //   // smartCapitalize(
+                                            //   //     "${widget.postData?.userName ?? ""} reposted from ${widget.postData?.originalUser?.name ?? ""}"),
+                                            //   style: whiteColor16BoldTextStyle,
+                                            //   softWrap: true,
+                                            // ),
                                           ),
                                         ),
                                         if (widget.postData?.userId != storage.read("current_uid"))
