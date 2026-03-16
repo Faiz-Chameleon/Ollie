@@ -37,7 +37,7 @@ class FacebookCardStory extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         // currentPage.add(10);///chat page number
-        Navigator.push(context, MaterialPageRoute(builder: (context) => ChatRoomScreen(sportInfo: sportInfo, chatRoom: ChatRoom(id: roomId))));
+        // Navigator.push(context, MaterialPageRoute(builder: (context) => ChatRoomScreen(sportInfo: sportInfo, chatRoom: ChatRoom(id: roomId))));
       },
       child: SizedBox(
         width: 100,
