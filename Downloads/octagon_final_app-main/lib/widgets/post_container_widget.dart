@@ -28,6 +28,14 @@ import 'comment_widget.dart';
 import 'default_user_image.dart';
 
 class PostWidgets extends StatefulWidget {
+  static final Set<_PostWidgetsState> _registeredStates = <_PostWidgetsState>{};
+
+  static void pauseAllFeedVideos() {
+    for (final state in List<_PostWidgetsState>.from(_registeredStates)) {
+      state._pauseVideoPlayback(clearActivePost: true);
+    }
+  }
+
   PostResponseModelData? postData;
 
   final String? name;
@@ -70,7 +78,8 @@ class _PostWidgetsState extends State<PostWidgets> {
   bool isCurrentPageOpen = true;
   VoidCallback? _videoStateListener;
   VoidCallback? _activePostListener;
-  static final ValueNotifier<String?> _activeVideoPostId = ValueNotifier<String?>(null);
+  static final ValueNotifier<String?> _activeVideoPostId =
+      ValueNotifier<String?>(null);
 
   String get _postId => (widget.postData?.id ?? '').toString();
 
@@ -87,6 +96,7 @@ class _PostWidgetsState extends State<PostWidgets> {
   @override
   void initState() {
     super.initState();
+    PostWidgets._registeredStates.add(this);
 
     if (widget.postData != null && widget.postData!.userLikes != null) {
       String temp = "";
@@ -102,7 +112,8 @@ class _PostWidgetsState extends State<PostWidgets> {
     }
 
     // Initialize video player if videos exist
-    if (widget.postData?.videos != null && widget.postData!.videos!.isNotEmpty) {
+    if (widget.postData?.videos != null &&
+        widget.postData!.videos!.isNotEmpty) {
       initializePlayer(widget.postData!.videos![0].filePath);
     }
 
@@ -127,18 +138,25 @@ class _PostWidgetsState extends State<PostWidgets> {
     currentPage.stream.listen((event) {
       if (event != 0) {
         isCurrentPageOpen = false;
-        if (_playerController != null) {
-          _playerController!.pause();
-          _videoPlayerController!.setVolume(0);
-        }
+        _pauseVideoPlayback();
       } else {
         isCurrentPageOpen = true;
       }
     });
   }
 
+  void _pauseVideoPlayback({bool clearActivePost = false}) {
+    _playerController?.pause();
+    _videoPlayerController?.pause();
+    _videoPlayerController?.setVolume(0);
+    if (clearActivePost && _activeVideoPostId.value == _postId) {
+      _activeVideoPostId.value = null;
+    }
+  }
+
   @override
   void dispose() {
+    PostWidgets._registeredStates.remove(this);
     if (_activePostListener != null) {
       _activeVideoPostId.removeListener(_activePostListener!);
     }
@@ -148,6 +166,7 @@ class _PostWidgetsState extends State<PostWidgets> {
     if (_activeVideoPostId.value == _postId) {
       _activeVideoPostId.value = null;
     }
+    _pauseVideoPlayback();
     _playerController?.dispose();
     _videoPlayerController?.dispose();
     super.dispose();
@@ -156,7 +175,8 @@ class _PostWidgetsState extends State<PostWidgets> {
   Future initializePlayer(String? data) async {
     try {
       // Only dispose if we're creating a new controller for a different video
-      if (_videoPlayerController != null && _videoPlayerController!.dataSource != data) {
+      if (_videoPlayerController != null &&
+          _videoPlayerController!.dataSource != data) {
         if (_videoStateListener != null) {
           _videoPlayerController!.removeListener(_videoStateListener!);
           _videoStateListener = null;
@@ -173,14 +193,17 @@ class _PostWidgetsState extends State<PostWidgets> {
       }
 
       // If we already have a controller for this video, don't recreate it
-      if (_videoPlayerController != null && _videoPlayerController!.dataSource == data && _playerController != null) {
+      if (_videoPlayerController != null &&
+          _videoPlayerController!.dataSource == data &&
+          _playerController != null) {
         print('Video player already initialized for this URL');
         return;
       }
 
       print('Initializing video player with URL: $data');
 
-      _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(data));
+      _videoPlayerController =
+          VideoPlayerController.networkUrl(Uri.parse(data));
       await _videoPlayerController!.initialize();
       _videoPlayerController!.setVolume(0);
 
@@ -250,8 +273,10 @@ class _PostWidgetsState extends State<PostWidgets> {
     //   }
     // }
 
-    final hasImages = widget.postData?.images != null && widget.postData!.images!.isNotEmpty;
-    final hasVideos = widget.postData?.videos != null && widget.postData!.videos!.isNotEmpty;
+    final hasImages =
+        widget.postData?.images != null && widget.postData!.images!.isNotEmpty;
+    final hasVideos =
+        widget.postData?.videos != null && widget.postData!.videos!.isNotEmpty;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -276,11 +301,14 @@ class _PostWidgetsState extends State<PostWidgets> {
                     children: [
                       ///user thumb
 
-                      widget.groupType == "team" && widget.postData?.finalUserGroupType == 1
+                      widget.groupType == "team" &&
+                              widget.postData?.finalUserGroupType == 1
                           ? GestureDetector(
                               onTap: () {
-                                print('Navigating to user profile with userId: ${widget.postData!.userId}');
-                                Get.to(() => OtherUserProfileScreen(userId: widget.postData!.userId!));
+                                print(
+                                    'Navigating to user profile with userId: ${widget.postData!.userId}');
+                                Get.to(() => OtherUserProfileScreen(
+                                    userId: widget.postData!.userId!));
                               },
                               child: Stack(
                                 clipBehavior: Clip.none,
@@ -304,16 +332,20 @@ class _PostWidgetsState extends State<PostWidgets> {
                                     child: CustomPaint(
                                       painter: OctagonBorderPainter(
                                         strokeWidth: 20.0,
-                                        borderColor: Color(0xff211D39), // Change border color
+                                        borderColor: Color(
+                                            0xff211D39), // Change border color
                                       ),
                                       child: Image.network(
-                                        widget.postData!.user_group_img!.contains("http")
+                                        widget.postData!.user_group_img!
+                                                .contains("http")
                                             ? '${widget.postData?.user_group_img}'
                                             : "http://3.134.119.154/${widget.postData?.user_group_img}", // Replace with your image URL
                                         width: 45,
                                         height: 45,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) => Container(
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Container(
                                           width: 45,
                                           height: 45,
                                           color: Colors.transparent,
@@ -329,11 +361,14 @@ class _PostWidgetsState extends State<PostWidgets> {
                                 ],
                               ),
                             )
-                          : widget.groupType == "team" && widget.postData?.groupIs == 0
+                          : widget.groupType == "team" &&
+                                  widget.postData?.groupIs == 0
                               ? GestureDetector(
                                   onTap: () {
-                                    print('Navigating to user profile with userId: ${widget.postData!.userId}');
-                                    Get.to(() => OtherUserProfileScreen(userId: widget.postData!.userId!));
+                                    print(
+                                        'Navigating to user profile with userId: ${widget.postData!.userId}');
+                                    Get.to(() => OtherUserProfileScreen(
+                                        userId: widget.postData!.userId!));
                                   },
                                   child: Stack(
                                     clipBehavior: Clip.none,
@@ -357,35 +392,39 @@ class _PostWidgetsState extends State<PostWidgets> {
                                         child: CustomPaint(
                                           painter: OctagonBorderPainter(
                                             strokeWidth: 20.0,
-                                            borderColor: Color(0xff211D39), // Change border color
+                                            borderColor: Color(
+                                                0xff211D39), // Change border color
                                           ),
                                           child: Image.network(
-                                            widget.postData!.user_group_img!.contains("http")
+                                            widget.postData!.user_group_img!
+                                                    .contains("http")
                                                 ? '${widget.postData?.user_group_img}'
                                                 : "http://3.134.119.154/${widget.postData?.user_group_img}", // Replace with your image URL
                                             width: 45,
                                             height: 45,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) => Container(
-                                                width: 45,
-                                                height: 45,
-                                                color: Colors.transparent,
-                                                child: Image.asset(
-                                                  // widget.postData?.groupType == "personal"
-                                                  //     ?
-                                                  // 'assets/ic/Group 5.png'
-                                                  // :
-                                                  'assets/ic/Group 5.png', // Your uploaded PNG asset
-                                                  width: 80,
-                                                  height: 80,
-                                                  fit: BoxFit.cover,
-                                                )
-                                                //  Icon(
-                                                //   Icons.error,
-                                                //   color: Colors.red,
-                                                //   size: 24,
-                                                // ),
-                                                ),
+                                            errorBuilder: (context, error,
+                                                    stackTrace) =>
+                                                Container(
+                                                    width: 45,
+                                                    height: 45,
+                                                    color: Colors.transparent,
+                                                    child: Image.asset(
+                                                      // widget.postData?.groupType == "personal"
+                                                      //     ?
+                                                      // 'assets/ic/Group 5.png'
+                                                      // :
+                                                      'assets/ic/Group 5.png', // Your uploaded PNG asset
+                                                      width: 80,
+                                                      height: 80,
+                                                      fit: BoxFit.cover,
+                                                    )
+                                                    //  Icon(
+                                                    //   Icons.error,
+                                                    //   color: Colors.red,
+                                                    //   size: 24,
+                                                    // ),
+                                                    ),
                                           ),
                                         ),
                                       ),
@@ -394,8 +433,10 @@ class _PostWidgetsState extends State<PostWidgets> {
                                 )
                               : GestureDetector(
                                   onTap: () {
-                                    print('Navigating to user profile with userId: ${widget.postData!.userId}');
-                                    Get.to(() => OtherUserProfileScreen(userId: widget.postData!.userId!));
+                                    print(
+                                        'Navigating to user profile with userId: ${widget.postData!.userId}');
+                                    Get.to(() => OtherUserProfileScreen(
+                                        userId: widget.postData!.userId!));
                                   },
                                   child: Stack(
                                     clipBehavior: Clip.none,
@@ -408,12 +449,19 @@ class _PostWidgetsState extends State<PostWidgets> {
                                           height: 65,
                                           decoration: BoxDecoration(
                                               color: greyColor,
-                                              borderRadius: const BorderRadius.all(Radius.circular(20)),
+                                              borderRadius:
+                                                  const BorderRadius.all(
+                                                      Radius.circular(20)),
                                               image: DecorationImage(
-                                                image: NetworkImage(widget.postData?.photo ?? ""),
+                                                image: NetworkImage(
+                                                    widget.postData?.photo ??
+                                                        ""),
                                                 fit: BoxFit.fill,
                                               )),
-                                          child: !isProfilePicAvailable(widget.postData?.photo) ? defaultThumb() : null),
+                                          child: !isProfilePicAvailable(
+                                                  widget.postData?.photo)
+                                              ? defaultThumb()
+                                              : null),
                                       Positioned(
                                         top: 45,
                                         left: 7,
@@ -426,39 +474,47 @@ class _PostWidgetsState extends State<PostWidgets> {
                                             child: CustomPaint(
                                               painter: OctagonBorderPainter(
                                                 strokeWidth: 18.0,
-                                                borderColor: Color(0xff211D39), // Change border color
+                                                borderColor: Color(
+                                                    0xff211D39), // Change border color
                                               ),
                                               child: Padding(
-                                                padding: const EdgeInsets.all(7.0),
+                                                padding:
+                                                    const EdgeInsets.all(7.0),
                                                 child: ClipPath(
                                                   clipper: OctagonClipper(),
                                                   child: Image.network(
-                                                    widget.postData!.user_group_img!.contains("http")
+                                                    widget.postData!
+                                                            .user_group_img!
+                                                            .contains("http")
                                                         ? '${widget.postData?.user_group_img}'
                                                         : "http://3.134.119.154/${widget.postData?.user_group_img}", // Replace with your image URL
                                                     width: 40,
                                                     height: 40,
                                                     fit: BoxFit.fill,
-                                                    errorBuilder: (context, error, stackTrace) => Container(
-                                                        width: 40,
-                                                        height: 40,
-                                                        color: Color(0xff211D39),
-                                                        child: Image.asset(
-                                                          // widget.postData?.groupType == "personal"
-                                                          //     ?
-                                                          // 'assets/ic/Group 5.png'
-                                                          // :
-                                                          'assets/ic/Group 4.png', // Your uploaded PNG asset
-                                                          width: 80,
-                                                          height: 80,
-                                                          fit: BoxFit.cover,
-                                                        )
-                                                        // Icon(
-                                                        //   Icons.error,
-                                                        //   color: Colors.red,
-                                                        //   size: 24,
-                                                        // ),
-                                                        ),
+                                                    errorBuilder: (context,
+                                                            error,
+                                                            stackTrace) =>
+                                                        Container(
+                                                            width: 40,
+                                                            height: 40,
+                                                            color: Color(
+                                                                0xff211D39),
+                                                            child: Image.asset(
+                                                              // widget.postData?.groupType == "personal"
+                                                              //     ?
+                                                              // 'assets/ic/Group 5.png'
+                                                              // :
+                                                              'assets/ic/Group 4.png', // Your uploaded PNG asset
+                                                              width: 80,
+                                                              height: 80,
+                                                              fit: BoxFit.cover,
+                                                            )
+                                                            // Icon(
+                                                            //   Icons.error,
+                                                            //   color: Colors.red,
+                                                            //   size: 24,
+                                                            // ),
+                                                            ),
                                                   ),
                                                 ),
                                               ),
@@ -481,8 +537,10 @@ class _PostWidgetsState extends State<PostWidgets> {
                             children: [
                               widget.postData?.is_repost == 1
                                   ? Row(
-                                      mainAxisAlignment: MainAxisAlignment.start,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         // const Icon(Icons.reply_outlined, color: Colors.white, size: 18),
                                         // const SizedBox(width: 6),
@@ -493,51 +551,87 @@ class _PostWidgetsState extends State<PostWidgets> {
                                             //   Get.to(() => OtherUserProfileScreen(userId: widget.postData?.originalUser?.id ?? 0));
                                             // },
                                             child: Wrap(
-                                              crossAxisAlignment: WrapCrossAlignment.center,
+                                              crossAxisAlignment:
+                                                  WrapCrossAlignment.center,
                                               spacing: 6,
                                               runSpacing: 2,
                                               children: [
-                                                Icon(Icons.repeat, size: 18, color: Colors.white.withOpacity(0.65)),
+                                                Icon(Icons.repeat,
+                                                    size: 18,
+                                                    color: Colors.white
+                                                        .withOpacity(0.65)),
                                                 Text(
                                                   "Reposted from",
-                                                  style: whiteColor16BoldTextStyle.copyWith(
+                                                  style:
+                                                      whiteColor16BoldTextStyle
+                                                          .copyWith(
                                                     fontSize: 15.sp,
                                                     fontWeight: FontWeight.w600,
-                                                    color: Colors.white.withOpacity(0.65),
+                                                    color: Colors.white
+                                                        .withOpacity(0.65),
                                                     letterSpacing: 0.2,
                                                   ),
                                                 ),
                                                 GestureDetector(
                                                   onTap: () {
-                                                    print('Navigating to user profile with userId: ${widget.postData!.userId}');
-                                                    Get.to(() => OtherUserProfileScreen(userId: widget.postData?.originalUser?.id ?? 0));
+                                                    print(
+                                                        'Navigating to user profile with userId: ${widget.postData!.userId}');
+                                                    Get.to(() =>
+                                                        OtherUserProfileScreen(
+                                                            userId: widget
+                                                                    .postData
+                                                                    ?.originalUser
+                                                                    ?.id ??
+                                                                0));
                                                   },
                                                   child: Text(
-                                                    smartCapitalize(widget.postData?.originalUser?.name ?? ""),
-                                                    style: whiteColor16BoldTextStyle.copyWith(
+                                                    smartCapitalize(widget
+                                                            .postData
+                                                            ?.originalUser
+                                                            ?.name ??
+                                                        ""),
+                                                    style:
+                                                        whiteColor16BoldTextStyle
+                                                            .copyWith(
                                                       fontSize: 14.sp,
-                                                      fontWeight: FontWeight.w700,
+                                                      fontWeight:
+                                                          FontWeight.w700,
                                                     ),
                                                   ),
                                                 ),
                                                 Text(
                                                   "by",
-                                                  style: whiteColor16BoldTextStyle.copyWith(
+                                                  style:
+                                                      whiteColor16BoldTextStyle
+                                                          .copyWith(
                                                     fontSize: 14.sp,
                                                     fontWeight: FontWeight.w500,
-                                                    color: Colors.white.withOpacity(0.65),
+                                                    color: Colors.white
+                                                        .withOpacity(0.65),
                                                   ),
                                                 ),
                                                 GestureDetector(
                                                   onTap: () {
-                                                    print('Navigating to user profile with userId: ${widget.postData!.userId}');
-                                                    Get.to(() => OtherUserProfileScreen(userId: widget.postData?.userId ?? 0));
+                                                    print(
+                                                        'Navigating to user profile with userId: ${widget.postData!.userId}');
+                                                    Get.to(() =>
+                                                        OtherUserProfileScreen(
+                                                            userId: widget
+                                                                    .postData
+                                                                    ?.userId ??
+                                                                0));
                                                   },
                                                   child: Text(
-                                                    smartCapitalize(widget.postData?.userName ?? ""),
-                                                    style: whiteColor16BoldTextStyle.copyWith(
+                                                    smartCapitalize(widget
+                                                            .postData
+                                                            ?.userName ??
+                                                        ""),
+                                                    style:
+                                                        whiteColor16BoldTextStyle
+                                                            .copyWith(
                                                       fontSize: 14.sp,
-                                                      fontWeight: FontWeight.w700,
+                                                      fontWeight:
+                                                          FontWeight.w700,
                                                     ),
                                                   ),
                                                 ),
@@ -552,9 +646,13 @@ class _PostWidgetsState extends State<PostWidgets> {
                                             // ),
                                           ),
                                         ),
-                                        if (widget.postData?.userId != storage.read("current_uid"))
+                                        if (widget.postData?.userId !=
+                                            storage.read("current_uid"))
                                           FollowButton(
-                                            text: widget.postData!.isUserFollowedByMe ? "Following" : "Follow",
+                                            text: widget.postData!
+                                                    .isUserFollowedByMe
+                                                ? "Following"
+                                                : "Follow",
                                             onClick: () {
                                               widget.onFollow();
                                               print("follow");
@@ -563,13 +661,20 @@ class _PostWidgetsState extends State<PostWidgets> {
                                       ],
                                     )
                                   : Row(
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text(smartCapitalize(widget.name ?? ""), style: whiteColor16BoldTextStyle),
-                                        if (widget.postData?.userId != storage.read("current_uid"))
+                                        Text(smartCapitalize(widget.name ?? ""),
+                                            style: whiteColor16BoldTextStyle),
+                                        if (widget.postData?.userId !=
+                                            storage.read("current_uid"))
                                           FollowButton(
-                                            text: widget.postData!.isUserFollowedByMe ? "Following" : "Follow",
+                                            text: widget.postData!
+                                                    .isUserFollowedByMe
+                                                ? "Following"
+                                                : "Follow",
                                             onClick: () {
                                               widget.onFollow();
                                               print("follow");
@@ -588,17 +693,23 @@ class _PostWidgetsState extends State<PostWidgets> {
                                       // fontSize: 13,
                                     ),
                                     children: [
-                                      if ((_sanitizePostText(widget.postData?.post ?? "")).length > 100)
+                                      if ((_sanitizePostText(
+                                                  widget.postData?.post ?? ""))
+                                              .length >
+                                          100)
                                         TextSpan(
                                           recognizer: TapGestureRecognizer()
                                             ..onTap = () {
                                               Navigator.push(
                                                   context,
                                                   MaterialPageRoute(
-                                                      builder: (context) => FullScreenPost(
-                                                            postData: widget.postData,
+                                                      builder: (context) =>
+                                                          FullScreenPost(
+                                                            postData:
+                                                                widget.postData,
                                                             updateData: () {
-                                                              widget.updateData!.call();
+                                                              widget.updateData!
+                                                                  .call();
                                                             },
                                                           )));
                                             },
@@ -787,21 +898,27 @@ class _PostWidgetsState extends State<PostWidgets> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 SizedBox(
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Container(
-                      child: Column(
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              widget.onLike();
-                            },
-                            child: Icon(
-                              widget.postData!.isLikedByMe ? Icons.favorite : Icons.favorite_outline_outlined,
-                              color: widget.postData!.isLikedByMe ? Colors.red : greyColor,
-                              size: 25,
-                            ),
-                          ),
-                          /*AnimatedIconButton(
+                  child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          child: Column(
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  widget.onLike();
+                                },
+                                child: Icon(
+                                  widget.postData!.isLikedByMe
+                                      ? Icons.favorite
+                                      : Icons.favorite_outline_outlined,
+                                  color: widget.postData!.isLikedByMe
+                                      ? Colors.red
+                                      : greyColor,
+                                  size: 25,
+                                ),
+                              ),
+                              /*AnimatedIconButton(
                                 onPressed: () {
                                   print('all icons pressed');
                                 },
@@ -830,86 +947,95 @@ class _PostWidgetsState extends State<PostWidgets> {
                                   ),
                                 ],
                               ),*/
-                          Padding(
-                            padding: const EdgeInsets.all(2.0),
-                            child: Text(
-                              "${widget.postData?.likes ?? 0} likes",
-                              style: whiteColor12TextStyle,
-                            ),
-                          )
-                        ],
-                      ),
-                    ),
-                    // if ("${widget.postData?.comment}" == "0")
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Column(
-                        children: [
-                          GestureDetector(
-                            child: Icon(
-                              Icons.mode_comment_outlined,
-                              color: greyColor,
-                              size: 25,
-                            ),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => CommentScreen(
-                                    captionTxt: widget.postData?.title ?? "",
-                                    name: widget.name!,
-                                    profilePic: widget.imgUrl ?? "",
-                                    postData: widget.postData,
+                              Padding(
+                                padding: const EdgeInsets.all(2.0),
+                                child: Text(
+                                  "${widget.postData?.likes ?? 0} likes",
+                                  style: whiteColor12TextStyle,
+                                ),
+                              )
+                            ],
+                          ),
+                        ),
+                        // if ("${widget.postData?.comment}" == "0")
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: Column(
+                            children: [
+                              GestureDetector(
+                                child: Icon(
+                                  Icons.mode_comment_outlined,
+                                  color: greyColor,
+                                  size: 25,
+                                ),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => CommentScreen(
+                                        captionTxt:
+                                            widget.postData?.title ?? "",
+                                        name: widget.name!,
+                                        profilePic: widget.imgUrl ?? "",
+                                        postData: widget.postData,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              Text(
+                                "${widget.postData?.comments?.length}",
+                                style: whiteColor12TextStyle,
+                              )
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                          child: Column(
+                            children: [
+                              GestureDetector(
+                                child: Transform.rotate(
+                                  angle: 330 * 3.14 / 185,
+                                  child: Icon(
+                                    Icons.send_outlined,
+                                    color: greyColor,
+                                    size: 23,
                                   ),
                                 ),
-                              );
-                            },
-                          ),
-                          Text(
-                            "${widget.postData?.comments?.length}",
-                            style: whiteColor12TextStyle,
-                          )
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                      child: Column(
-                        children: [
-                          GestureDetector(
-                            child: Transform.rotate(
-                              angle: 330 * 3.14 / 185,
-                              child: Icon(
-                                Icons.send_outlined,
-                                color: greyColor,
-                                size: 23,
+                                onTap: () async {
+                                  final box =
+                                      context.findRenderObject() as RenderBox?;
+                                  await SharePlus.instance.share(
+                                    ShareParams(
+                                      text:
+                                          'Check out this post and join the conversation 👇 https://octagonapp.com/app-download',
+                                      subject: 'Octagon App',
+                                      title:
+                                          '🔥 You need to see this on Octagon!',
+                                      sharePositionOrigin: box != null
+                                          ? (box.localToGlobal(Offset.zero) &
+                                              box.size)
+                                          : null,
+                                    ),
+                                  );
+                                },
                               ),
-                            ),
-                            onTap: () async {
-                              final box = context.findRenderObject() as RenderBox?;
-                              await SharePlus.instance.share(
-                                ShareParams(
-                                  text: 'Check out this post and join the conversation 👇 https://octagonapp.com/app-download',
-                                  subject: 'Octagon App',
-                                  title: '🔥 You need to see this on Octagon!',
-                                  sharePositionOrigin: box != null ? (box.localToGlobal(Offset.zero) & box.size) : null,
-                                ),
-                              );
-                            },
+                              Text(
+                                " ",
+                                style: whiteColor12TextStyle,
+                              )
+                            ],
                           ),
-                          Text(
-                            " ",
-                            style: whiteColor12TextStyle,
-                          )
-                        ],
-                      ),
-                    ),
-                  ]),
+                        ),
+                      ]),
                 ),
                 IconButton(
                   padding: EdgeInsets.zero,
                   icon: Icon(
-                    widget.postData!.isSaveByMe ? Icons.bookmark : Icons.bookmark_border_outlined,
+                    widget.postData!.isSaveByMe
+                        ? Icons.bookmark
+                        : Icons.bookmark_border_outlined,
                     color: greyColor,
                     size: 30,
                   ),
@@ -1028,7 +1154,9 @@ class _PostWidgetsState extends State<PostWidgets> {
             child: Stack(
               clipBehavior: Clip.none,
               //alignment:new Alignment(x, y)
-              children: widget.postData!.userLikes!.map((e) => buildLikedUserProfile(imgUrl: "")).toList(),
+              children: widget.postData!.userLikes!
+                  .map((e) => buildLikedUserProfile(imgUrl: ""))
+                  .toList(),
             ),
           ),
           Expanded(
@@ -1052,7 +1180,8 @@ class _PostWidgetsState extends State<PostWidgets> {
   }
 
   String getDateTime(DateTime? createdAt) {
-    return timeAgo(Jiffy.parse((createdAt ?? DateTime.now()).toString()).dateTime);
+    return timeAgo(
+        Jiffy.parse((createdAt ?? DateTime.now()).toString()).dateTime);
   }
 
   String timeAgo(DateTime dateTime) {
@@ -1237,9 +1366,11 @@ class _PostWidgetsState extends State<PostWidgets> {
                     children: [
                       // Video player or thumbnail
                       (_playerController != null &&
-                              _playerController!.videoPlayerController.value.isInitialized &&
+                              _playerController!
+                                  .videoPlayerController.value.isInitialized &&
                               _currentPage == index &&
-                              _videoPlayerController?.dataSource == mediaData['filePath'])
+                              _videoPlayerController?.dataSource ==
+                                  mediaData['filePath'])
                           ? SizedBox(
                               width: double.infinity,
                               height: double.infinity,
@@ -1250,7 +1381,10 @@ class _PostWidgetsState extends State<PostWidgets> {
                           : Container(
                               width: double.infinity,
                               height: double.infinity,
-                              child: mediaData['thumbUrl'] != null && mediaData['thumbUrl'].toString().isNotEmpty
+                              child: mediaData['thumbUrl'] != null &&
+                                      mediaData['thumbUrl']
+                                          .toString()
+                                          .isNotEmpty
                                   ? CachedNetworkImage(
                                       imageUrl: mediaData['thumbUrl'],
                                       fit: BoxFit.cover,
@@ -1264,13 +1398,15 @@ class _PostWidgetsState extends State<PostWidgets> {
                                           child: CircularProgressIndicator(),
                                         ),
                                       ),
-                                      errorWidget: (context, url, error) => Container(
+                                      errorWidget: (context, url, error) =>
+                                          Container(
                                         color: Colors.black,
                                         width: double.infinity,
                                         height: double.infinity,
                                         child: const Center(
                                           child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             children: [
                                               Icon(
                                                 Icons.video_file,
@@ -1296,7 +1432,8 @@ class _PostWidgetsState extends State<PostWidgets> {
                                       height: double.infinity,
                                       child: const Center(
                                         child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
                                             Icon(
                                               Icons.video_file,
@@ -1317,7 +1454,10 @@ class _PostWidgetsState extends State<PostWidgets> {
                                     ),
                             ),
                       // Play icon overlay
-                      if (_playerController == null || !_playerController!.videoPlayerController.value.isInitialized || _currentPage != index)
+                      if (_playerController == null ||
+                          !_playerController!
+                              .videoPlayerController.value.isInitialized ||
+                          _currentPage != index)
                         Container(
                           width: double.infinity,
                           height: double.infinity,
@@ -1395,7 +1535,9 @@ class _PostWidgetsState extends State<PostWidgets> {
           alignment: Alignment.center,
           children: [
             // Video player or thumbnail
-            (_playerController != null && _playerController!.videoPlayerController.value.isInitialized)
+            (_playerController != null &&
+                    _playerController!
+                        .videoPlayerController.value.isInitialized)
                 ? SizedBox(
                     width: double.infinity,
                     height: double.infinity,
@@ -1406,13 +1548,15 @@ class _PostWidgetsState extends State<PostWidgets> {
                 : Container(
                     width: double.infinity,
                     height: double.infinity,
-                    child: widget.postData?.thumbUrl != null && widget.postData!.thumbUrl!.isNotEmpty
+                    child: widget.postData?.thumbUrl != null &&
+                            widget.postData!.thumbUrl!.isNotEmpty
                         ? CachedNetworkImage(
                             imageUrl: widget.postData!.thumbUrl!,
                             fit: BoxFit.cover,
                             placeholder: (context, url) => Container(
                               color: Colors.black,
-                              child: const Center(child: CircularProgressIndicator()),
+                              child: const Center(
+                                  child: CircularProgressIndicator()),
                             ),
                             errorWidget: (context, url, error) => Container(
                               color: Colors.black,
@@ -1437,14 +1581,16 @@ class _PostWidgetsState extends State<PostWidgets> {
                           ),
                   ),
             // Play button overlay (when video is not playing)
-            if (_playerController == null || !_playerController!.videoPlayerController.value.isInitialized)
+            if (_playerController == null ||
+                !_playerController!.videoPlayerController.value.isInitialized)
               Positioned(
                 top: 16,
                 left: 16,
                 child: GestureDetector(
                   onTap: () {
                     // Initialize and play video when play button is tapped
-                    if (widget.postData?.videos != null && widget.postData!.videos!.isNotEmpty) {
+                    if (widget.postData?.videos != null &&
+                        widget.postData!.videos!.isNotEmpty) {
                       initializePlayer(widget.postData!.videos![0].filePath);
                     }
                   },
@@ -1489,7 +1635,9 @@ class _PostWidgetsState extends State<PostWidgets> {
   }
 
   isTeamLogo() {
-    if (widget.postData != null && widget.postData?.user_group_img != null && widget.postData!.user_group_img!.isNotEmpty
+    if (widget.postData != null &&
+            widget.postData?.user_group_img != null &&
+            widget.postData!.user_group_img!.isNotEmpty
         // widget.postData?.sportInfo?.first.team != null &&
         // widget.postData!.sportInfo!.first.team!.isNotEmpty &&
         // widget.postData?.sportInfo?.first.team?.first.strTeamLogo != null
@@ -1544,7 +1692,8 @@ String smartCapitalize(String text) {
       result.add(word); // keep as is
     } else {
       // Capitalize first letter, lower the rest
-      String capitalized = word[0].toUpperCase() + word.substring(1).toLowerCase();
+      String capitalized =
+          word[0].toUpperCase() + word.substring(1).toLowerCase();
       result.add(capitalized);
     }
   }
@@ -1555,7 +1704,9 @@ String smartCapitalize(String text) {
 String _sanitizePostText(String text) {
   final trimmed = text.trim();
   if (trimmed.isEmpty) return trimmed;
-  final filenamePattern = RegExp(r'^[^\\\/\s]+\.(jpg|jpeg|png|gif|webp|heic|heif|mp4|mov|m4v)$', caseSensitive: false);
+  final filenamePattern = RegExp(
+      r'^[^\\\/\s]+\.(jpg|jpeg|png|gif|webp|heic|heif|mp4|mov|m4v)$',
+      caseSensitive: false);
   final imagePickerPattern = RegExp(r'^image_picker_.*$', caseSensitive: false);
   final octagonTempPattern = RegExp(r'^octagon_\\d+_.*$', caseSensitive: false);
   if (filenamePattern.hasMatch(trimmed)) return '';

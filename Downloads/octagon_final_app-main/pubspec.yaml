@@ -2,7 +2,7 @@ name: octagon
 description: "A Octagon Project."
 publish_to: 'none'
 
-version: 1.0.6+1
+version: 1.0.6+20
 
 environment:
   sdk: '>=3.2.5 <4.0.0'
