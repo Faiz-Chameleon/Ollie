@@ -676,9 +676,14 @@ class PostRepository {
   Future<Resource<CommentResponseModel>> addComment({
     required String postId,
     required String comment,
+    String? parentId,
   }) async {
     try {
-      final body = {"post_id": postId, "comment": comment, "parent_comment_id": "0"};
+      final body = {
+        "post_id": postId,
+        "comment": comment,
+        "parent_comment_id": parentId ?? "0",
+      };
       final result = await _api.multiPartPostRequest(addCommentApiUrl, body, true, "POST");
       return Resource(data: CommentResponseModel.fromJson(result));
     } catch (e) {

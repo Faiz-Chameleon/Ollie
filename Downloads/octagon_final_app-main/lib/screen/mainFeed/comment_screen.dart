@@ -1,24 +1,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
 import 'package:octagon/model/post_response_model.dart';
-import 'package:octagon/screen/mainFeed/bloc/post_bloc.dart';
-import 'package:octagon/screen/mainFeed/bloc/post_event.dart';
-import 'package:octagon/screen/mainFeed/bloc/post_state.dart';
 import 'package:octagon/screen/mainFeed/comment/comment_controller.dart';
 import 'package:octagon/screen/mainFeed/comment_box.dart';
 import 'package:octagon/utils/chat_room.dart';
-import 'package:octagon/utils/constants.dart';
 import 'package:octagon/utils/theme/theme_constants.dart';
 // import 'package:hexagon/hexagon.dart';
 
-import '../../main.dart';
 import '../../model/user_data_model.dart';
-
-import '../../networking/response.dart';
-
-import '../../utils/octagon_common.dart';
 import '../../utils/polygon/polygon_border.dart';
 import '../profile/other_user_profile.dart';
 
@@ -657,7 +647,7 @@ class CommentScreen extends StatelessWidget {
                 clipBehavior: Clip.antiAlias,
                 child: CachedNetworkImage(
                   imageUrl:
-                      comment.users?.userType == "2" ? "http://3.134.119.154/${comment.users?.userGroupImage}" ?? "" : comment.users?.photo ?? "",
+                      comment.users?.userType == "2" ? "http://3.134.119.154/${comment.users?.userGroupImage ?? ''}" : comment.users?.photo ?? "",
                   fit: BoxFit.cover,
                   width: 28,
                   height: 28,
@@ -676,7 +666,7 @@ class CommentScreen extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: getUserName(comment.comment ?? "", usersList: controller.usersList),
-                    style: TextStyle(fontSize: 15, color: Colors.blue.withOpacity(0.8)),
+                    style: TextStyle(fontSize: 15, color: Colors.blue.withValues(alpha: 0.8)),
                   ),
                   TextSpan(
                     text: "${isReplyMessage(comment.comment ?? "") ? getMessageContent(comment.comment ?? "") : comment.comment ?? ""} ",
@@ -702,7 +692,7 @@ class CommentScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Text(
-                    comment.isShowMore ? "show less" : "show reply",
+                    comment.isShowMore ? "show less" : "show replies",
                     style: const TextStyle(color: Colors.blue),
                   ),
                 ],

@@ -4,7 +4,6 @@ import 'package:get_storage/get_storage.dart';
 import 'package:octagon/model/post_response_model.dart';
 import 'package:octagon/model/user_data_model.dart';
 import 'package:octagon/screen/mainFeed/bloc/post_repo.dart';
-import 'package:octagon/networking/model/resource.dart';
 
 class CommentController extends GetxController {
   final postRepo = PostRepository();
@@ -12,12 +11,18 @@ class CommentController extends GetxController {
   var postData = Rxn<PostResponseModelData>();
   var usersList = <Users>[].obs;
   var isLoading = false.obs;
-  var myId;
+  dynamic myId;
+  String? _loadedPostKey;
 
   final commentTextController = Rx<TextEditingController>(TextEditingController());
   final replyTextController = Rx<TextEditingController>(TextEditingController());
 
-  void loadPostDetails(String postId, String type) async {
+  void loadPostDetails(String postId, String type, {bool force = false}) async {
+    final requestKey = "$postId-$type";
+    if (!force && _loadedPostKey == requestKey && postData.value != null) {
+      return;
+    }
+
     isLoading.value = true;
     myId = GetStorage().read("current_uid") ?? "";
 
@@ -30,39 +35,73 @@ class CommentController extends GetxController {
     if (response.data != null) {
       final data = response.data!.successForCreatePost;
       if (data != null) {
+        data.comments = _normalizeComments(data.comments ?? []);
         postData.value = data;
+        _loadedPostKey = requestKey;
         usersList.clear();
 
-        // Flatten nested comments and extract users
-        for (var comment in data.comments ?? []) {
-          usersList.addIf(!usersList.contains(comment.users), comment.users!);
-          _flattenNestedComments(comment, comment.id);
+        for (final comment in data.comments ?? <SuccessComment>[]) {
+          _collectUsers(comment);
         }
       }
     }
   }
 
-  void _flattenNestedComments(SuccessComment comment, int? parentId) {
-    final nested = <SuccessComment>[];
+  List<SuccessComment> _normalizeComments(List<SuccessComment> comments) {
+    final orderedComments = <SuccessComment>[];
+    final commentsById = <int, SuccessComment>{};
 
-    void recurse(SuccessComment parent) {
-      if (parent.comments != null) {
-        for (var child in parent.comments!) {
-          child.parentCommentId = parentId;
-          child.id = parentId;
-          if (!nested.any((e) => e.id == child.id)) {
-            nested.add(child);
-            usersList.addIf(!usersList.contains(child.users), child.users!);
+    void collect(List<SuccessComment> source) {
+      for (final comment in source) {
+        final nestedComments = List<SuccessComment>.from(comment.comments ?? const <SuccessComment>[]);
+        final commentId = comment.id;
+
+        if (commentId != null && commentsById.containsKey(commentId)) {
+          final existingComment = commentsById[commentId]!;
+          existingComment.userId ??= comment.userId;
+          existingComment.postId ??= comment.postId;
+          existingComment.comment ??= comment.comment;
+          existingComment.parentCommentId ??= comment.parentCommentId;
+          existingComment.createdAt ??= comment.createdAt;
+          existingComment.users ??= comment.users;
+        } else {
+          comment.comments = <SuccessComment>[];
+          if (commentId != null) {
+            commentsById[commentId] = comment;
           }
-          if (child.comments != null) {
-            recurse(child);
-          }
+          orderedComments.add(comment);
         }
-        parent.comments!.addAll(nested);
+
+        if (nestedComments.isNotEmpty) {
+          collect(nestedComments);
+        }
       }
     }
 
-    recurse(comment);
+    collect(comments);
+
+    final rootComments = <SuccessComment>[];
+    for (final comment in orderedComments) {
+      final parentId = comment.parentCommentId;
+      if (parentId != null && parentId != 0 && commentsById.containsKey(parentId)) {
+        commentsById[parentId]!.comments ??= <SuccessComment>[];
+        commentsById[parentId]!.comments!.add(comment);
+      } else {
+        rootComments.add(comment);
+      }
+    }
+
+    return rootComments;
+  }
+
+  void _collectUsers(SuccessComment comment) {
+    if (comment.users != null && !usersList.any((user) => user.id == comment.users!.id)) {
+      usersList.add(comment.users!);
+    }
+
+    for (final child in comment.comments ?? <SuccessComment>[]) {
+      _collectUsers(child);
+    }
   }
 
   void toggleShowReplies(SuccessComment comment) {
@@ -76,13 +115,14 @@ class CommentController extends GetxController {
     await postRepo.addComment(
       postId: postId,
       comment: comment,
+      parentId: parentId,
     );
 
-    loadPostDetails(postId, postData.value?.type ?? "0");
+    loadPostDetails(postId, postData.value?.type ?? "0", force: true);
   }
 
   Future<void> deleteComment(String commentId) async {
     await postRepo.deleteComment(commentId);
-    loadPostDetails(postData.value!.id!.toString(), postData.value!.type ?? "0");
+    loadPostDetails(postData.value!.id!.toString(), postData.value!.type ?? "0", force: true);
   }
 }

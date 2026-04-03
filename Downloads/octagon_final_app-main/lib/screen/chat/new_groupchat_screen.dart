@@ -2519,9 +2519,9 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       return Text(decodedText, style: baseStyle);
     }
     final spans = <TextSpan>[];
-    // Highlight mentions as one token and allow a second capitalized word
-    // so display names like "@John Doe" are fully highlighted.
-    final mentionPattern = RegExp(r'@[\w\.\-]+(?:\s+[A-Z][\w\.\-]*)?');
+    // Highlight mentions as one token and allow multiple capitalized words
+    // so display names like "@John Michael Doe" are fully highlighted.
+    final mentionPattern = RegExp(r'@[\w\.\-]+(?:\s+[A-Z][\w\.\-]*)*');
     int startIndex = 0;
     for (final match in mentionPattern.allMatches(decodedText)) {
       if (match.start > startIndex) {

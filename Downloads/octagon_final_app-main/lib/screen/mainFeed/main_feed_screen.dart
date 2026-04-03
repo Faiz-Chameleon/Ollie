@@ -60,9 +60,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       AlertDialog(
         title: const Text('Join Request'),
         content: Text(
-          groupTitle.isNotEmpty
-              ? 'Send a request to join "$groupTitle"?'
-              : 'Send a request to join this group?',
+          groupTitle.isNotEmpty ? 'Send a request to join "$groupTitle"?' : 'Send a request to join this group?',
         ),
         actions: [
           TextButton(
@@ -72,8 +70,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ElevatedButton(
             onPressed: () async {
               Get.back();
-              final sent =
-                  await controller.groupController.sendJoinRequest(groupId);
+              final sent = await controller.groupController.sendJoinRequest(groupId);
               if (sent) {
                 Get.snackbar(
                   'Request sent',
@@ -107,29 +104,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _refreshHomeData() async {
-    debugPrint(
-        '[HomeScreen] _refreshHomeData start at ${DateTime.now().toIso8601String()}');
-    debugPrint(
-        '[HomeScreen] pagingController is null: ${newHomeController.pagingController == null}');
+    debugPrint('[HomeScreen] _refreshHomeData start at ${DateTime.now().toIso8601String()}');
+    debugPrint('[HomeScreen] pagingController is null: ${newHomeController.pagingController == null}');
     await Future.wait([
       controller.refreshPage(),
       newHomeController.refreshPosts(),
     ]);
-    debugPrint(
-        '[HomeScreen] _refreshHomeData completed at ${DateTime.now().toIso8601String()}');
+    debugPrint('[HomeScreen] _refreshHomeData completed at ${DateTime.now().toIso8601String()}');
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    debugPrint(
-        '[HomeScreen] lifecycle: $state at ${DateTime.now().toIso8601String()}');
-    if (state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
+    debugPrint('[HomeScreen] lifecycle: $state at ${DateTime.now().toIso8601String()}');
+    if (state == AppLifecycleState.hidden || state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
       _backgroundedAt ??= DateTime.now();
       _persistBackgroundTimestamp(_backgroundedAt!);
-      debugPrint(
-          '[HomeScreen] background timestamp set: ${_backgroundedAt!.toIso8601String()}');
+      debugPrint('[HomeScreen] background timestamp set: ${_backgroundedAt!.toIso8601String()}');
       return;
     }
 
@@ -139,16 +129,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     if (state == AppLifecycleState.resumed) {
-      final backgroundedAt =
-          _backgroundedAt ?? _readPersistedBackgroundTimestamp();
+      final backgroundedAt = _backgroundedAt ?? _readPersistedBackgroundTimestamp();
       if (backgroundedAt == null) {
         debugPrint('[HomeScreen] resumed with no background timestamp');
         return;
       }
 
       final awayDuration = DateTime.now().difference(backgroundedAt);
-      debugPrint(
-          '[HomeScreen] resumed after ${awayDuration.inSeconds}s (threshold: ${_autoRefreshThreshold.inSeconds}s)');
+      debugPrint('[HomeScreen] resumed after ${awayDuration.inSeconds}s (threshold: ${_autoRefreshThreshold.inSeconds}s)');
       if (awayDuration >= _autoRefreshThreshold && !_isAutoRefreshing) {
         _isAutoRefreshing = true;
         debugPrint('[HomeScreen] auto-refresh triggered');
@@ -157,8 +145,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           debugPrint('[HomeScreen] auto-refresh finished');
         });
       } else {
-        debugPrint(
-            '[HomeScreen] auto-refresh skipped; isAutoRefreshing=$_isAutoRefreshing');
+        debugPrint('[HomeScreen] auto-refresh skipped; isAutoRefreshing=$_isAutoRefreshing');
       }
       _backgroundedAt = null;
       _clearPersistedBackgroundTimestamp();
@@ -179,10 +166,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           leading: IconButton(
             icon: const Icon(Icons.camera_alt, color: Colors.white),
             onPressed: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => CreatePostScreen())).then((value) {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => CreatePostScreen())).then((value) {
                 if (value != null) {
                   // Refresh both controllers to ensure new posts appear
                   controller.refreshPage();
@@ -195,8 +179,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           elevation: 0.0,
           title: Text(
             "Octagon",
-            style: whiteColor20BoldTextStyle.copyWith(
-                fontSize: 22, fontWeight: FontWeight.w800),
+            style: whiteColor20BoldTextStyle.copyWith(fontSize: 22, fontWeight: FontWeight.w800),
           ),
           centerTitle: true,
           actions: <Widget>[
@@ -209,16 +192,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         'It\'s a sports social network where you rep your team, chat with fellow fans, share photos & videos, and experience every game together. Join your team\'s community now 👇https://octagonapp.com/app-download',
                     subject: 'Octagon App',
                     title: 'Found my tribe on Octagon! 🔥',
-                    sharePositionOrigin: box != null
-                        ? (box.localToGlobal(Offset.zero) & box.size)
-                        : null,
+                    sharePositionOrigin: box != null ? (box.localToGlobal(Offset.zero) & box.size) : null,
                   ),
                 );
               },
               child: Container(
                 color: Colors.transparent,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10),
+                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10),
                 child: const Icon(
                   Icons.near_me_rounded,
                   color: Colors.white,
@@ -270,24 +250,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           onTap: () async {
                             PostWidgets.pauseAllFeedVideos();
                             final selectedGroup = group;
-                            final currentUserId =
-                                storage.read("current_uid")?.toString();
-                            final isAuthor = currentUserId != null &&
-                                currentUserId.isNotEmpty &&
-                                selectedGroup.userId.toString() ==
-                                    currentUserId;
-                            final isPrivateGroup =
-                                selectedGroup.isPublic == "1";
+                            final currentUserId = storage.read("current_uid")?.toString();
+                            final isAuthor = currentUserId != null && currentUserId.isNotEmpty && selectedGroup.userId.toString() == currentUserId;
+                            final isPrivateGroup = selectedGroup.isPublic == "1";
 
                             if (isPrivateGroup && !isAuthor) {
-                              final canAccess = await controller.groupController
-                                  .isPrivateGroupAccessAllowed(
-                                      selectedGroup.id);
+                              final canAccess = await controller.groupController.isPrivateGroupAccessAllowed(selectedGroup.id);
                               if (canAccess == true) {
                                 // continue to chat flow below
                               } else if (canAccess == false) {
-                                _showJoinRequestDialog(
-                                    selectedGroup.id, selectedGroup.title);
+                                _showJoinRequestDialog(selectedGroup.id, selectedGroup.title);
                                 return;
                               } else {
                                 Get.snackbar(
@@ -301,16 +273,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             }
 
                             if (!isAuthor && !isPrivateGroup) {
-                              final joined = await controller.groupController
-                                  .joinGroupIfNeeded(selectedGroup.id);
+                              final joined = await controller.groupController.joinGroupIfNeeded(selectedGroup.id);
                               if (!joined) return;
                             }
                             String threadId = selectedGroup.thread_id;
                             if (threadId.isEmpty) {
-                              final resolvedThreadId = await controller
-                                  .ensureThreadIdForGroup(selectedGroup);
-                              if (resolvedThreadId == null ||
-                                  resolvedThreadId.isEmpty) {
+                              final resolvedThreadId = await controller.ensureThreadIdForGroup(selectedGroup);
+                              if (resolvedThreadId == null || resolvedThreadId.isEmpty) {
                                 Get.snackbar(
                                   'Error',
                                   'Unable to open chat for this group. Please try again later.',
@@ -324,13 +293,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             Get.to(() => NewGroupChatScreen(
                                   groupId: selectedGroup.id.toString(),
                                   // ignore: unrelated_type_equality_checks
-                                  isPublic: selectedGroup.isPublic == "0"
-                                      ? true
-                                      : false,
-                                  userId:
-                                      storage.read("current_uid").toString(),
-                                  userName:
-                                      storage.read("user_name").toString(),
+                                  isPublic: selectedGroup.isPublic == "0" ? true : false,
+                                  userId: storage.read("current_uid").toString(),
+                                  userName: storage.read("user_name").toString(),
                                   groupName: selectedGroup.title,
                                   groupImage: selectedGroup.photo.toString(),
                                   userImage: storage.read('image_url'),
@@ -368,9 +333,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                 width: 44,
                                                 height: 44,
                                                 fit: BoxFit.cover,
-                                                errorBuilder: (context, error,
-                                                        stackTrace) =>
-                                                    Container(
+                                                errorBuilder: (context, error, stackTrace) => Container(
                                                   width: 45,
                                                   height: 45,
                                                   color: Colors.transparent,
@@ -413,17 +376,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                       width: 50,
                                                       bgColor: Colors.yellow,
                                                       widget: Container(
-                                                        margin: const EdgeInsets
-                                                            .all(6),
+                                                        margin: const EdgeInsets.all(6),
                                                         child: ShapeMaker(
                                                           bgColor: Colors.black,
                                                           widget: Container(
-                                                            margin:
-                                                                const EdgeInsets
-                                                                    .all(8),
+                                                            margin: const EdgeInsets.all(8),
                                                             child: ShapeMaker(
-                                                              bgColor:
-                                                                  appBgColor,
+                                                              bgColor: appBgColor,
                                                             ),
                                                           ),
                                                         ),
@@ -434,14 +393,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                       width: 44,
                                                       height: 44,
                                                       fit: BoxFit.fill,
-                                                      errorBuilder: (context,
-                                                              error,
-                                                              stackTrace) =>
-                                                          Container(
+                                                      errorBuilder: (context, error, stackTrace) => Container(
                                                         width: 45,
                                                         height: 45,
-                                                        color:
-                                                            Colors.transparent,
+                                                        color: Colors.transparent,
                                                         child: Icon(
                                                           Icons.error,
                                                           color: Colors.red,
@@ -482,12 +437,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
                 Expanded(
                   child: PagedListView<int, PostResponseModelData>(
-                    pagingController: newHomeController.pagingController ??
-                        PagingController<int, PostResponseModelData>(
-                            firstPageKey: 0),
+                    pagingController: newHomeController.pagingController ?? PagingController<int, PostResponseModelData>(firstPageKey: 0),
                     physics: const AlwaysScrollableScrollPhysics(),
-                    builderDelegate:
-                        PagedChildBuilderDelegate<PostResponseModelData>(
+                    builderDelegate: PagedChildBuilderDelegate<PostResponseModelData>(
                       itemBuilder: (context, post, index) {
                         // Create a reactive reference to the post data
                         final reactivePost = post.obs;
@@ -503,12 +455,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   !reactivePost.value.isLikedByMe,
                                   reactivePost.value.type.toString(),
                                 );
-                                reactivePost.value.isLikedByMe =
-                                    !reactivePost.value.isLikedByMe;
-                                reactivePost.value.likes +=
-                                    reactivePost.value.isLikedByMe ? 1 : -1;
-                                newHomeController.pagingController
-                                    ?.itemList?[index] = reactivePost.value;
+                                reactivePost.value.isLikedByMe = !reactivePost.value.isLikedByMe;
+                                reactivePost.value.likes += reactivePost.value.isLikedByMe ? 1 : -1;
+                                newHomeController.pagingController?.itemList?[index] = reactivePost.value;
                                 // Trigger reactive update
                                 reactivePost.refresh();
                               },
@@ -517,10 +466,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   reactivePost.value.userId.toString(),
                                   !reactivePost.value.isUserFollowedByMe,
                                 );
-                                reactivePost.value.isUserFollowedByMe =
-                                    !reactivePost.value.isUserFollowedByMe;
-                                newHomeController.pagingController
-                                    ?.itemList?[index] = reactivePost.value;
+                                reactivePost.value.isUserFollowedByMe = !reactivePost.value.isUserFollowedByMe;
+                                newHomeController.pagingController?.itemList?[index] = reactivePost.value;
                                 // Trigger reactive update
                                 reactivePost.refresh();
                               },
@@ -529,10 +476,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   reactivePost.value.id.toString(),
                                   !reactivePost.value.isSaveByMe,
                                 );
-                                reactivePost.value.isSaveByMe =
-                                    !reactivePost.value.isSaveByMe;
-                                newHomeController.pagingController
-                                    ?.itemList?[index] = reactivePost.value;
+                                reactivePost.value.isSaveByMe = !reactivePost.value.isSaveByMe;
+                                newHomeController.pagingController?.itemList?[index] = reactivePost.value;
                                 // Trigger reactive update
                                 reactivePost.refresh();
                               },
@@ -541,8 +486,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               },
                             ));
                       },
-                      firstPageProgressIndicatorBuilder: (context) =>
-                          const Center(
+                      firstPageProgressIndicatorBuilder: (context) => const Center(
                         child: CircularProgressIndicator(),
                       ),
                       noItemsFoundIndicatorBuilder: (context) => const Center(
@@ -551,8 +495,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           style: TextStyle(color: Colors.white),
                         ),
                       ),
-                      newPageProgressIndicatorBuilder: (context) =>
-                          const Center(
+                      newPageProgressIndicatorBuilder: (context) => const Center(
                         child: CircularProgressIndicator(),
                       ),
                     ),
