@@ -154,6 +154,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    PostWidgets.pauseAllFeedVideos();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -290,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               }
                               threadId = resolvedThreadId;
                             }
-                            Get.to(() => NewGroupChatScreen(
+                            await Get.to(() => NewGroupChatScreen(
                                   groupId: selectedGroup.id.toString(),
                                   // ignore: unrelated_type_equality_checks
                                   isPublic: selectedGroup.isPublic == "0" ? true : false,
@@ -302,6 +303,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   thread_id: threadId,
                                   otheruserId: selectedGroup.userId,
                                 ));
+                            PostWidgets.pauseAllFeedVideos();
                           },
                           child: SizedBox(
                             height: 100,
