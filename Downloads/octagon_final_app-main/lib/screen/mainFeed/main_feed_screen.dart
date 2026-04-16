@@ -30,7 +30,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
   final HomeController controller = Get.find();
   final postController = Get.put(PostController());
   final newHomeController = Get.find<NewHomecontroller>();
@@ -161,6 +161,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
         backgroundColor: appBgColor,
         appBar: AppBar(
@@ -439,6 +440,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
                 Expanded(
                   child: PagedListView<int, PostResponseModelData>(
+                    key: const PageStorageKey<String>('home_feed_posts'),
                     pagingController: newHomeController.pagingController ?? PagingController<int, PostResponseModelData>(firstPageKey: 0),
                     physics: const AlwaysScrollableScrollPhysics(),
                     builderDelegate: PagedChildBuilderDelegate<PostResponseModelData>(
@@ -508,4 +510,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           );
         }));
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }

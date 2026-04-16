@@ -103,7 +103,10 @@ class _TabScreenState extends State<TabScreen> {
               return Future.value(data == 0);
             },
             child: Scaffold(
-              body: pages.elementAt(data),
+              body: IndexedStack(
+                index: data,
+                children: pages,
+              ),
               /*PageTransitionSwitcher(
               transitionBuilder: (
                   Widget child,
@@ -170,21 +173,9 @@ class _TabScreenState extends State<TabScreen> {
       itemCornerRadius: 12,
       curve: Curves.easeIn,
       onItemSelected: (index) {
-        if (widget.selectedPage == 0) {
-          // controller.refreshPage();
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (controller.scrollController.hasClients) {
-              controller.scrollController.jumpTo(0); // or any offset
-            }
-          });
-          // Future.delayed(Duration(milliseconds: 1000));
-          // controller.scrollController.jumpTo(0);
-
-          newHomeController.pagingController?.refresh();
-        } else {
-          // controller.scrollController.dispose();
-          widget.selectedPage = index;
-          currentPage.add(widget.selectedPage);
+        if (index == 0 && widget.selectedPage == 0) {
+          controller.refreshPage();
+          newHomeController.refreshPosts();
         }
         widget.selectedPage = index;
         currentPage.add(widget.selectedPage);

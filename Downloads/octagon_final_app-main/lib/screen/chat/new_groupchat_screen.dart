@@ -1544,11 +1544,17 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     log('📝 Outgoing raw message: "$text"');
     log('📝 Outgoing decoded preview: "${EmojiParser.decode(text)}"');
     final replyTarget = controller.replyingTo.value;
+    log('🧵 Reply target (send): ${replyTarget == null ? "null" : replyTarget}');
     final payloadReplyToId = _resolveReplyToIdForSend(replyTarget);
+    final replySenderName = replyTarget?['sender_name']?.toString().trim() ?? '';
+    final visibleReplyPrefix = replyTarget != null && replySenderName.isNotEmpty ? '@$replySenderName ' : '';
+    final cleanedText =
+        visibleReplyPrefix.isNotEmpty && text.startsWith(visibleReplyPrefix) ? text.substring(visibleReplyPrefix.length).trimLeft() : text;
+    final storedText = replyTarget != null && replySenderName.isNotEmpty ? '@$replySenderName@ $cleanedText' : text;
     final tempId = Uuid().v4();
     final optimistic = {
       'temporary_id': tempId,
-      'text': EmojiParser.decode(text),
+      'text': EmojiParser.decode(storedText),
       'sender_id': widget.userId,
       'sender_name': widget.userName,
       'sender_image': widget.userImage,
@@ -1562,7 +1568,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     controller.messageController.clear();
     _hideMentionPanel();
     try {
-      final payload = {'message': text, 'temporary_id': tempId};
+      final payload = {'message': storedText, 'temporary_id': tempId};
       if (payloadReplyToId != null && payloadReplyToId.isNotEmpty) {
         payload['reply_to_id'] = payloadReplyToId;
       }
@@ -2519,29 +2525,29 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       return Text(decodedText, style: baseStyle);
     }
     final spans = <TextSpan>[];
-    // Highlight mentions as one token and allow multiple capitalized words
-    // so display names like "@John Michael Doe" are fully highlighted.
-    final mentionPattern = RegExp(r'@[\w\.\-]+(?:\s+[A-Z][\w\.\-]*)*');
-    int startIndex = 0;
-    for (final match in mentionPattern.allMatches(decodedText)) {
-      if (match.start > startIndex) {
-        spans.add(TextSpan(text: decodedText.substring(startIndex, match.start)));
-      }
-      final mentionText = decodedText.substring(match.start, match.end);
-      spans.add(
-        TextSpan(
-          text: mentionText,
-          style: baseStyle.copyWith(
-            color: const Color(0xff4F9DFF),
-            fontWeight: FontWeight.bold,
+    final replyMarkerMatch = RegExp(r'^@([^@]+)@\s*(.*)$').firstMatch(decodedText);
+    if (replyMarkerMatch != null) {
+      final replyName = replyMarkerMatch.group(1)?.trim() ?? '';
+      final replyBody = replyMarkerMatch.group(2)?.trimLeft() ?? '';
+      if (replyName.isNotEmpty) {
+        spans.add(
+          TextSpan(
+            text: '@$replyName',
+            style: baseStyle.copyWith(
+              color: const Color(0xff4F9DFF),
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
-      );
-      startIndex = match.end;
+        );
+        if (replyBody.isNotEmpty) {
+          spans.add(TextSpan(text: ' $replyBody'));
+        }
+        return RichText(
+          text: TextSpan(style: baseStyle, children: spans),
+        );
+      }
     }
-    if (startIndex < decodedText.length) {
-      spans.add(TextSpan(text: decodedText.substring(startIndex)));
-    }
+    spans.add(TextSpan(text: decodedText));
     return RichText(
       text: TextSpan(style: baseStyle, children: spans),
     );

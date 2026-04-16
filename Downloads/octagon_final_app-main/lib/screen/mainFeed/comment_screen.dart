@@ -706,6 +706,7 @@ class CommentScreen extends StatelessWidget {
 
   void showReplyDialog(SuccessComment comment) {
     final controller = Get.find<CommentController>();
+    final rootCommentId = controller.getRootCommentId(comment) ?? comment.id;
 
     Get.defaultDialog(
       title: getMessageContent(comment.comment ?? ""),
@@ -721,7 +722,7 @@ class CommentScreen extends StatelessWidget {
           controller.addComment(
             controller.postData.value!.id.toString(),
             "@${comment.userId} ${controller.replyTextController.value.text.trim()}",
-            parentId: comment.id.toString(),
+            parentId: rootCommentId.toString(),
           );
           controller.replyTextController.value.clear();
         } else {

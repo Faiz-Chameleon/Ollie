@@ -109,6 +109,36 @@ class CommentController extends GetxController {
     postData.refresh();
   }
 
+  int? getRootCommentId(SuccessComment comment) {
+    if (comment.parentCommentId == null || comment.parentCommentId == 0) {
+      return comment.id;
+    }
+
+    final comments = postData.value?.comments ?? <SuccessComment>[];
+    final byId = <int, SuccessComment>{};
+
+    void indexComments(List<SuccessComment> source) {
+      for (final item in source) {
+        final id = item.id;
+        if (id != null) {
+          byId[id] = item;
+        }
+        indexComments(item.comments ?? <SuccessComment>[]);
+      }
+    }
+
+    indexComments(comments);
+
+    var current = comment;
+    while (current.parentCommentId != null && current.parentCommentId != 0) {
+      final parent = byId[current.parentCommentId];
+      if (parent == null) break;
+      current = parent;
+    }
+
+    return current.id;
+  }
+
   Future<void> addComment(String postId, String comment, {String? parentId}) async {
     if (comment.trim().isEmpty) return;
 
