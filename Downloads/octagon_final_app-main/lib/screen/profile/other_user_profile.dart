@@ -656,10 +656,12 @@ class OtherUserProfileScreen extends StatelessWidget {
           icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Get.back(),
         ),
-        title: Obx(() => Text(
-              "${controller.profileData.value?.success?.user?.name ?? "Loading..."}'s profile",
-              style: whiteColor20BoldTextStyle,
-            )),
+        title: Obx(() => controller.profileData.value?.success?.user?.name! == "Admin"
+            ? Text("Octagon's profile", style: whiteColor20BoldTextStyle)
+            : Text(
+                "${controller.profileData.value?.success?.user?.name ?? "Loading..."}'s profile",
+                style: whiteColor20BoldTextStyle,
+              )),
         actions: [
           PopupMenuButton<String>(
             icon: Icon(Icons.menu, color: Colors.white),
@@ -810,53 +812,60 @@ class OtherUserProfileScreen extends StatelessWidget {
             //     backgroundImage: NetworkImage(user.user.photo ?? "") as ImageProvider,
             //     // : NetworkImage("http://3.134.119.154/${user.user.teamGroupPhoto}") as ImageProvider,
             //   )
-            : Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  // Octagon background image
-                  Image.asset(
-                    // widget.postData?.groupType == "personal"
-                    //     ?
-                    // 'assets/ic/Group 5.png'
-                    // :
-                    user.user.user_type == "1" ? 'assets/ic/Group 4.png' : 'assets/ic/Group 5.png', // Your uploaded PNG asset
+            : user.user.name == "Admin"
+                ? Image.asset(
+                    'assets/ic/Group 4.png', // Your uploaded PNG asset
                     width: 100,
                     height: 100,
                     fit: BoxFit.cover,
-                  ),
-
-                  // Centered network image
-                  ClipPath(
-                    clipper: OctagonClipper(),
-                    child: CustomPaint(
-                      painter: OctagonBorderPainter(
-                        strokeWidth: 15.0,
-                        borderColor: Color(0xff211D39), // Change border color
-                      ),
-                      child: Image.network(
-                        "http://3.134.119.154/${user.user.teamGroupPhoto}", // Replace with your image URL
-                        width: 70,
-                        height: 70,
+                  )
+                : Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.center,
+                    children: [
+                      // Octagon background image
+                      Image.asset(
+                        // widget.postData?.groupType == "personal"
+                        //     ?
+                        // 'assets/ic/Group 5.png'
+                        // :
+                        user.user.user_type == "1" ? 'assets/ic/Group 4.png' : 'assets/ic/Group 5.png', // Your uploaded PNG asset
+                        width: 100,
+                        height: 100,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          width: 45,
-                          height: 45,
-                          color: Colors.transparent,
-                          child: Icon(
-                            Icons.error,
-                            color: Colors.red,
-                            size: 24,
+                      ),
+
+                      // Centered network image
+                      ClipPath(
+                        clipper: OctagonClipper(),
+                        child: CustomPaint(
+                          painter: OctagonBorderPainter(
+                            strokeWidth: 15.0,
+                            borderColor: Color(0xff211D39), // Change border color
+                          ),
+                          child: Image.network(
+                            "http://3.134.119.154/${user.user.teamGroupPhoto}", // Replace with your image URL
+                            width: 70,
+                            height: 70,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              width: 45,
+                              height: 45,
+                              color: Colors.transparent,
+                              child: Icon(
+                                Icons.error,
+                                color: Colors.red,
+                                size: 24,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
 
         const SizedBox(height: 20),
-        Text(user.user.name ?? "", style: whiteColor20BoldTextStyle),
+        user.user.name == "Admin" ? Text("Octagon", style: whiteColor20BoldTextStyle) : Text(user.user.name ?? "", style: whiteColor20BoldTextStyle),
         if (user.user.bio != null)
           Padding(
             padding: const EdgeInsets.all(8.0),

@@ -2512,7 +2512,7 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     }
 
     if (senderName != null && senderName.isNotEmpty) {
-      return senderName;
+      return senderName == "Admin" ? "Octagon" : senderName;
     }
 
     return 'Unknown';
@@ -3313,137 +3313,148 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     final double teamInnerSize = isThreadReply ? 30 : 45;
     final double teamErrorIconSize = isThreadReply ? 16 : 24;
     final double teamBorderStroke = isThreadReply ? 12 : 20;
-    return userType == "2"
-        // && message["owner"]["base"]["created_group"]["user_id"] == storage.read("current_uid")
-        ? GestureDetector(
-            onTap: () {
-              int changeUserId = int.parse(userId.toString());
-              Get.to(() => OtherUserProfileScreen(userId: changeUserId));
-              // Optionally handle avatar tap
-            },
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                // Octagon background image
-                Image.asset(
-                  // widget.postData?.groupType == "personal"
-                  //     ?
-                  // 'assets/ic/Group 5.png'
-                  // :
-                  message["owner"]["base"]["created_group"]["is_public"] == 1
-                      ? 'assets/ic/Group 4.png'
-                      : 'assets/ic/Group 5.png', // Your uploaded PNG asset
-                  width: teamOuterSize,
-                  height: teamOuterSize,
-                  fit: BoxFit.cover,
-                ),
+    final owner = message["owner"];
+    final base = owner is Map ? owner["base"] : null;
+    final ownerName = base is Map ? base["name"] : null;
 
-                // Centered network image
-                ClipPath(
-                  clipper: OctagonClipper(),
-                  child: CustomPaint(
-                    painter: OctagonBorderPainter(
-                      strokeWidth: teamBorderStroke,
-                      borderColor: Color(0xff211D39), // Change border color
-                    ),
-                    child: Image.network(
-                      groupImage.contains("http") ? '$groupImage' : "http://3.134.119.154/$groupImage", // Replace with your image URL
-                      width: teamInnerSize,
-                      height: teamInnerSize,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        width: teamInnerSize,
-                        height: teamInnerSize,
-                        color: Colors.transparent,
-                        child: Icon(
-                          Icons.error,
-                          color: Colors.red,
-                          size: teamErrorIconSize,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+    return ownerName == "Admin"
+        ? Image.asset(
+            'assets/ic/Group 4.png', // Your uploaded PNG asset
+            width: 65,
+            height: 65,
+            fit: BoxFit.cover,
           )
-        : Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.bottomCenter,
-            children: [
-              GestureDetector(
+        : userType == "2"
+            // && message["owner"]["base"]["created_group"]["user_id"] == storage.read("current_uid")
+            ? GestureDetector(
                 onTap: () {
                   int changeUserId = int.parse(userId.toString());
                   Get.to(() => OtherUserProfileScreen(userId: changeUserId));
                   // Optionally handle avatar tap
                 },
-                child: Container(
-                  width: avatarWidth,
-                  height: avatarHeight,
-                  decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    borderRadius: const BorderRadius.all(Radius.circular(15)),
-                  ),
-                  child: imageUrl != null && imageUrl.isNotEmpty
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Image.network(
-                            imageUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Icon(
-                              Icons.person,
-                              color: Colors.white,
-                              size: iconSize,
-                            ),
-                          ),
-                        )
-                      : ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Image.asset(
-                            'assets/splash/splash.png', // Your uploaded PNG asset
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                          ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    // Octagon background image
+                    Image.asset(
+                      // widget.postData?.groupType == "personal"
+                      //     ?
+                      // 'assets/ic/Group 5.png'
+                      // :
+                      message["owner"]["base"]["created_group"]["is_public"] == 1
+                          ? 'assets/ic/Group 4.png'
+                          : 'assets/ic/Group 5.png', // Your uploaded PNG asset
+                      width: teamOuterSize,
+                      height: teamOuterSize,
+                      fit: BoxFit.cover,
+                    ),
+
+                    // Centered network image
+                    ClipPath(
+                      clipper: OctagonClipper(),
+                      child: CustomPaint(
+                        painter: OctagonBorderPainter(
+                          strokeWidth: teamBorderStroke,
+                          borderColor: Color(0xff211D39), // Change border color
                         ),
-                ),
-              ),
-              Positioned(
-                  bottom: badgeOffset,
-                  child: ClipPath(
-                    clipper: OctagonClipper(),
-                    child: Container(
-                      width: badgeSize,
-                      height: badgeSize,
-                      color: Color(0xff211D39), // Optional: for border effect
-                      child: ClipPath(
-                        clipper: OctagonClipper(),
-                        child: CustomPaint(
-                          painter: OctagonBorderPainter(
-                            strokeWidth: 18.0,
-                            borderColor: Color(0xff211D39), // Change border color
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(5.0),
-                            child: ClipPath(
-                              clipper: OctagonClipper(),
-                              child: Image.network(
-                                groupImage.toString() == "" ? "http://3.134.119.154/OctagonGroup.png" : groupImage,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => Container(
-                                  color: Colors.grey,
-                                  child: Icon(Icons.broken_image, color: Colors.white, size: 16),
-                                ),
-                              ),
+                        child: Image.network(
+                          groupImage.contains("http") ? '$groupImage' : "http://3.134.119.154/$groupImage", // Replace with your image URL
+                          width: teamInnerSize,
+                          height: teamInnerSize,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: teamInnerSize,
+                            height: teamInnerSize,
+                            color: Colors.transparent,
+                            child: Icon(
+                              Icons.error,
+                              color: Colors.red,
+                              size: teamErrorIconSize,
                             ),
                           ),
                         ),
                       ),
                     ),
-                  )),
-            ],
-          );
+                  ],
+                ),
+              )
+            : Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.bottomCenter,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      int changeUserId = int.parse(userId.toString());
+                      Get.to(() => OtherUserProfileScreen(userId: changeUserId));
+                      // Optionally handle avatar tap
+                    },
+                    child: Container(
+                      width: avatarWidth,
+                      height: avatarHeight,
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: const BorderRadius.all(Radius.circular(15)),
+                      ),
+                      child: imageUrl != null && imageUrl.isNotEmpty
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: Image.network(
+                                imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: iconSize,
+                                ),
+                              ),
+                            )
+                          : ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: Image.asset(
+                                'assets/splash/splash.png', // Your uploaded PNG asset
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                    ),
+                  ),
+                  Positioned(
+                      bottom: badgeOffset,
+                      child: ClipPath(
+                        clipper: OctagonClipper(),
+                        child: Container(
+                          width: badgeSize,
+                          height: badgeSize,
+                          color: Color(0xff211D39), // Optional: for border effect
+                          child: ClipPath(
+                            clipper: OctagonClipper(),
+                            child: CustomPaint(
+                              painter: OctagonBorderPainter(
+                                strokeWidth: 18.0,
+                                borderColor: Color(0xff211D39), // Change border color
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(5.0),
+                                child: ClipPath(
+                                  clipper: OctagonClipper(),
+                                  child: Image.network(
+                                    groupImage.toString() == "" ? "http://3.134.119.154/OctagonGroup.png" : groupImage,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => Container(
+                                      color: Colors.grey,
+                                      child: Icon(Icons.broken_image, color: Colors.white, size: 16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ))
+                ],
+              );
   }
 
   String? _currentUserId() {

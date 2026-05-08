@@ -107,6 +107,21 @@ class HomeController extends GetxController {
     isMute = tempMute;
   }
 
+  void resetGroupScrollPosition() {
+    if (!scrollController.hasClients) return;
+
+    scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  Future<void> resetHomeState() async {
+    await getAllGroups();
+    resetGroupScrollPosition();
+  }
+
   void navigateToGroupChat(PublicGroupModel group) async {
     if (group.isPublic != "1") {
       // Fetch group members

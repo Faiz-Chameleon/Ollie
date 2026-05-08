@@ -38,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Au
   static const String _backgroundAtStorageKey = 'home_screen_background_at_ms';
   DateTime? _backgroundedAt;
   bool _isAutoRefreshing = false;
+  final GlobalKey _shareButtonKey = GlobalKey();
 
   void _persistBackgroundTimestamp(DateTime timestamp) {
     storage.write(_backgroundAtStorageKey, timestamp.millisecondsSinceEpoch);
@@ -186,19 +187,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Au
           centerTitle: true,
           actions: <Widget>[
             GestureDetector(
-              onTap: () async {
-                final box = context.findRenderObject() as RenderBox?;
-                await SharePlus.instance.share(
-                  ShareParams(
-                    text:
-                        'It\'s a sports social network where you rep your team, chat with fellow fans, share photos & videos, and experience every game together. Join your team\'s community now 👇https://octagonapp.com/app-download',
-                    subject: 'Octagon App',
-                    title: 'Found my tribe on Octagon! 🔥',
-                    sharePositionOrigin: box != null ? (box.localToGlobal(Offset.zero) & box.size) : null,
-                  ),
-                );
+              onTap: () {
+                final box = _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+                final origin = box != null ? (box.localToGlobal(Offset.zero) & box.size) : null;
+                SharePlus.instance
+                    .share(
+                      ShareParams(
+                        text:
+                            'It\'s a sports social network where you rep your team, chat with fellow fans, share photos & videos, and experience every game together. Join your team\'s community now 👇https://octagonapp.com',
+                        subject: 'Octagon App',
+                        title: 'Found my tribe on Octagon! 🔥',
+                        sharePositionOrigin: origin,
+                      ),
+                    )
+                    .catchError((_) => const ShareResult('', ShareResultStatus.dismissed));
               },
               child: Container(
+                key: _shareButtonKey,
                 color: Colors.transparent,
                 padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10),
                 child: const Icon(

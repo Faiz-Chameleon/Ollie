@@ -165,17 +165,17 @@ class _TabScreenState extends State<TabScreen> {
   //   currentPage.add(widget.selectedPage);
   // }
   Widget _buildBottomBar(int data) {
-    return CustomAnimatedBottomBar(
+      return CustomAnimatedBottomBar(
       containerHeight: 60,
       backgroundColor: Colors.black,
       selectedIndex: data,
       showElevation: true,
       itemCornerRadius: 12,
       curve: Curves.easeIn,
-      onItemSelected: (index) {
-        if (index == 0 && widget.selectedPage == 0) {
-          controller.refreshPage();
-          newHomeController.refreshPosts();
+      onItemSelected: (index) async {
+        if (index == 0) {
+          await controller.resetHomeState();
+          await newHomeController.refreshPosts();
         }
         widget.selectedPage = index;
         currentPage.add(widget.selectedPage);

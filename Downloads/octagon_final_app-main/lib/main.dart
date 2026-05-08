@@ -84,20 +84,13 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  bool isLogin = false;
+  late bool isLogin;
 
   @override
   void initState() {
     super.initState();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (storage.read("current_uid") != null && "${storage.read("current_uid")}".isNotEmpty) {
-        setState(() {
-          isLogin = true;
-        });
-        // await _initializePusher();
-      }
-    });
+    final uid = storage.read("current_uid");
+    isLogin = uid != null && uid.toString().isNotEmpty;
   }
 
   // Future<void> _initializePusher() async {
