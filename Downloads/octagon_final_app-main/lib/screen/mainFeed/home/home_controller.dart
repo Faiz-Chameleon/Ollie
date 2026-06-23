@@ -222,6 +222,7 @@ class HomeController extends GetxController {
       // getHomePageData(),
       getAllGroups()
     ]);
+    resetGroupScrollPosition();
     update();
   }
 

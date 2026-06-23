@@ -464,6 +464,8 @@ class NetworkAPICall {
       );
       if (response.statusCode == 200) {
         return json.decode(response.body);
+      } else if (response.statusCode == 429) {
+        throw Exception('Too many requests. Please wait and try again.');
       } else {
         throw Exception('Failed to load members: ${response.statusCode}');
       }

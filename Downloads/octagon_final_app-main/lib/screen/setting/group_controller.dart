@@ -13,6 +13,8 @@ class GroupController extends GetxController {
   final NetworkAPICall _networkApi = NetworkAPICall();
   var groups = <GroupModel>[].obs;
   var isLoading = false.obs;
+  var isJoiningGroup = false.obs;
+  final Rxn<DateTime> joinCooldownUntil = Rxn<DateTime>();
 
   @override
   void onInit() {
@@ -57,6 +59,12 @@ class GroupController extends GetxController {
   }
 
   Future<bool> joinGroupIfNeeded(int groupId) async {
+    if (isJoiningGroup.value) return false;
+    final cooldownUntil = joinCooldownUntil.value;
+    if (cooldownUntil != null && DateTime.now().isBefore(cooldownUntil)) {
+      return false;
+    }
+
     final storage = GetStorage();
     final token = storage.read("token");
     final dynamic storedUserId = storage.read("current_uid") ?? storage.read("user_id") ?? storage.read("id");
@@ -82,6 +90,7 @@ class GroupController extends GetxController {
     }
 
     try {
+      isJoiningGroup.value = true;
       final bool? alreadyMember = await _isUserAlreadyMember(groupId, currentUserId);
       if (alreadyMember == null) {
         Get.snackbar(
@@ -105,6 +114,15 @@ class GroupController extends GetxController {
 
       if (response.statusCode == 200) {
         return true;
+      } else if (response.statusCode == 429) {
+        joinCooldownUntil.value = DateTime.now().add(const Duration(seconds: 30));
+        Get.snackbar(
+          'Please wait',
+          'Too many attempts. Try again in 30 seconds.',
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
+        return false;
       } else {
         print('Failed to join group ($groupId): ${response.statusCode} - ${response.reasonPhrase} - $responseBody');
         Get.snackbar(
@@ -117,6 +135,16 @@ class GroupController extends GetxController {
       }
     } catch (e) {
       print('joinGroupIfNeeded error: $e');
+      if (e.toString().contains('429') || e.toString().toLowerCase().contains('too many requests')) {
+        joinCooldownUntil.value = DateTime.now().add(const Duration(seconds: 30));
+        Get.snackbar(
+          'Please wait',
+          'Too many attempts. Try again in 30 seconds.',
+          backgroundColor: Colors.white,
+          colorText: Colors.black,
+        );
+        return false;
+      }
       Get.snackbar(
         'Error',
         'Failed to join group. Please try again.',
@@ -124,6 +152,8 @@ class GroupController extends GetxController {
         colorText: Colors.black,
       );
       return false;
+    } finally {
+      isJoiningGroup.value = false;
     }
   }
 

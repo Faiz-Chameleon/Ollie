@@ -1,7 +1,6 @@
 import 'dart:async';
 // import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_icons_null_safety/flutter_icons_null_safety.dart';
 import 'package:get/get.dart';
 
 import 'package:octagon/screen/mainFeed/home/home_controller.dart';
@@ -165,7 +164,7 @@ class _TabScreenState extends State<TabScreen> {
   //   currentPage.add(widget.selectedPage);
   // }
   Widget _buildBottomBar(int data) {
-      return CustomAnimatedBottomBar(
+    return CustomAnimatedBottomBar(
       containerHeight: 60,
       backgroundColor: Colors.black,
       selectedIndex: data,
@@ -173,7 +172,8 @@ class _TabScreenState extends State<TabScreen> {
       itemCornerRadius: 12,
       curve: Curves.easeIn,
       onItemSelected: (index) async {
-        if (index == 0) {
+        final isHomeRetap = index == 0 && data == 0;
+        if (isHomeRetap) {
           await controller.resetHomeState();
           await newHomeController.refreshPosts();
         }
@@ -189,21 +189,21 @@ class _TabScreenState extends State<TabScreen> {
           textAlign: TextAlign.center,
         ),
         // BottomNavyBarItem(
-        //   icon: const Icon(Feather.search),
+        //   icon: const Icon(Icons.search),
         //   title: const Text('Users'),
         //   activeColor: purpleColor,
         //   inactiveColor: _inactiveColor,
         //   textAlign: TextAlign.center,
         // ),
         BottomNavyBarItem(
-          icon: const Icon(Feather.trending_up),
+          icon: const Icon(Icons.trending_up),
           title: Text('Users'),
           activeColor: purpleColor,
           inactiveColor: _inactiveColor,
           textAlign: TextAlign.center,
         ),
         BottomNavyBarItem(
-          icon: const Icon(Feather.bell),
+          icon: const Icon(Icons.notifications_outlined),
           title: const Text(
             'Notification',
           ),

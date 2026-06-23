@@ -93,7 +93,8 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   final ItemPositionsListener _messagePositionsListener = ItemPositionsListener.create();
   final Map<String, int> _messageIndexLookup = {};
   final Set<String> _expandedThreads = <String>{};
-  final RegExp _mentionMatcher = RegExp(r'@([^\s@]*)$');
+  // Keep spaces in the active mention query so multi-word names can be searched.
+  final RegExp _mentionMatcher = RegExp(r'@([^\n@]*)$');
   Timer? _mentionSearchDebounce;
   TextRange? _activeMentionRange;
   bool _isMentionPanelVisible = false;
@@ -1547,10 +1548,12 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     log('🧵 Reply target (send): ${replyTarget == null ? "null" : replyTarget}');
     final payloadReplyToId = _resolveReplyToIdForSend(replyTarget);
     final replySenderName = replyTarget?['sender_name']?.toString().trim() ?? '';
-    final visibleReplyPrefix = replyTarget != null && replySenderName.isNotEmpty ? '@$replySenderName ' : '';
-    final cleanedText =
-        visibleReplyPrefix.isNotEmpty && text.startsWith(visibleReplyPrefix) ? text.substring(visibleReplyPrefix.length).trimLeft() : text;
-    final storedText = replyTarget != null && replySenderName.isNotEmpty ? '@$replySenderName@ $cleanedText' : text;
+    final visibleReplyPrefix = replyTarget != null && replySenderName.isNotEmpty ? '@[$replySenderName] ' : '';
+    final normalizedText = _normalizeMentionSpacing(text);
+    final cleanedText = visibleReplyPrefix.isNotEmpty && normalizedText.startsWith(visibleReplyPrefix)
+        ? normalizedText.substring(visibleReplyPrefix.length).trimLeft()
+        : normalizedText;
+    final storedText = replyTarget != null && replySenderName.isNotEmpty ? '@[$replySenderName] $cleanedText' : normalizedText;
     final tempId = Uuid().v4();
     final optimistic = {
       'temporary_id': tempId,
@@ -1656,7 +1659,9 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                       const SizedBox(width: 30),
                       GestureDetector(
                         onTap: () {
-                          Get.back();
+                          if (Navigator.of(context).canPop()) {
+                            Navigator.of(context).pop();
+                          }
                         },
                         child: Icon(
                           Icons.arrow_back,
@@ -2363,8 +2368,8 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                 itemCount: suggestions.length,
                 itemBuilder: (_, index) {
                   final member = suggestions[index];
-                  final displayName = (member['name'] ?? '').toString();
-                  final username = (member['username'] ?? displayName).toString();
+                  final displayName = (member['name'] ?? '').toString().trim();
+                  final username = (member['username'] ?? displayName).toString().trim();
                   final avatar = (member['image'] ?? '').toString();
                   return ListTile(
                     dense: true,
@@ -2524,8 +2529,19 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
     if (decodedText.trim().isEmpty) {
       return Text(decodedText, style: baseStyle);
     }
+    final mentionStyle = baseStyle.copyWith(
+      color: const Color(0xff4F9DFF),
+      fontWeight: FontWeight.bold,
+      shadows: const [
+        Shadow(
+          color: Color(0x33000000),
+          blurRadius: 2,
+          offset: Offset(0, 0),
+        ),
+      ],
+    );
     final spans = <TextSpan>[];
-    final replyMarkerMatch = RegExp(r'^@([^@]+)@\s*(.*)$').firstMatch(decodedText);
+    final replyMarkerMatch = RegExp(r'^@\[(.+?)\]\s*(.*)$').firstMatch(decodedText);
     if (replyMarkerMatch != null) {
       final replyName = replyMarkerMatch.group(1)?.trim() ?? '';
       final replyBody = replyMarkerMatch.group(2)?.trimLeft() ?? '';
@@ -2540,17 +2556,47 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
           ),
         );
         if (replyBody.isNotEmpty) {
-          spans.add(TextSpan(text: ' $replyBody'));
+          spans.add(const TextSpan(text: ' '));
+          spans.addAll(_buildMentionSpans(replyBody, baseStyle, mentionStyle));
         }
         return RichText(
           text: TextSpan(style: baseStyle, children: spans),
         );
       }
     }
-    spans.add(TextSpan(text: decodedText));
+    spans.addAll(_buildMentionSpans(decodedText, baseStyle, mentionStyle));
     return RichText(
       text: TextSpan(style: baseStyle, children: spans),
     );
+  }
+
+  List<TextSpan> _buildMentionSpans(String text, TextStyle baseStyle, TextStyle mentionStyle) {
+    final spans = <TextSpan>[];
+    final mentionPattern = RegExp(r'@\[[^\]]+\]');
+    var index = 0;
+
+    for (final match in mentionPattern.allMatches(text)) {
+      if (match.start > index) {
+        spans.add(TextSpan(text: text.substring(index, match.start), style: baseStyle));
+      }
+      final mentionBody = text.substring(match.start + 2, match.end - 1);
+      spans.add(TextSpan(text: '@$mentionBody', style: mentionStyle));
+      final nextChar = match.end < text.length ? text[match.end] : '';
+      if (nextChar.isNotEmpty && !_isMentionSeparator(nextChar)) {
+        spans.add(TextSpan(text: ' ', style: baseStyle));
+      }
+      index = match.end;
+    }
+
+    if (index < text.length) {
+      spans.add(TextSpan(text: text.substring(index), style: baseStyle));
+    }
+
+    return spans;
+  }
+
+  bool _isMentionSeparator(String char) {
+    return RegExp(r'[\s\.,!?:;၊۔၊،\)\]\}]').hasMatch(char);
   }
 
   void _handleComposerTextChanged() {
@@ -2606,18 +2652,40 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
   void _handleMentionSelection(Map<String, dynamic> member) {
     final range = _activeMentionRange;
     if (range == null) return;
-    final rawDisplay = (member['username'] ?? member['name'] ?? '').toString().trim();
+    final rawDisplay = (member['name'] ?? member['username'] ?? '').toString().trim();
     if (rawDisplay.isEmpty) return;
-    final mentionText = '@$rawDisplay ';
     final text = controller.messageController.text;
     final int start = range.start.clamp(0, text.length).toInt();
     final int end = range.end.clamp(0, text.length).toInt();
-    final newText = text.replaceRange(start, end, mentionText);
+    final replacement = _buildMentionReplacement(text, start, end, rawDisplay);
+    final newText = text.replaceRange(start, end, replacement);
     controller.messageController.value = TextEditingValue(
       text: newText,
-      selection: TextSelection.collapsed(offset: start + mentionText.length),
+      selection: TextSelection.collapsed(offset: start + replacement.length),
     );
     _hideMentionPanel();
+  }
+
+  String _buildMentionReplacement(String text, int start, int end, String rawDisplay) {
+    final mentionText = '@[$rawDisplay]';
+    final needsLeadingSpace = start > 0 && !RegExp(r'\s').hasMatch(text[start - 1]);
+
+    final buffer = StringBuffer();
+    if (needsLeadingSpace) buffer.write(' ');
+    buffer.write(mentionText);
+    buffer.write(' ');
+    return buffer.toString();
+  }
+
+  String _normalizeMentionSpacing(String text) {
+    final normalized = text.replaceAllMapped(
+      RegExp(r'(\@\[[^\]]+\])(?=\S)'),
+      (match) => '${match.group(1)} ',
+    );
+    return normalized.replaceAllMapped(
+      RegExp(r'(\@\[[^\]]+\])\s+(?=\@\[)'),
+      (match) => '${match.group(1)} ',
+    );
   }
 
   void _showMentionPanel() {
@@ -3806,8 +3874,8 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
                     final replySenderId = _extractMessageSenderId(message);
                     final shouldAutoMention = parentReplyId.isNotEmpty && replySenderId != null && replySenderId != currentUserId;
                     if (shouldAutoMention) {
-                      final senderName = message['sender_name']?.toString() ?? 'Unknown';
-                      final mentionText = '@$senderName ';
+                      final senderName = message['sender_name']?.toString().trim() ?? 'Unknown';
+                      final mentionText = '@[$senderName] ';
                       final currentText = controller.messageController.text;
                       controller.messageController.value = TextEditingValue(
                         text: mentionText + currentText,
@@ -3866,7 +3934,9 @@ class _NewGroupChatScreenState extends State<NewGroupChatScreen> {
       textCancel: 'Cancel',
       confirmTextColor: Colors.white,
       onConfirm: () async {
-        Get.back();
+        if (Get.isDialogOpen == true && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
         await blockMember(userId: int.parse(userId), threadId: widget.thread_id);
       },
     );
@@ -4175,7 +4245,9 @@ class MediaGalleryScreen extends StatelessWidget {
         appBar: AppBar(
           leading: GestureDetector(
               onTap: () {
-                Get.back();
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                }
               },
               child: Icon(Icons.arrow_back_ios, color: Colors.white)),
           automaticallyImplyLeading: false,

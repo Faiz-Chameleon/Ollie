@@ -56,6 +56,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Au
     storage.remove(_backgroundAtStorageKey);
   }
 
+  void _showSnackBar(String title, String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('$title: $message'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   void _showJoinRequestDialog(int groupId, String groupTitle) {
     Get.dialog(
       AlertDialog(
@@ -269,30 +281,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Au
                                 _showJoinRequestDialog(selectedGroup.id, selectedGroup.title);
                                 return;
                               } else {
-                                Get.snackbar(
-                                  'Error',
-                                  'Unable to verify private group access. Please try again.',
-                                  backgroundColor: Colors.white,
-                                  colorText: Colors.black,
-                                );
+                                _showSnackBar('Error', 'Unable to verify private group access. Please try again.');
                                 return;
                               }
                             }
 
                             if (!isAuthor && !isPrivateGroup) {
                               final joined = await controller.groupController.joinGroupIfNeeded(selectedGroup.id);
-                              if (!joined) return;
+                              if (!joined) {
+                                final cooldownUntil = controller.groupController.joinCooldownUntil.value;
+                                if (cooldownUntil != null && DateTime.now().isBefore(cooldownUntil)) {
+                                  _showSnackBar(
+                                    'Please wait',
+                                    'Too many attempts. Try again in ${cooldownUntil.difference(DateTime.now()).inSeconds.clamp(1, 30)} seconds.',
+                                  );
+                                }
+                                return;
+                              }
                             }
                             String threadId = selectedGroup.thread_id;
                             if (threadId.isEmpty) {
                               final resolvedThreadId = await controller.ensureThreadIdForGroup(selectedGroup);
                               if (resolvedThreadId == null || resolvedThreadId.isEmpty) {
-                                Get.snackbar(
-                                  'Error',
-                                  'Unable to open chat for this group. Please try again later.',
-                                  backgroundColor: Colors.white,
-                                  colorText: Colors.black,
-                                );
+                                _showSnackBar('Error', 'Unable to open chat for this group. Please try again later.');
                                 return;
                               }
                               threadId = resolvedThreadId;

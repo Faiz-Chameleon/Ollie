@@ -654,7 +654,11 @@ class OtherUserProfileScreen extends StatelessWidget {
         backgroundColor: appBgColor,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Get.back(),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+          },
         ),
         title: Obx(() => controller.profileData.value?.success?.user?.name! == "Admin"
             ? Text("Octagon's profile", style: whiteColor20BoldTextStyle)
@@ -1046,7 +1050,9 @@ class OtherUserProfileScreen extends StatelessWidget {
                     onTap: () {
                       controller.isReported.value = true;
                       controller.blockUnblockUser(true);
-                      Get.back();
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      }
                     },
                   ))
               .toList(),
